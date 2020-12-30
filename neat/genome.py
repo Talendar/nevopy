@@ -2,8 +2,8 @@
 todo
 """
 
-from neat.genes import *
-import neat.activations as activations
+from genes import *
+import activations as activations
 
 import numpy as np
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
