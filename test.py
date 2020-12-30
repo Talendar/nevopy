@@ -2,7 +2,7 @@
 todo
 """
 
-import neat.genome
+import nevopy.neat
 from multiprocessing import Lock
 
 
@@ -59,9 +59,9 @@ class IdHandler:
 
 
 if __name__ == "__main__":
-    g = neat.genome.Genome(num_inputs=4,
-                           num_outputs=2,
-                           id_handler=IdHandler(4 + 2 + 1))
+    g = nevopy.neat.genome.Genome(num_inputs=4,
+                                  num_outputs=2,
+                                  id_handler=IdHandler(4 + 2 + 1))
     g.add_hidden_node()
     g.add_hidden_node()
     g.add_hidden_node()
