@@ -1,2 +1,1 @@
-# nevo-py
- Neuroevolution framework for Python. 
+ Neuroevolution framework for Python. Work in progress.
