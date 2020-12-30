@@ -66,4 +66,4 @@ if __name__ == "__main__":
     g.add_hidden_node()
     g.add_hidden_node()
     g.add_hidden_node()
-    g.visualize()
+    g.visualize(figsize=(10, 6))
