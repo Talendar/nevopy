@@ -4,7 +4,7 @@ todo
 
 
 from enum import Enum
-from neat.activations import linear
+import activations
 
 
 class NodeGene:
@@ -17,7 +17,7 @@ class NodeGene:
     def __init__(self,
                  node_id,
                  node_type,
-                 activation_func=linear,
+                 activation_func=activations.linear,
                  initial_activation=0):
         """
         todo
