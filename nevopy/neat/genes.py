@@ -73,7 +73,7 @@ class ConnectionGene:
         self._id = inov_id
         self._from_node = from_node
         self._to_node = to_node
-        self._weight = weight
+        self.weight = weight
         self.enabled = True
 
     @property
@@ -87,10 +87,6 @@ class ConnectionGene:
     @property
     def to_node(self):
         return self._to_node
-
-    @property
-    def weight(self):
-        return self._weight
 
 
 def connection_exists(src_node, dest_node):

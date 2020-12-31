@@ -7,6 +7,7 @@ np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 import nevopy.activations as activations
 from nevopy.neat.genes import *
+from nevopy.math import chance
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -82,26 +83,47 @@ class Genome:
         :param weight: weight of the connection; if "random", a random weight within the given interval is chosen.
         :param rdm_weight_interval: interval that contains the random chosen weight; this parameter is ignored if you
         pass a pre-defined weight as argument.
-        :return: False if the connection couldn't be added (because it already exists) or True if the connection was
-        successfully added.
+        :raise ConnectionExistsError: if the connection already exists.
+        :raise ConnectionToBiasNodeError: if the destination node is a bias node.
         """
         if connection_exists(src_node, dest_node):
-            return False
-
+            raise ConnectionExistsError(f"Attempt to create an already existing connection "
+                                        f"({src_node.id}->{dest_node.id}).")
+        if dest_node.type == NodeGene.Type.BIAS:
+            raise ConnectionToBiasNodeError(f"Attempt to create a connection pointing to a bias node "
+                                            f"({src_node.id}->{dest_node.id}). Nodes of this type don't process input.")
         connection = ConnectionGene(inov_id=self._id_handler.connection_id(src_node.id, dest_node.id),
                                     from_node=src_node, to_node=dest_node,
                                     weight=np.random.uniform(*rdm_weight_interval) if weight == "random" else weight)
-
         self._connections.append(connection)
         src_node.out_connections.append(connection)
         dest_node.in_connections.append(connection)
-        return True
 
-    def add_random_connection(self):
-        pass
+    def add_random_connection(self, allow_self_connections=True):
+        """ Adds a new connection between two nodes in the genome.
+
+        :param allow_self_connections: if True, a node is allowed to connect to itself (recurrent connection).
+        :return: a tuple containing the source node and the destination node of the connection if a new connection was
+        successfully created; None if there was no space for a new connection.
+        """
+        all_src_nodes = self.nodes()
+        np.random.shuffle(all_src_nodes)
+
+        all_dest_nodes = [n for n in all_src_nodes if n.type != NodeGene.Type.BIAS]  # removing bias nodes from dest
+        np.random.shuffle(all_dest_nodes)
+
+        for src_node in all_src_nodes:
+            for dest_node in all_dest_nodes:
+                if src_node != dest_node or allow_self_connections:
+                    try:
+                        self.add_connection(src_node, dest_node)
+                        return src_node, dest_node
+                    except ConnectionExistsError:
+                        pass
+        return None
 
     def add_hidden_node(self):
-        """ Adds a new hidden node to the genome.
+        """ Adds a new hidden node to the genome in a random position.
 
         This method implements the "add node mutation" procedure described in the original NEAT paper.
 
@@ -109,6 +131,8 @@ class Genome:
         is disabled and two new connections are added to the genome. The new connection leading into the new node
         receives a weight of 1, and the new connection leading out receives the same weight as the old connection."
         - Stanley, K. O. & Miikkulainen, R. (2002)
+
+        :return: the newly created node.
         """
         original_connection = np.random.choice([c for c in self._connections if c.enabled])
         original_connection.enabled = False
@@ -120,6 +144,28 @@ class Genome:
         self._hidden_nodes.append(new_node)
         self.add_connection(src_node, new_node, weight=1)
         self.add_connection(new_node, dest_node, weight=original_connection.weight)
+        return new_node
+
+    def mutate_weights(self,
+                       mutation_chance=0.8,
+                       perturbation_pc=0.1,
+                       reset_chance=0.1,
+                       reset_weight_interval=(-1, 1)):
+        """
+        Randomly mutates the weights of the encoded network's connections.
+
+        :param mutation_chance: chance of mutating a connection.
+        :param perturbation_pc: defines the maximum absolute percentage value for the perturbation of the weights.
+        :param reset_chance: chance to reset the weight of a connection (assign it a new random value).
+        :param reset_weight_interval: interval from which the reset weight new value will be drawn from.
+        """
+        for connection in self._connections:
+            if chance(mutation_chance):  # checking whether the weight will be mutated
+                if chance(reset_chance):  # checking whether the weight will be reset
+                    connection.weight = np.random.uniform(*reset_weight_interval)
+                else:
+                    d = connection.weight * np.random.uniform(low=-perturbation_pc, high=perturbation_pc)
+                    connection.weight += d
 
     def _process_node(self, n):
         """ Recursively processes the activation of the given node.
@@ -137,10 +183,9 @@ class Genome:
             zsum = 0
             for connection in n.in_connections:
                 if connection.enabled:
-                    in_node, weight = connection.from_node, connection.weight
-                    zsum += weight * self._process_node(in_node)
+                    src_node, weight = connection.from_node, connection.weight
+                    zsum += weight * self._process_node(src_node)
             n.activate(zsum)
-
         return n.activation
 
     def process(self, X):
@@ -150,6 +195,7 @@ class Genome:
         :return: numpy array with the activations of the output nodes/neurons.
         """
         # preparing input nodes
+        assert len(X) == len(self._input_nodes), "The input size must match the number of input nodes in the network!"
         for n, x in zip(self._input_nodes, X):
             n.activate(x)
 
@@ -175,11 +221,9 @@ class Genome:
         txt = ">> NODES ACTIVATIONS\n"
         for n in self.nodes():
             txt += f"[{n.id}][{str(n.type).split('.')[1][0]}] {n.activation}\n"
-
         txt += "\n>> CONNECTIONS\n"
         for c in self._connections:
             txt += f"[{'ON' if c.enabled else 'OFF'}][{c.from_node.id}->{c.to_node.id}] {c.weight}\n"
-
         return txt
 
     def visualize(self,
@@ -222,36 +266,36 @@ class Genome:
         assert show or save_to is not None
         plt.rcParams['axes.facecolor'] = background_color
 
-        graph = nx.DiGraph()
-        graph.add_nodes_from([n.id for n in self.nodes()])
+        G = nx.MultiDiGraph()
+        G.add_nodes_from([n.id for n in self.nodes()])
         plt.figure(figsize=figsize)
 
         # connections
         for c in self._connections:
             if c.enabled:
-                graph.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
+                G.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
 
         # calculating edge colors
-        edges_weights = list(nx.get_edge_attributes(graph, "weight").values())
+        edges_weights = list(nx.get_edge_attributes(G, "weight").values())
         min_w, max_w = np.min(edges_weights), np.max(edges_weights)
         edges_colors = [(1, 0.6*(1 - (w - min_w) / (max_w - min_w)), 0, 0.3 + 0.7*(w - min_w) / (max_w - min_w))
                         for w in edges_weights]
 
         # plotting
-        pos = graphviz_layout(graph, prog='dot', args="-Grankdir=LR")
-        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._input_nodes],
+        pos = graphviz_layout(G, prog='dot', args="-Grankdir=LR")
+        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self._input_nodes],
                                node_color=input_color, label='Input nodes')
-        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._output_nodes],
+        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self._output_nodes],
                                node_color=output_color, label='Output nodes')
-        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._hidden_nodes],
+        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self._hidden_nodes],
                                node_color=hidden_color, label='Hidden nodes')
         if self._bias_node is not None:
-            nx.draw_networkx_nodes(graph, pos=pos, nodelist=[self._bias_node.id],
+            nx.draw_networkx_nodes(G, pos=pos, nodelist=[self._bias_node.id],
                                    node_color=bias_color, label='Bias node')
 
-        nx.draw_networkx_edges(graph, pos=pos, edge_color=edges_colors)
+        nx.draw_networkx_edges(G, pos=pos, edge_color=edges_colors)
         if nodes_ids:
-            nx.draw_networkx_labels(graph, pos, labels={k.id: k.id for k in self.nodes()}, font_size=10,
+            nx.draw_networkx_labels(G, pos, labels={k.id: k.id for k in self.nodes()}, font_size=10,
                                     font_color=node_id_color, font_family='sans-serif')
         if legends:
             plt.legend(facecolor=legend_box_color, borderpad=0.8, labelspacing=0.5)
@@ -262,3 +306,15 @@ class Genome:
 
         if show:
             plt.show()
+
+
+class ConnectionExistsError(Exception):
+    """ Exception which indicates that a connection between two given nodes already exists. """
+    pass
+
+
+class ConnectionToBiasNodeError(Exception):
+    """
+    Exception which indicates that an attempt has been made to create a connection containing a bias node as  destination.
+    """
+    pass

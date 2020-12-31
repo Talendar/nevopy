@@ -61,13 +61,24 @@ class IdHandler:
 
 
 if __name__ == "__main__":
-    g = nevopy.neat.genome.Genome(num_inputs=5,
-                                  num_outputs=2,
+    g = nevopy.neat.genome.Genome(num_inputs=2,
+                                  num_outputs=1,
                                   id_handler=IdHandler(5 + 2 + 1))
-    for _ in range(10):
-        print("\n====================================\n")
-        print(f"\nOUTPUT: {g.process(np.array([1, 1]))}\n")
-        print(g.info())
-        g.add_hidden_node()
 
-    g.visualize(save_to="./img.png")
+    """for i in range(16):
+        c = np.random.choice([True, False])
+        if c:
+            con = g.add_random_connection()
+            print(f"New connection: {[n.id for n in con]}")
+        else:
+            print(f"New hidden node: {g.add_hidden_node().id}")
+        g.visualize()
+
+    print("\n====================================\n")
+    print(f"\nOUTPUT: {g.process(np.array([0, 1, 0, 1, 1]))}\n")"""
+
+    print(g.info())
+    for _ in range(20):
+        print("\n====================================\n")
+        g.mutate_weights()
+        print(g.info())
