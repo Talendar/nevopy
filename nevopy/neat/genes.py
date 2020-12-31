@@ -4,7 +4,7 @@ todo
 
 
 from enum import Enum
-from nevopy.neat.activations import linear
+from nevopy.activations import linear
 
 
 class NodeGene:
@@ -32,6 +32,7 @@ class NodeGene:
         self._activation = initial_activation
         self._function = activation_func
         self.in_connections = []
+        self.out_connections = []
 
     class Type(Enum):
         """ Specifies the possible types of node genes. """

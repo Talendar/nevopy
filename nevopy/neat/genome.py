@@ -5,7 +5,7 @@ todo
 import numpy as np
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
-import nevopy.neat.activations as activations
+import nevopy.activations as activations
 from nevopy.neat.genes import *
 
 import matplotlib.pyplot as plt
@@ -74,12 +74,14 @@ class Genome:
             for in_node in self._input_nodes:
                 self.add_connection(in_node, out_node)
 
-    def add_connection(self, src_node, dest_node, weight=None):
+    def add_connection(self, src_node, dest_node, weight="random", rdm_weight_interval=(-1, 1)):
         """ Adds a new connection between the two given nodes.
 
         :param src_node: source node (where the connection is coming from).
         :param dest_node: destination node (where the connection is headed to)
-        :param weight: weight of the connection; if None, a random weight between -1 and 1 is chosen.
+        :param weight: weight of the connection; if "random", a random weight within the given interval is chosen.
+        :param rdm_weight_interval: interval that contains the random chosen weight; this parameter is ignored if you
+        pass a pre-defined weight as argument.
         :return: False if the connection couldn't be added (because it already exists) or True if the connection was
         successfully added.
         """
@@ -88,10 +90,15 @@ class Genome:
 
         connection = ConnectionGene(inov_id=self._id_handler.connection_id(src_node.id, dest_node.id),
                                     from_node=src_node, to_node=dest_node,
-                                    weight=np.random.uniform(-1, 1) if weight is None else weight)  # todo: custom interval (maybe add a parameter?)
+                                    weight=np.random.uniform(*rdm_weight_interval) if weight == "random" else weight)
+
         self._connections.append(connection)
+        src_node.out_connections.append(connection)
         dest_node.in_connections.append(connection)
         return True
+
+    def add_random_connection(self):
+        pass
 
     def add_hidden_node(self):
         """ Adds a new hidden node to the genome.
@@ -157,9 +164,35 @@ class Genome:
 
         return h
 
+    def nodes(self):
+        """ Returns all the genome's nodes genes. Order: inputs, bias, outputs and hiddens. """
+        return self._input_nodes + \
+            ([self._bias_node] if self._bias_node is not None else []) + \
+            self._output_nodes + \
+            self._hidden_nodes
+
+    def info(self):
+        txt = ">> NODES ACTIVATIONS\n"
+        for n in self.nodes():
+            txt += f"[{n.id}][{str(n.type).split('.')[1][0]}] {n.activation}\n"
+
+        txt += "\n>> CONNECTIONS\n"
+        for c in self._connections:
+            txt += f"[{'ON' if c.enabled else 'OFF'}][{c.from_node.id}->{c.to_node.id}] {c.weight}\n"
+
+        return txt
+
     def visualize(self,
-                  figsize=(12, 8),
-                  show_node_id=True,
+                  show=True,
+                  save_to=None,
+                  save_transparent=False,
+                  figsize=(10, 6),
+                  pad=1,
+                  legends=True,
+                  nodes_ids=True,
+                  node_id_color="black",
+                  background_color="snow",
+                  legend_box_color="honeydew",
                   input_color="deepskyblue",
                   output_color="mediumseagreen",
                   hidden_color="silver",
@@ -167,36 +200,36 @@ class Genome:
         """
         Plots the neural network (phenotype) encoded by the genome.
 
+        For the colors parameters, it's possible to pass a string with the color HEX value or a string with the color's
+        name (names available here: https://matplotlib.org/3.1.0/gallery/color/named_colors.html).
+
+        :param show: whether to show the image or not.
+        :param save_to: path to save the image.
+        :param save_transparent: if True, the saved image will have a transparent background.
         :param figsize: size of the matplotlib figure.
-        :param show_node_id: if True, the nodes will have their id drawn inside them.
+        :param pad: the image's padding (distance between the figure and the image's border).
+        :param legends: if True, a box with legends describing the nodes colors will be drawn.
+        :param nodes_ids: if True, the nodes will have their ID drawn inside them.
+        :param node_id_color: color for nodes id.
+        :param background_color: color for the plot's background.
+        :param legend_box_color: color for the legends box.
         :param input_color: color for the input nodes.
         :param output_color: color for the output nodes.
         :param hidden_color: color for the hidden nodes.
         :param bias_color: color for the bias node.
         :return:
         """
+        assert show or save_to is not None
+        plt.rcParams['axes.facecolor'] = background_color
+
         graph = nx.DiGraph()
+        graph.add_nodes_from([n.id for n in self.nodes()])
         plt.figure(figsize=figsize)
-        nodes_colors = []
 
-        # input nodes
-        for i, in_node in enumerate(self._input_nodes):
-            graph.add_node(in_node.id)
-            nodes_colors.append(input_color)
-
-        # bias node
-        if self._bias_node is not None:
-            graph.add_node(self._bias_node.id)
-            nodes_colors.append(bias_color)
-
-        # output nodes
-        for i, out_node in enumerate(self._output_nodes):
-            graph.add_node(out_node.id)
-            nodes_colors.append(output_color)
-
-        # connections and hidden nodes
+        # connections
         for c in self._connections:
-            graph.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
+            if c.enabled:
+                graph.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
 
         # calculating edge colors
         edges_weights = list(nx.get_edge_attributes(graph, "weight").values())
@@ -206,7 +239,26 @@ class Genome:
 
         # plotting
         pos = graphviz_layout(graph, prog='dot', args="-Grankdir=LR")
-        nodes_colors += [hidden_color] * len(self._hidden_nodes)
+        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._input_nodes],
+                               node_color=input_color, label='Input nodes')
+        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._output_nodes],
+                               node_color=output_color, label='Output nodes')
+        nx.draw_networkx_nodes(graph, pos=pos, nodelist=[n.id for n in self._hidden_nodes],
+                               node_color=hidden_color, label='Hidden nodes')
+        if self._bias_node is not None:
+            nx.draw_networkx_nodes(graph, pos=pos, nodelist=[self._bias_node.id],
+                                   node_color=bias_color, label='Bias node')
 
-        nx.draw(graph, with_labels=show_node_id, pos=pos, node_color=nodes_colors, edge_color=edges_colors)
-        plt.show()
+        nx.draw_networkx_edges(graph, pos=pos, edge_color=edges_colors)
+        if nodes_ids:
+            nx.draw_networkx_labels(graph, pos, labels={k.id: k.id for k in self.nodes()}, font_size=10,
+                                    font_color=node_id_color, font_family='sans-serif')
+        if legends:
+            plt.legend(facecolor=legend_box_color, borderpad=0.8, labelspacing=0.5)
+
+        plt.tight_layout(pad=pad)
+        if save_to is not None:
+            plt.savefig(save_to, transparent=save_transparent)
+
+        if show:
+            plt.show()

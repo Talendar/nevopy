@@ -5,6 +5,7 @@ todo
 
 import nevopy.neat
 from multiprocessing import Lock
+import numpy as np
 
 
 # todo: move this class to the appropriate module
@@ -60,11 +61,13 @@ class IdHandler:
 
 
 if __name__ == "__main__":
-    g = nevopy.neat.genome.Genome(num_inputs=4,
+    g = nevopy.neat.genome.Genome(num_inputs=5,
                                   num_outputs=2,
-                                  id_handler=IdHandler(4 + 2 + 1))
-    g.add_hidden_node()
-    g.add_hidden_node()
-    g.add_hidden_node()
-    g.add_hidden_node()
-    g.visualize(figsize=(10, 6))
+                                  id_handler=IdHandler(5 + 2 + 1))
+    for _ in range(10):
+        print("\n====================================\n")
+        print(f"\nOUTPUT: {g.process(np.array([1, 1]))}\n")
+        print(g.info())
+        g.add_hidden_node()
+
+    g.visualize(save_to="./img.png")
