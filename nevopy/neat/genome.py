@@ -39,6 +39,7 @@ class Genome:
         :param bias:
         """
         self._id_handler = id_handler
+        self.fitness = 0
 
         self._input_nodes = []
         self._hidden_nodes = []
@@ -46,6 +47,7 @@ class Genome:
         self._bias_node = None
 
         self._connections = []
+        self._output_activation = out_activation
         self._hidden_activation = hidden_activation
         self._activated_nodes = None
 
@@ -74,6 +76,16 @@ class Genome:
             # connecting all input nodes to all output nodes
             for in_node in self._input_nodes:
                 self.add_connection(in_node, out_node)
+
+    @property
+    def args(self):
+        """ Returns the arguments to be used when instantiating a new genome based on this one."""
+        return {"num_inputs": len(self._input_nodes),
+                "num_outputs": len(self._output_nodes),
+                "id_handler": self._id_handler,
+                "out_activation": self._output_activation,
+                "hidden_activation": self._hidden_activation,
+                "bias": self._bias_node.activation}
 
     def add_connection(self, src_node, dest_node, weight="random", rdm_weight_interval=(-1, 1)):
         """ Adds a new connection between the two given nodes.
@@ -122,7 +134,7 @@ class Genome:
                         pass
         return None
 
-    def add_hidden_node(self):
+    def add_random_hidden_node(self):
         """ Adds a new hidden node to the genome in a random position.
 
         This method implements the "add node mutation" procedure described in the original NEAT paper.
@@ -306,6 +318,35 @@ class Genome:
 
         if show:
             plt.show()
+
+    # noinspection PyProtectedMember
+    @staticmethod
+    def mate_genomes(gen1, gen2):
+        """ todo
+
+        :param gen1:
+        :param gen2:
+        :return:
+        """
+        # make gen1 point to the genome with the highest fitness
+        if gen1.fitness < gen2.fitness:
+            gen1, gen2 = gen2, gen1
+
+        # sorting connections by their id
+        prim_con = sorted(gen1._connections, key=lambda c: c.id)
+        sec_con = sorted(gen2._connections, key=lambda c: c.id)
+
+        # new genome
+        new_gen = Genome(**gen1.args)
+
+        # mate
+        i = 0
+        for c1 in prim_con:
+            while sec_con[i].id < c1.id:
+                i += 1
+            c2 = sec_con[i]
+            chosen_c = c1 if c1.id != c2.id else np.random.choice((c1, c2))
+            # todo: add nodes (if needed) and add the new connection between them
 
 
 class ConnectionExistsError(Exception):

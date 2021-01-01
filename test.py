@@ -71,7 +71,7 @@ if __name__ == "__main__":
             con = g.add_random_connection()
             print(f"New connection: {[n.id for n in con]}")
         else:
-            print(f"New hidden node: {g.add_hidden_node().id}")
+            print(f"New hidden node: {g.add_random_hidden_node().id}")
         g.visualize()
 
     print("\n====================================\n")
