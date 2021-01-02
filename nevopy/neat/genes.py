@@ -54,6 +54,10 @@ class NodeGene:
         """ Applies the node's activation function to the given input, updating the node's activation (output). """
         self._activation = self._function(x)
 
+    def shallow_copy(self):
+        """ Creates a new node equal to this one except for the connections. """
+        return NodeGene(self._id, self._type, self._function, self._activation)
+
 
 class ConnectionGene:
     """ Represents the connection/link between two node genes.
@@ -62,7 +66,7 @@ class ConnectionGene:
         todo
     """
 
-    def __init__(self, inov_id, from_node, to_node, weight):
+    def __init__(self, inov_id, from_node, to_node, weight, enabled=True):
         """ todo
 
         :param inov_id:
@@ -74,7 +78,7 @@ class ConnectionGene:
         self._from_node = from_node
         self._to_node = to_node
         self.weight = weight
-        self.enabled = True
+        self.enabled = enabled
 
     @property
     def id(self):
@@ -100,3 +104,23 @@ def connection_exists(src_node, dest_node):
         if connection.from_node.id == src_node.id:
             return True
     return False
+
+
+def align_connections(con_list1, con_list2, print_alignment=False):
+    """ Aligns the connection genes on both lists. Disjunctions and excesses are filled with None. """
+    con_dict1 = {c.id: c for c in con_list1}
+    con_dict2 = {c.id: c for c in con_list2}
+    union = sorted(set(con_dict1.keys()) | set(con_dict2.keys()))
+
+    aligned1, aligned2 = [], []
+    for cid in union:
+        aligned1.append(con_dict1[cid] if cid in con_dict1 else None)
+        aligned2.append(con_dict2[cid] if cid in con_dict2 else None)
+
+    # debug
+    if print_alignment:
+        for c1, c2 in zip(aligned1, aligned2):
+            print(c1.id if c1 is not None else "-", end=" | ")
+            print(c2.id if c2 is not None else "-")
+
+    return aligned1, aligned2
