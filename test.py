@@ -71,28 +71,39 @@ xor_outputs = [0, 1, 1, 0]
 
 
 def eval_genome(genome, log=False):
-    genome.fitness = 4.0
-    for xi, xo in zip(xor_inputs, xor_outputs):
-        output = genome.process(xi)
-        genome.fitness -= (output[0] - xo) ** 2
+    genome.reset_activations()
+    error = 0
+    for x, y in zip(xor_inputs, xor_outputs):
+        h = genome.process(x)[0]
+        error += (y - h) ** 2
         if log:
-            print(output[0], xo)
+            print(f"IN: {x}  |  OUT: {h}  |  TARGET: {y}")
+    if log:
+        print(f"\nError: {error}")
+    return 1/error
 
 
 if __name__ == "__main__":
     id_handler = IdHandler(2 + 1 + 1)
-    pop_size = 200
+    pop_size = 250
     pop = [nevopy.neat.genome.Genome(num_inputs=2, num_outputs=1, id_handler=id_handler) for _ in range(pop_size)]
 
-    for _ in range(50):
+    for _ in range(200):
         id_handler.reset()
+
         # eval fitness
         for genome in pop:
-            eval_genome(genome)
+            genome.fitness = eval_genome(genome)
 
-        pop = sorted(pop, key=lambda g: g.fitness)
-        elite = pop[0]
-        print(elite.fitness, end="\n\n")
+        fitness = [g.fitness for g in pop]
+        elite = pop[np.argmax(fitness)]
+        print(f"Generation: {_}/{200}\n")
+        print(f"Best fitness: {elite.fitness}")
+        print(f"Mean fitness: {np.mean(fitness)}\n")
+
+        print("Predictions/outputs:")
+        eval_genome(elite, log=True)
+        print("\n" + "#"*25 + "\n")
 
         pop = [elite]
         for i in range(pop_size - 1):
@@ -101,7 +112,7 @@ if __name__ == "__main__":
                 baby.add_random_hidden_node()
             if nevopy.utils.chance(0.2):
                 baby.add_random_connection()
-            if nevopy.utils.chance(0.35):
+            if nevopy.utils.chance(0.32):
                 dis_c = [c for c in baby._connections if not c.enabled]
                 if dis_c:
                     c = np.random.choice([c for c in baby._connections if not c.enabled])
@@ -112,3 +123,5 @@ if __name__ == "__main__":
     print(winner.info())
     eval_genome(winner, log=True)
     winner.visualize()
+
+

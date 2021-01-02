@@ -29,6 +29,7 @@ class NodeGene:
         """
         self._id = node_id
         self._type = node_type
+        self._initial_activation = initial_activation
         self._activation = initial_activation
         self._function = activation_func
         self.in_connections = []
@@ -57,6 +58,10 @@ class NodeGene:
     def shallow_copy(self):
         """ Creates a new node equal to this one except for the connections. """
         return NodeGene(self._id, self._type, self._function, self._activation)
+
+    def reset_activation(self):
+        """ Resets the node's activation to its initial value. """
+        self._activation = self._initial_activation
 
 
 class ConnectionGene:

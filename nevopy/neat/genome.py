@@ -133,6 +133,11 @@ class Genome:
                         pass
         return None
 
+    def reset_activations(self):
+        """ Resets the activations of all the genome's nodes to their initial values. """
+        for n in self.nodes():
+            n.reset_activation()
+
     def activate_random_connection(self):
         pass  # todo
 
