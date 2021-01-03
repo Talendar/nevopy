@@ -17,8 +17,8 @@ class NodeGene:
     def __init__(self,
                  node_id,
                  node_type,
-                 activation_func=linear,
-                 initial_activation=0):
+                 activation_func,
+                 initial_activation):
         """
         todo
 
@@ -57,7 +57,10 @@ class NodeGene:
 
     def shallow_copy(self):
         """ Creates a new node equal to this one except for the connections. """
-        return NodeGene(self._id, self._type, self._function, self._activation)
+        return NodeGene(node_id=self._id,
+                        node_type=self._type,
+                        activation_func=self._function,
+                        initial_activation=self._initial_activation)
 
     def reset_activation(self):
         """ Resets the node's activation to its initial value. """

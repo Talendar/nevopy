@@ -17,60 +17,64 @@ from networkx.drawing.nx_agraph import graphviz_layout
 class Genome:
     """ Linear representation of a neural network's connectivity.
 
-    Attributes:
-        todo
+    todo
     """
 
     def __init__(self,
                  num_inputs,
                  num_outputs,
                  id_handler,
-                 initial_connections=True,
-                 out_activation=activations.steepened_sigmoid,
-                 hidden_activation=activations.steepened_sigmoid,
-                 bias=1):
+                 config,
+                 genome_id=None,
+                 initial_connections=True):
         """
         todo
 
         :param num_inputs:
         :param num_outputs:
         :param id_handler:
-        :param out_activation:
-        :param hidden_activation:
-        :param bias:
         """
         self._id_handler = id_handler
+        self.config = config
+        self._id = genome_id if genome_id is not None else id_handler.genome_id()
+        self.species_id = None
+
         self.fitness = 0
+        self.adj_fitness = 0
 
         self._input_nodes = []
         self._hidden_nodes = []
         self._output_nodes = []
         self._bias_node = None
 
-        self._connections = []
-        self._output_activation = out_activation
-        self._hidden_activation = hidden_activation
+        self.connections = []
+        self._output_activation = self.config.out_nodes_activation
+        self._hidden_activation = self.config.hidden_nodes_activation
         self._activated_nodes = None
 
         # init input nodes
         node_counter = 0
         for _ in range(num_inputs):
             self._input_nodes.append(NodeGene(node_id=node_counter,
-                                              node_type=NodeGene.Type.INPUT))
+                                              node_type=NodeGene.Type.INPUT,
+                                              activation_func=activations.linear,
+                                              initial_activation=self.config.initial_node_activation))
             node_counter += 1
 
         # init bias node
-        if bias is not None:
+        if self.config.bias_value is not None:
             self._bias_node = NodeGene(node_id=node_counter,
                                        node_type=NodeGene.Type.BIAS,
-                                       initial_activation=bias)
+                                       activation_func=activations.linear,
+                                       initial_activation=self.config.bias_value)
             node_counter += 1
 
         # init output nodes
         for _ in range(num_outputs):
             out_node = NodeGene(node_id=node_counter,
                                 node_type=NodeGene.Type.OUTPUT,
-                                activation_func=out_activation)
+                                activation_func=self._output_activation,
+                                initial_activation=self.config.initial_node_activation)
             self._output_nodes.append(out_node)
             node_counter += 1
 
@@ -79,7 +83,50 @@ class Genome:
                 for in_node in self._input_nodes:
                     self.add_connection(in_node, out_node)
 
-    def add_connection(self, src_node, dest_node, enabled=True, cid=None, weight=None, rdm_weight_interval=(-1, 1)):
+    @property
+    def id(self):
+        return self._id
+
+    """def __hash__(self):
+        return hash(self._id)
+
+    def __eq__(self, other):
+        if isinstance(other, Genome):
+            return self._id == other._id
+        return NotImplemented"""
+
+    def distance(self, other):
+        """
+        Calculates and returns the distance between two genomes (the lower the distance, the higher the compatibility
+        between the genomes).
+
+        The formula used is the one presented in the original NEAT paper:
+            distance = (c1 * E / N) + (c2 * D / N) + c3 * W
+        """
+        genes = align_connections(self.connections, other.connections)
+        excess = disjoint = weight_diff = num_matches = 0
+
+        g1_max_innov = np.amax([c.id for c in self.connections])
+        g2_max_innov = np.amax([c.id for c in other.connections])
+
+        for c1, c2 in zip(*genes):
+            # non-matching genes:
+            if c1 is None or c2 is None:
+                if (c1 is None and c2.id > g1_max_innov) or (c2 is None and c1.id > g2_max_innov):
+                    excess += 1
+                else:
+                    disjoint += 1
+            # matching genes:
+            else:
+                num_matches += 1
+                weight_diff += abs(c1.weight - c2.weight)
+
+        c1, c2 = self.config.excess_genes_coefficient, self.config.disjoint_genes_coefficient
+        c3 = self.config.weight_difference_coefficient
+        n = max(len(self.connections), len(other.connections))
+        return ((c1 * excess + c2 * disjoint) / n) + c3 * weight_diff / num_matches
+
+    def add_connection(self, src_node, dest_node, enabled=True, cid=None, weight=None):
         """ Adds a new connection between the two given nodes.
 
         :param src_node: source node (where the connection is coming from).
@@ -87,8 +134,6 @@ class Genome:
         :param enabled: whether the connection should start enabled or not.
         :param cid: the id (int)  of the new connection; if None, a new id will be chosen by the id handler.
         :param weight: weight of the connection; if None, a random weight within the given interval is chosen.
-        :param rdm_weight_interval: interval that contains the random chosen weight; this parameter is ignored if you
-        pass a pre-defined weight as argument.
         :raise ConnectionExistsError: if the connection already exists.
         :raise ConnectionToBiasNodeError: if the destination node is a bias node.
         """
@@ -96,36 +141,35 @@ class Genome:
             # print(f"\n{[(c.from_node.id, c.to_node.id) for c in self._connections]}\n")
             raise ConnectionExistsError(f"Attempt to create an already existing connection "
                                         f"({src_node.id}->{dest_node.id}).")
-        if dest_node.type == NodeGene.Type.BIAS:
-            raise ConnectionToBiasNodeError(f"Attempt to create a connection pointing to a bias node "
+        if dest_node.type == NodeGene.Type.BIAS or dest_node.type == NodeGene.Type.INPUT:
+            raise ConnectionToBiasNodeError(f"Attempt to create a connection pointing to a bias or input node "
                                             f"({src_node.id}->{dest_node.id}). Nodes of this type don't process input.")
 
         connection = ConnectionGene(
             inov_id=self._id_handler.connection_id(src_node.id, dest_node.id) if cid is None else cid,
             from_node=src_node, to_node=dest_node,
-            weight=np.random.uniform(*rdm_weight_interval) if weight is None else weight)
+            weight=np.random.uniform(*self.config.new_weight_interval) if weight is None else weight)
 
         connection.enabled = enabled
-        self._connections.append(connection)
+        self.connections.append(connection)
         src_node.out_connections.append(connection)
         dest_node.in_connections.append(connection)
 
-    def add_random_connection(self, allow_self_connections=True):
+    def add_random_connection(self):
         """ Adds a new connection between two nodes in the genome.
 
-        :param allow_self_connections: if True, a node is allowed to connect to itself (recurrent connection).
         :return: a tuple containing the source node and the destination node of the connection if a new connection was
         successfully created; None if there was no space for a new connection.
         """
         all_src_nodes = self.nodes()
         np.random.shuffle(all_src_nodes)
 
-        all_dest_nodes = [n for n in all_src_nodes if n.type != NodeGene.Type.BIAS]  # removing bias nodes from dest
+        all_dest_nodes = [n for n in all_src_nodes if n.type != NodeGene.Type.BIAS and n.type != NodeGene.Type.INPUT]
         np.random.shuffle(all_dest_nodes)
 
         for src_node in all_src_nodes:
             for dest_node in all_dest_nodes:
-                if src_node != dest_node or allow_self_connections:
+                if src_node != dest_node or self.config.allow_self_connections:
                     try:
                         self.add_connection(src_node, dest_node)
                         return src_node, dest_node
@@ -138,8 +182,12 @@ class Genome:
         for n in self.nodes():
             n.reset_activation()
 
-    def activate_random_connection(self):
-        pass  # todo
+    def enable_random_connection(self):
+        """ Randomly enable a disabled connection gene. """
+        disabled = [c for c in self.connections if not c.enabled]
+        if len(disabled) > 0:
+            connection = np.random.choice(disabled)
+            connection.enabled = True
 
     def add_random_hidden_node(self):
         """ Adds a new hidden node to the genome in a random position.
@@ -153,51 +201,39 @@ class Genome:
 
         :return: the newly created node.
         """
-        original_connection = np.random.choice([c for c in self._connections if c.enabled])
+        original_connection = np.random.choice(self.connections)
         original_connection.enabled = False
 
         src_node, dest_node = original_connection.from_node, original_connection.to_node
         new_node = NodeGene(node_id=self._id_handler.hidden_node_id(src_node.id, dest_node.id),
                             node_type=NodeGene.Type.HIDDEN,
-                            activation_func=self._hidden_activation)
+                            activation_func=self._hidden_activation,
+                            initial_activation=self.config.initial_node_activation)
         self._hidden_nodes.append(new_node)
         self.add_connection(src_node, new_node, weight=1)
         self.add_connection(new_node, dest_node, weight=original_connection.weight)
         return new_node
 
-    def mutate_weights(self,
-                       mutation_chance=0.8,
-                       perturbation_pc=0.1,
-                       reset_chance=0.1,
-                       reset_weight_interval=(-1, 1)):
-        """
-        Randomly mutates the weights of the encoded network's connections.
-
-        :param mutation_chance: chance of mutating a connection.
-        :param perturbation_pc: defines the maximum absolute percentage value for the perturbation of the weights.
-        :param reset_chance: chance to reset the weight of a connection (assign it a new random value).
-        :param reset_weight_interval: interval from which the reset weight new value will be drawn from.
-        """
-        for connection in self._connections:
-            if utils.chance(mutation_chance):  # checking whether the weight will be mutated
-                if utils.chance(reset_chance):  # checking whether the weight will be reset
-                    connection.weight = np.random.uniform(*reset_weight_interval)
-                else:
-                    d = connection.weight * np.random.uniform(low=-perturbation_pc, high=perturbation_pc)
-                    connection.weight += d
+    def mutate_weights(self):
+        """ Randomly mutates the weights of the encoded network's connections. """
+        for connection in self.connections:
+            if utils.chance(self.config.weight_reset_chance):  # checking whether the weight will be reset
+                connection.weight = np.random.uniform(*self.config.new_weight_interval)
+            else:
+                d = connection.weight * np.random.uniform(
+                    low=-self.config.weight_perturbation_pc, high=self.config.weight_perturbation_pc)
+                connection.weight += d
 
     def shallow_copy(self):
-        """ Returns a copy of this genome without the hidden nodes and connections. """
+        """ Returns a copy of this genome without the hidden nodes and connections (the copy has a new ID). """
         return Genome(num_inputs=len(self._input_nodes), num_outputs=len(self._output_nodes),
-                      id_handler=self._id_handler, initial_connections=False,
-                      out_activation=self._output_activation, hidden_activation=self._hidden_activation,
-                      bias=self._bias_node.activation)
+                      id_handler=self._id_handler, config=self.config, initial_connections=False, genome_id=None)
 
     def deep_copy(self):
-        """ Returns an exact copy of this genome. """
+        """ Returns an exact copy of this genome (except for the ID; the copy is assigned a new ID). """
         new_genome = self.shallow_copy()
         added_nodes = {n.id: n for n in new_genome.nodes()}
-        for c in self._connections:
+        for c in self.connections:
             for n in (c.from_node, c.to_node):
                 if n.type == NodeGene.Type.HIDDEN and n.id not in added_nodes:
                     new_node = n.shallow_copy()
@@ -206,11 +242,6 @@ class Genome:
             new_genome.add_connection(src_node=added_nodes[c.from_node.id],
                                       dest_node=added_nodes[c.to_node.id],
                                       enabled=c.enabled, cid=c.id, weight=c.weight)
-        return new_genome
-
-    def binary_fission(self, mutation_chance=0.8, perturbation_pc=0.1, reset_chance=0.1, reset_weight_interval=(-1, 1)):
-        new_genome = self.deep_copy()
-        new_genome.mutate_weights(mutation_chance, perturbation_pc, reset_chance, reset_weight_interval)
         return new_genome
 
     def _process_node(self, n):
@@ -257,7 +288,7 @@ class Genome:
         return h
 
     def nodes(self):
-        """ Returns all the genome's nodes genes. Order: inputs, bias, outputs and hiddens. """
+        """ Returns all the genome's nodes genes. Order: inputs, bias, outputs and hidden. """
         return self._input_nodes + \
             ([self._bias_node] if self._bias_node is not None else []) + \
             self._output_nodes + \
@@ -268,12 +299,13 @@ class Genome:
         for n in self.nodes():
             txt += f"[{n.id}][{str(n.type).split('.')[1][0]}] {n.activation}\n"
         txt += "\n>> CONNECTIONS\n"
-        for c in self._connections:
+        for c in self.connections:
             txt += f"[{'ON' if c.enabled else 'OFF'}][{c.id}][{c.from_node.id}->{c.to_node.id}] {c.weight}\n"
         return txt
 
     def visualize(self,
                   show=True,
+                  block_thread=True,
                   save_to=None,
                   save_transparent=False,
                   figsize=(10, 6),
@@ -299,6 +331,8 @@ class Genome:
         name (names available here: https://matplotlib.org/3.1.0/gallery/color/named_colors.html).
 
         :param show: whether to show the image or not.
+        :param block_thread: whether to block the execution's thread while showing the image; useful for visualizing
+        multiple genomes at once.
         :param save_to: path to save the image.
         :param save_transparent: if True, the saved image will have a transparent background.
         :param figsize: size of the matplotlib figure.
@@ -327,7 +361,7 @@ class Genome:
 
         # connections
         edges_labels = {}
-        for c in self._connections:
+        for c in self.connections:
             if c.enabled:
                 G.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
                 edges_labels[(c.from_node.id, c.to_node.id)] = c.id
@@ -367,11 +401,11 @@ class Genome:
             plt.savefig(save_to, transparent=save_transparent)
 
         if show:
-            plt.show()
+            plt.show(block=block_thread)
 
 
 # noinspection PyProtectedMember
-def mate_genomes(gen1, gen2, disable_chance=0.75):
+def mate_genomes(gen1, gen2):
     """ Mates the two genomes to produce a new genome (offspring).
 
     Follows the idea described in the original paper of the NEAT algorithm:
@@ -384,11 +418,10 @@ def mate_genomes(gen1, gen2, disable_chance=0.75):
 
     :param gen1: instance of Genome.
     :param gen2: instance of Genome.
-    :param disable_chance: probability of a gene being disabled in the offspring if it's disabled in either parent.
     :return: the new genome (offspring).
     """
     # aligning matching genes
-    genes = align_connections(gen1._connections, gen2._connections)
+    genes = align_connections(gen1.connections, gen2.connections)
 
     # new genome
     new_gen = gen1.shallow_copy()
@@ -396,11 +429,11 @@ def mate_genomes(gen1, gen2, disable_chance=0.75):
 
     # mate
     for c1, c2 in zip(*genes):
-        if c1 is None and gen1.fitness > gen2.fitness:
+        if c1 is None and gen1.adj_fitness > gen2.adj_fitness:
             # case 1: the gene is missing on gen1 and gen1 is dominant (higher fitness); action: ignore the gene
             continue
 
-        if c2 is None and gen2.fitness > gen1.fitness:
+        if c2 is None and gen2.adj_fitness > gen1.adj_fitness:
             # case 2: the gene is missing on gen2 and gen2 is dominant (higher fitness); action: ignore the gene
             continue
 
@@ -418,22 +451,27 @@ def mate_genomes(gen1, gen2, disable_chance=0.75):
 
             # if the gene is disabled in either parent, it has a chance to also be disabled in the new genome
             enabled = (((c1 is not None and not c1.enabled) or (c2 is not None and not c2.enabled))
-                       and utils.chance(disable_chance))
+                       and utils.chance(gen1.config.disable_inherited_connection_chance))
 
             # adding the new connection
-            new_gen.add_connection(src_node=added_nodes[c.from_node.id],
-                                   dest_node=added_nodes[c.to_node.id],
-                                   enabled=enabled, cid=c.id, weight=c.weight)
+            # todo: why throwing ConnectionExistsError?
+            # todo: possibly because of innovation id assignment (same connections appearing in different generations)
+            try:
+                new_gen.add_connection(src_node=added_nodes[c.from_node.id],
+                                       dest_node=added_nodes[c.to_node.id],
+                                       enabled=enabled, cid=c.id, weight=c.weight)
+            except ConnectionExistsError:
+                pass
     return new_gen
 
 
 class ConnectionExistsError(Exception):
-    """ Exception which indicates that a connection between two given nodes already exists. """
+    """ Exception that indicates that a connection between two given nodes already exists. """
     pass
 
 
 class ConnectionToBiasNodeError(Exception):
     """
-    Exception which indicates that an attempt has been made to create a connection containing a bias node as  destination.
+    Exception that indicates an attempt has been made to create a connection containing a bias node as destination.
     """
     pass
