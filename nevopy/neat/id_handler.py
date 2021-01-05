@@ -2,7 +2,7 @@
 TODO
 """
 
-from multiprocessing import Lock
+import multiprocessing
 
 
 class IdHandler:
@@ -16,6 +16,7 @@ class IdHandler:
     mutations in the same generation, each identical mutation is assigned the same innovation number. Thus, there is no
     resultant explosion of innovation numbers." - Stanley, K. O. & Miikkulainen, R. (2002)
     """
+
     def __init__(self, num_initial_nodes):
         """ todo
 
@@ -27,27 +28,28 @@ class IdHandler:
         self._species_counter = 0
         self._new_connections_ids = {}
         self._new_nodes_ids = {}
-        self._lock = Lock()
+        #self._lock = multiprocessing.Lock()  # TODO: why is this causing error in multiprocessing?
 
     def reset(self):
         """ Resets the cache of new nodes and connections. Should be called at the start of a new generation. """
         # todo: should this rlly be reset?
+        # maybe set this according to a config parameter
         self._new_connections_ids = {}
         self._new_nodes_ids = {}
 
     def genome_id(self):
         """ Returns an unique ID for a genome. """
-        with self._lock:
-            gid = self._genome_counter
-            self._genome_counter += 1
-            return gid
+        #with self._lock:
+        gid = self._genome_counter
+        self._genome_counter += 1
+        return gid
 
     def species_id(self):
         """ Returns an unique ID for a species. """
-        with self._lock:
-            sid = self._species_counter
-            self._species_counter += 1
-            return sid
+        #with self._lock:
+        sid = self._species_counter
+        self._species_counter += 1
+        return sid
 
     def hidden_node_id(self, src_id, dest_id):
         """ TODO
@@ -56,17 +58,17 @@ class IdHandler:
         :param dest_id:
         :return:
         """
-        with self._lock:
-            if src_id in self._new_nodes_ids:
-                if dest_id in self._new_nodes_ids[src_id]:
-                    return self._new_nodes_ids[src_id][dest_id]
-            else:
-                self._new_nodes_ids[src_id] = {}
+        #with self._lock:
+        if src_id in self._new_nodes_ids:
+            if dest_id in self._new_nodes_ids[src_id]:
+                return self._new_nodes_ids[src_id][dest_id]
+        else:
+            self._new_nodes_ids[src_id] = {}
 
-            hid = self._node_counter
-            self._node_counter += 1
-            self._new_nodes_ids[src_id][dest_id] = hid
-            return hid
+        hid = self._node_counter
+        self._node_counter += 1
+        self._new_nodes_ids[src_id][dest_id] = hid
+        return hid
 
     def connection_id(self, src_id, dest_id):
         """ TODO
@@ -75,14 +77,14 @@ class IdHandler:
         :param dest_id:
         :return:
         """
-        with self._lock:
-            if src_id in self._new_connections_ids:
-                if dest_id in self._new_connections_ids[src_id]:
-                    return self._new_connections_ids[src_id][dest_id]
-            else:
-                self._new_connections_ids[src_id] = {}
+        #with self._lock:
+        if src_id in self._new_connections_ids:
+            if dest_id in self._new_connections_ids[src_id]:
+                return self._new_connections_ids[src_id][dest_id]
+        else:
+            self._new_connections_ids[src_id] = {}
 
-            cid = self._connection_counter
-            self._connection_counter += 1
-            self._new_connections_ids[src_id][dest_id] = cid
-            return cid
+        cid = self._connection_counter
+        self._connection_counter += 1
+        self._new_connections_ids[src_id][dest_id] = cid
+        return cid

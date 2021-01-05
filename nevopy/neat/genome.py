@@ -126,7 +126,7 @@ class Genome:
         n = max(len(self.connections), len(other.connections))
         return ((c1 * excess + c2 * disjoint) / n) + c3 * weight_diff / num_matches
 
-    def add_connection(self, src_node, dest_node, enabled=True, cid=None, weight=None):
+    def add_connection(self, src_node, dest_node, enabled=True, cid=None, weight=None, delme=None):
         """ Adds a new connection between the two given nodes.
 
         :param src_node: source node (where the connection is coming from).
@@ -138,7 +138,11 @@ class Genome:
         :raise ConnectionToBiasNodeError: if the destination node is a bias node.
         """
         if connection_exists(src_node, dest_node):
-            # print(f"\n{[(c.from_node.id, c.to_node.id) for c in self._connections]}\n")
+            if delme is not None:
+                print(delme)
+                print(f"\nSrc out connections: {[(c.from_node.id, c.to_node.id) for c in src_node.out_connections]}")
+                print(f"Dest in connections: {[(c.from_node.id, c.to_node.id) for c in dest_node.in_connections]}")
+                print(f"Genome connections: {[(c.from_node.id, c.to_node.id) for c in self.connections]}")
             raise ConnectionExistsError(f"Attempt to create an already existing connection "
                                         f"({src_node.id}->{dest_node.id}).")
         if dest_node.type == NodeGene.Type.BIAS or dest_node.type == NodeGene.Type.INPUT:
@@ -210,8 +214,10 @@ class Genome:
                             activation_func=self._hidden_activation,
                             initial_activation=self.config.initial_node_activation)
         self._hidden_nodes.append(new_node)
-        self.add_connection(src_node, new_node, weight=1)
-        self.add_connection(new_node, dest_node, weight=original_connection.weight)
+        info = f"\n[NEW HIDDEN NODE OF ID {new_node.id}] Between nodes {src_node.id} and {dest_node.id}" +\
+               f"\nID handler: {self._id_handler._new_nodes_ids}"
+        self.add_connection(src_node, new_node, weight=1, delme=info)
+        self.add_connection(new_node, dest_node, weight=original_connection.weight, delme=info)
         return new_node
 
     def mutate_weights(self):

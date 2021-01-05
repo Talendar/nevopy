@@ -4,6 +4,7 @@ todo
 """
 
 import nevopy.neat
+from timeit import default_timer as timer
 
 
 xor_inputs = [(0, 0), (0, 1), (1, 0), (1, 1)]
@@ -24,12 +25,18 @@ def eval_genome(genome, log=False):
 
 
 if __name__ == "__main__":
-    pop = nevopy.neat.population.Population(size=200, num_inputs=2, num_outputs=1)
-    pop.evolve(generations=250, fitness_function=eval_genome)
+    start_time = timer()
+
+    pop = nevopy.neat.population.Population(size=1000, num_inputs=2, num_outputs=1)
+    pop.evolve(generations=200, fitness_function=eval_genome)
+
+    deltaT = timer() - start_time
 
     best = pop.fittest()
     eval_genome(best, log=True)
     best.visualize()
+
+    print(f"\nProcessing time: {deltaT}s\n")
 
     """id_handler = IdHandler(2 + 1 + 1)
     pop_size = 250

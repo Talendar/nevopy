@@ -9,6 +9,9 @@ from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy import utils
+from nevopy.parallel_processing.scheduler import JobScheduler
+from nevopy.parallel_processing.worker import LocalWorker
+import multiprocessing
 
 
 class Population:
@@ -16,7 +19,7 @@ class Population:
 
     """
 
-    def __init__(self, size, num_inputs, num_outputs, config=None):
+    def __init__(self, size, num_inputs, num_outputs, job_scheduler=None, config=None):
         """
 
         :param size:
@@ -24,6 +27,9 @@ class Population:
         :param num_outputs:
         :param config:
         """
+        if job_scheduler is None:
+            self._job_scheduler = JobScheduler(worker_list=[LocalWorker(worker_id=0)])
+
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
@@ -58,17 +64,19 @@ class Population:
         :param fitness_function:
         :return:
         """
+        # evolving
         for gen in range(generations):
             self._id_handler.reset()
             print(f"[{100*(gen + 1) / generations :.2f}%] Generation {gen+1} of {generations}.")
             print(f"Number of species: {len(self._species)}")
 
             # calculating fitness
-            # todo: multi-processing
             print("Calculating fitness... ", end="")
-            for genome in self.genomes:
-                genome.reset_activations()
-                genome.fitness = fitness_function(genome)
+            fitness_results = self._job_scheduler.run(items=self.genomes, func=fitness_function)
+            #fitness_results = [fitness_function(genome) for genome in self.genomes]
+
+            for genome, fitness in zip(self.genomes, fitness_results):
+                genome.fitness = fitness
                 sp = self._species[genome.species_id]
                 genome.adj_fitness = genome.fitness / len(sp.members)
             print("done!")
@@ -84,6 +92,43 @@ class Population:
             print("done!\nSpeciation... ", end="")
             self.speciation(generation=gen)
             print("done!\n\n" + "#" * 30 + "\n")
+
+
+    def _generate_offspring(self, params):
+        sp, rank_prob_dist = params["species"], params["prob_dist"]
+        g1 = np.random.choice(sp.members, p=rank_prob_dist)
+
+        # mating / cross-over
+        if utils.chance(self.config.mating_chance):
+            # interspecific
+            if len(self._species) > 1 and utils.chance(self.config.interspecies_mating_chance):
+                g2 = np.random.choice([g for g in self.genomes if g.species_id != sp.id])
+            # intraspecific
+            else:
+                g2 = np.random.choice(sp.members)
+            baby = mate_genomes(g1, g2)
+        # binary_fission
+        else:
+            baby = g1.deep_copy()
+
+        # enable connection mutation
+        if utils.chance(self.config.enable_connection_mutation_chance):
+            baby.enable_random_connection()
+
+        # weight mutation
+        if utils.chance(self.config.weight_mutation_chance):
+            baby.mutate_weights()
+
+        # new connection mutation
+        if utils.chance(self.config.new_connection_mutation_chance):
+            baby.add_random_connection()
+
+        # new node mutation
+        if utils.chance(self.config.new_node_mutation_chance):
+            baby.add_random_hidden_node()
+
+        # adding new genome
+        return baby
 
     def reproduction(self):
         """
@@ -110,9 +155,19 @@ class Population:
         # new genomes
         offspring_count = self._offspring_proportion(num_offspring=self._size - len(new_pop))
         for sp in self._species.values():
-            rank_prob_dist = [self.config.rank_prob_dist_coefficient ** i for i in range(len(sp.members))]
+            # assigning reproduction probabilities (rank-based selection)
+            rank_prob_dist = np.zeros(len(sp.members))
+            for i in reversed(range(len(sp.members))):
+                rank_prob_dist[i] = self.config.rank_prob_dist_coefficient ** (i / len(sp.members))
             rank_prob_dist /= np.sum(rank_prob_dist)
-            for _ in range(offspring_count[sp.id]):
+
+            # generating offspring
+            # todo: parallelize
+            babies = self._job_scheduler.run(items=[{"species": sp, "prob_dist": rank_prob_dist}] * offspring_count[sp.id],
+                                       func=self._generate_offspring)
+            new_pop += babies
+
+            """for _ in range(offspring_count[sp.id]):
                 g1 = np.random.choice(sp.members, p=rank_prob_dist)
 
                 # mating / cross-over
@@ -145,7 +200,7 @@ class Population:
                     baby.add_random_hidden_node()
 
                 # adding new genome
-                new_pop.append(baby)
+                new_pop.append(baby)"""
 
         # new population
         self.genomes = new_pop
