@@ -34,6 +34,9 @@ class Config:
     :ivar hidden_nodes_activation:
     :ivar bias_value:
 
+    :ivar reset_innovations_period: if None, the innovation IDs of the new genes will never be reset; if an int, the
+    innovation IDs will be reset with a period (number of generations passed) equal to the one specified. As long as the
+    id handler isn't reset, a hidden node can't be inserted more than once in a connection between two given nodes.
     :ivar allow_self_connections:
     :ivar disable_inherited_connection_chance:
     :ivar initial_node_activation:
@@ -48,13 +51,13 @@ class Config:
                  # reproduction
                  weak_genomes_removal_pc=0.8,
                  weight_mutation_chance=0.8,
-                 new_node_mutation_chance=0.03,
+                 new_node_mutation_chance=0.05,
                  new_connection_mutation_chance=0.05,
                  enable_connection_mutation_chance=0.05,
                  disable_inherited_connection_chance=0.75,
-                 mating_chance=0.75,
+                 mating_chance=0.5,
                  interspecies_mating_chance=0.01,
-                 rank_prob_dist_coefficient=2,
+                 rank_prob_dist_coefficient=1.7,
                  # weight mutation
                  weight_perturbation_pc=0.1,
                  weight_reset_chance=0.1,
@@ -64,9 +67,10 @@ class Config:
                  disjoint_genes_coefficient=1,
                  weight_difference_coefficient=0.4,
                  # speciation
-                 species_distance_threshold=1.2,
+                 species_distance_threshold=2,
                  species_elitism_threshold=5,
                  # others
+                 reset_innovations_period=25,
                  allow_self_connections=True,
                  initial_node_activation=0,):
         """
