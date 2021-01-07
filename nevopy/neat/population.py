@@ -32,6 +32,10 @@ from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy import utils
 
+import ray
+ray.init(address='auto', _redis_password='5241590000000000',
+         ignore_reinit_error=True)
+
 
 class Population:
     """
@@ -141,8 +145,12 @@ class Population:
 
             # calculating fitness
             print("Calculating fitness... ", end="")
-            fitness_results = [fitness_function(genome)
-                               for genome in self.genomes]
+            # fitness_results = [fitness_function(genome)
+            #                    for genome in self.genomes]
+
+            fitness_results = ray.get([_ray_fitness.remote(genome,
+                                                           fitness_function)
+                                       for genome in self.genomes])
 
             for genome, fitness in zip(self.genomes, fitness_results):
                 genome.fitness = fitness
@@ -306,3 +314,8 @@ class Population:
                 self._species.pop(sp.id)
             else:
                 sp.random_representative()
+
+
+@ray.remote
+def _ray_fitness(genome, func):
+    return func(genome)
