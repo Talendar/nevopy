@@ -1,17 +1,36 @@
-"""
+# MIT License
+#
+# Copyright (c) 2020 Gabriel Nogueira (Talendar)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ==============================================================================
 
+"""
+TODO
 """
 
 import numpy as np
-
 from nevopy.neat.genome import *
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy import utils
-from nevopy.parallel_processing.scheduler import JobScheduler
-from nevopy.parallel_processing.worker import LocalWorker
-import multiprocessing
 
 
 class Population:
@@ -19,23 +38,14 @@ class Population:
 
     """
 
-    def __init__(self, size, num_inputs, num_outputs, job_scheduler=None, config=None):
-        """
-
-        :param size:
-        :param num_inputs:
-        :param num_outputs:
-        :param config:
-        """
-        #if job_scheduler is None:
-            #self._job_scheduler = JobScheduler(worker_list=[LocalWorker(worker_id=0)])
-
+    def __init__(self, size, num_inputs, num_outputs, config=None):
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
 
         self.config = config if config is not None else Config()
-        self._id_handler = IdHandler(num_inputs, num_outputs, has_bias=self.config.bias_value is not None)
+        self._id_handler = IdHandler(num_inputs, num_outputs,
+                                     has_bias=self.config.bias_value is not None)
 
         # creating initial genomes
         self.genomes = [Genome(num_inputs=num_inputs,
@@ -45,7 +55,8 @@ class Population:
                         for _ in range(size)]
 
         # creating pioneer species
-        new_sp = Species(species_id=self._id_handler.next_species_id(), generation=0)
+        new_sp = Species(species_id=self._id_handler.next_species_id(),
+                         generation=0)
         new_sp.members = self.genomes[:]
         for m in new_sp.members:
             m.species_id = new_sp.id
@@ -62,7 +73,8 @@ class Population:
             node, tries = node_queue.pop(0)
             parents = node.parent_connection_nodes
             if parents is None:
-                raise RuntimeError("Tried to assign an ID to a new node that has parents = \"None\"!")
+                raise RuntimeError("Tried to assign an ID to a new node that "
+                                   "has parents = \"None\"!")
 
             if not parents[0].is_id_temp() and not parents[1].is_id_temp():
                 node.id = self._id_handler.get_hidden_node_id(node)
@@ -74,20 +86,21 @@ class Population:
 
     def _set_connections_id(self, connection_list):
         for connection in connection_list:
-            if connection.from_node.is_id_temp() or connection.to_node.is_id_temp():
-                raise RuntimeError("Tried to assign an ID to a connection between nodes with temp IDs! Did you update "
-                                   "the nodes IDs before trying to update the connections IDs?")
+            if (connection.from_node.is_id_temp()
+                    or connection.to_node.is_id_temp()):
+                raise RuntimeError("Tried to assign an ID to a connection "
+                                   "between nodes with temp IDs! Did you "
+                                   "update the nodes IDs before trying to "
+                                   "update the connections IDs?")
             connection.id = self._id_handler.get_connection_id(connection)
 
     def update_ids(self):
         # checking if the innovation ids should be reset
-        if self.config.reset_innovations_period is not None \
-                and self._id_handler.reset_counter > self.config.reset_innovations_period:
+        if (self.config.reset_innovations_period is not None
+                and self._id_handler.reset_counter > self.config.reset_innovations_period):
             self._id_handler.reset()
             for genome in self.genomes:
                 genome.reset_connections_ids_cache()
-            print("\n\n>> RESET IDS << \n")
-
         self._id_handler.reset_counter += 1
 
         # checking genomes
@@ -97,8 +110,11 @@ class Population:
             # assigning ids to new genomes
             if genome.id is None:
                 new_id = self._id_handler.next_genome_id()
-                assert new_id not in genomes_ids, "Error: ID handler assigned an existing ID to a genome."
+                if new_id in genomes_ids:
+                    raise RuntimeError("The ID handler assigned an existing ID "
+                                       "to a genome.")
                 genome.id = new_id
+
             # retrieving new genes
             new_nodes += genome.new_nodes
             new_connections += genome.new_connections
@@ -119,13 +135,14 @@ class Population:
             for genome in self.genomes:
                 genome.reset_news_cache()
 
-            print(f"[{100*(generation_num + 1) / generations :.2f}%] Generation {generation_num+1} of {generations}.")
-            print(f"Number of species: {len(self._species)}")
+            print(f"[{100*(generation_num + 1) / generations :.2f}%] "
+                  f"Generation {generation_num+1} of {generations}.\n"
+                  f"Number of species: {len(self._species)}")
 
             # calculating fitness
             print("Calculating fitness... ", end="")
-            #fitness_results = self._job_scheduler.run(items=self.genomes, func=fitness_function)
-            fitness_results = [fitness_function(genome) for genome in self.genomes]
+            fitness_results = [fitness_function(genome)
+                               for genome in self.genomes]
 
             for genome, fitness in zip(self.genomes, fitness_results):
                 genome.fitness = fitness
@@ -133,10 +150,11 @@ class Population:
                 genome.adj_fitness = genome.fitness / len(sp.members)
             print("done!")
 
-            # log
+            # info
             best = self.genomes[np.argmax([g.fitness for g in self.genomes])]
             print(f"Best fitness: {best.fitness}")
-            print(f"Avg. population fitness: {np.mean([g.fitness for g in self.genomes])}")
+            print("Avg. population fitness: "
+                  f"{np.mean([g.fitness for g in self.genomes])}")
 
             # reproduction and speciation
             print("Reproduction... ", end="")
@@ -152,8 +170,10 @@ class Population:
         # mating / cross-over
         if utils.chance(self.config.mating_chance):
             # interspecific
-            if len(self._species) > 1 and utils.chance(self.config.interspecies_mating_chance):
-                g2 = np.random.choice([g for g in self.genomes if g.species_id != sp.id])
+            if (len(self._species) > 1
+                    and utils.chance(self.config.interspecies_mating_chance)):
+                g2 = np.random.choice([g for g in self.genomes
+                                       if g.species_id != sp.id])
             # intraspecific
             else:
                 g2 = np.random.choice(sp.members)
@@ -178,7 +198,6 @@ class Population:
         if utils.chance(self.config.new_node_mutation_chance):
             baby.add_random_hidden_node(cached_hids=self._id_handler.cached_hids())
 
-        # adding new genome
         return baby
 
     def reproduction(self):
@@ -190,7 +209,7 @@ class Population:
 
         # elitism
         for sp in self._species.values():
-            sp.members.sort(key=lambda g: g.fitness)
+            sp.members.sort(key=lambda genome: genome.fitness)
 
             # preserving the most fit individual
             if len(sp.members) >= self.config.species_elitism_threshold:
@@ -203,20 +222,24 @@ class Population:
                     self.genomes.remove(g)
                 sp.members = sp.members[r:]
 
-        # new genomes
-        offspring_count = self._offspring_proportion(num_offspring=self._size - len(new_pop))
+        # calculating the number of children for each species
+        offspring_count = self._offspring_proportion(
+            num_offspring=self._size - len(new_pop)
+        )
+
+        # creating new genomes
         for sp in self._species.values():
             # assigning reproduction probabilities (rank-based selection)
             rank_prob_dist = np.zeros(len(sp.members))
+            alpha = self.config.rank_prob_dist_coefficient
             for i in reversed(range(len(sp.members))):
-                rank_prob_dist[i] = self.config.rank_prob_dist_coefficient ** (i / len(sp.members))
+                rank_prob_dist[i] = alpha ** (i / len(sp.members))
             rank_prob_dist /= np.sum(rank_prob_dist)
 
             # generating offspring
             # todo: parallelize
-            #babies = self._job_scheduler.run(items=[{"species": sp, "prob_dist": rank_prob_dist}] * offspring_count[sp.id],
-                                       #func=self._generate_offspring)
-            babies = [self._generate_offspring({"species": sp, "prob_dist": rank_prob_dist})
+            babies = [self._generate_offspring({"species": sp,
+                                                "prob_dist": rank_prob_dist})
                       for _ in range(offspring_count[sp.id])]
             new_pop += babies
 
@@ -239,17 +262,17 @@ class Population:
             sid = np.random.choice(list(self._species.keys()))
             offspring_count[sid] += 1
 
-        assert np.sum(list(offspring_count.values())) == num_offspring  # todo: delete
+        assert np.sum(list(offspring_count.values())) == num_offspring
         return offspring_count
 
     def speciation(self, generation):
         """
-
-        "Each existing species is represented by a random genome inside the species from the previous generation. A
-        given genome g in the current generation is placed in the first species in which g is compatible with the
-        representative genome of that species. This way, species do not overlap. If g is not compatible with any
-        existing species, a new species is created with g as its representative."
-        - Stanley, K. O. & Miikkulainen, R. (2002)
+        "Each existing species is represented by a random genome inside the
+        species from the previous generation. A given genome g in the current
+        generation is placed in the first species in which g is compatible with
+        the representative genome of that species. This way, species do not
+        overlap. If g is not compatible with any existing species, a new species
+        is created with g as its representative." - Stanley, K. O.
         """
         # resetting species members
         for sp in self._species.values():
@@ -268,7 +291,8 @@ class Population:
 
             # creating a new species, if needed
             if genome_species is None:
-                genome_species = Species(species_id=self._id_handler.next_species_id(), generation=generation)
+                genome_species = Species(species_id=self._id_handler.next_species_id(),
+                                         generation=generation)
                 genome_species.representative = genome
                 self._species[genome_species.id] = genome_species
 

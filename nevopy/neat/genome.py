@@ -21,12 +21,15 @@
 # SOFTWARE.
 # ==============================================================================
 
-"""
-todo
+""" Implements the genome and its main operations.
+
+A genome is a collection of genes that encode a neural network (the genome's
+phenotype). In this implementation, there is no distinction between a genome and
+the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Iterable
 
 import numpy as np
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
@@ -239,8 +242,12 @@ class Genome:
         configurable.
 
         .. math::
-            \\delta = c_1 \\cdot \\frac{E}{N} + c_2 \\cdot \\frac{D}{N}
-                      + c_3 \\cdot W
+                \\delta = c_1 \\cdot \\frac{E}{N} + c_2 \\cdot \\frac{D}{N} \\
+                    + c_3 \\cdot W
+            :label: distance
+
+        Args:
+            other (Genome): The other genome.
         """
         genes = align_connections(self.connections, other.connections)
         excess = disjoint = weight_diff = num_matches = 0
@@ -294,8 +301,6 @@ class Genome:
                 settings) will be chosen.
             debug_info (Optional[str]): Used for debugging. Should be ignored
                 most of the time.
-
-        Returns:
 
         Raises:
             ConnectionExistsError: If the connection `src_node->dest_node`
@@ -444,8 +449,12 @@ class Genome:
             self.hid_connections_cache[src_node.id] = set()
         self.hid_connections_cache[src_node.id].add(dest_node.id)
 
-    def mutate_weights(self):
-        """ Randomly mutates the weights of the genome's connections. """
+    def mutate_weights(self) -> None:
+        """ Randomly mutates the weights of the genome's connections.
+
+        Each connection gene in the genome has a chance to be perturbed, reset
+        or to remain unchanged.
+        """
         for connection in self.connections:
             if utils.chance(self.config.weight_reset_chance):
                 # checking whether the weight will be reset
@@ -457,10 +466,14 @@ class Genome:
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self):
-        """
-        Returns a copy of this genome without the hidden nodes and connections
-        (the copy has no ID).
+    def shallow_copy(self) -> Genome:
+        """ Makes a simple/shallow copy of the genome.
+
+        Returns:
+            A copy of the genome without any of its connections (including the
+            ones between input and output nodes) and hidden nodes. The new
+            genome won't be assigned any ID and will inherit the parent's cache
+            of innovations (:attr:`.hid_connections_cache`).
         """
         new_genome = Genome(num_inputs=len(self._input_nodes),
                             num_outputs=len(self._output_nodes),
@@ -471,10 +484,14 @@ class Genome:
         self.new_genomes.append(new_genome)
         return new_genome
 
-    def deep_copy(self):
-        """
-        Returns an exact copy of this genome (except for the ID; the copy
-        doesn't have an ID).
+    def deep_copy(self) -> Genome:
+        """ Makes an exact/deep copy (except for the ID) of the genome.
+
+        All the genome's nodes and connections are copied. The new genome won't
+        be assigned any ID.
+
+        Returns:
+            An exact/deep copy (except for the ID) of the genome.
         """
         new_genome = self.shallow_copy()
         copied_nodes = {n.id: n for n in new_genome.nodes()}
@@ -507,11 +524,30 @@ class Genome:
 
         return new_genome
 
-    def _process_node(self, n):
+    def process_node(self, n: NodeGene) -> float:
         """ Recursively processes the activation of the given node.
 
-        :param n: the instance of NodeGene to be processed.
-        :return: the current value of the activation of n.
+        Unless it's a bias or input node (that have a fixed output), a node must
+        process the input it receives from other nodes in order to produce an
+        activation. This is done recursively: if `n` receives input from a node
+        `m` that haven't had its activation calculated yet, the activation of
+        `m` will be calculated recursively before the activation of `n` is
+        computed. Recurrences are solved by using the previous activation of the
+        "problematic" node.
+
+        Let :math:`w_i` be the weight of the :math:`i^{\\text{th}}` connection
+        that has `n` as destination node. Let :math:`a_i` be the current cached
+        output of the source node of :math:`c_i`. Let :math:`\\sigma` be the
+        activation function of `n`. The activation (output) `a` of `n` is
+        computed as follows:
+
+        :math:`a = \\sigma (\\sum \\limits_{i} w_i \\cdot a_i)`
+
+        Args:
+            n (NodeGene): The node to be processed.
+
+        Returns:
+            The activation value (output) of the node.
         """
         # checking if the node needs to be activated
         if (n.type != NodeGene.Type.INPUT
@@ -527,17 +563,37 @@ class Genome:
             for connection in n.in_connections:
                 if connection.enabled:
                     src_node, weight = connection.from_node, connection.weight
-                    zsum += weight * self._process_node(src_node)
+                    zsum += weight * self.process_node(src_node)
             n.activate(zsum)
         return n.activation
 
-    def process(self, X):
-        """
-        Processes the given input using the neural network (phenotype) encoded
-        in the genome.
+    def process(self, X: Iterable[float]) -> np.array:
+        """ Feeds the given input to the neural network.
 
-        :param X: input to be fed to the neural network.
-        :return: numpy array with the activations of the output nodes/neurons.
+        In this implementation, there is no distinction between a genome and
+        the neural network it encodes. The genome will emulate a neural network
+        (its phenotype) in order to process the given input.
+
+         Note:
+            The processing is done recursively, starting from the output nodes
+            (top-down approach). Because of that, nodes not connected to at
+            least one of the network's output nodes won't be processed.
+
+        Args:
+            X (Iterable[float]): An iterable object (like a list or numpy array)
+                containing the inputs to be fed to the neural network input
+                nodes. It represents a single training sample. The value in the
+                index `i` of `X` will be fed to the :math:`i^{th}` input node
+                of the neural network.
+
+        Returns:
+            A numpy array containing the outputs of the network's output nodes.
+            The index `i` contains the activation value of the :math:`i^{th}`
+            output node of the network.
+
+        Raises:
+            RuntimeError: If the number of elements in `X` doesn't match the
+                number of input nodes in the network.
         """
         if len(X) != len(self._input_nodes):
             raise RuntimeError("The input size must match the number of input "
@@ -557,13 +613,13 @@ class Genome:
         # nodes not connected to at least one output node are not processed
         h = np.zeros(len(self._output_nodes))
         for i, out_node in enumerate(self._output_nodes):
-            h[i] = self._process_node(out_node)
+            h[i] = self.process_node(out_node)
 
         return h
 
-    def nodes(self):
+    def nodes(self) -> List[NodeGene]:
         """
-        Returns all the genome's nodes genes. Order: inputs, bias, outputs and
+        Returns all the genome's node genes. Order: inputs, bias, outputs and
         hidden.
         """
         return (self._input_nodes +
@@ -571,7 +627,11 @@ class Genome:
                 self._output_nodes +
                 self.hidden_nodes)
 
-    def info(self):
+    def info(self) -> str:
+        """
+        Returns a string with the genome's nodes activations and connections.
+        Used mostly for debugging purposes.
+        """
         txt = ">> NODES ACTIVATIONS\n"
         for n in self.nodes():
             txt += f"[{n.id}][{str(n.type).split('.')[1][0]}] {n.activation}\n"
@@ -582,58 +642,78 @@ class Genome:
         return txt
 
     def visualize(self,
-                  show=True,
-                  block_thread=True,
-                  save_to=None,
-                  save_transparent=False,
-                  figsize=(10, 6),
-                  pad=1,
-                  legends=True,
-                  nodes_ids=True,
-                  node_id_color="black",
-                  edge_curviness=0.1,
-                  edges_ids=False,
-                  edge_id_color="black",
-                  background_color="snow",
-                  legend_box_color="honeydew",
-                  input_color="deepskyblue",
-                  output_color="mediumseagreen",
-                  hidden_color="silver",
-                  bias_color="khaki"):
-        """
-        Plots the neural network (phenotype) encoded by the genome.
+                  show: bool = True,
+                  block_thread: bool = True,
+                  save_to: Optional[str] = None,
+                  save_transparent: bool = False,
+                  figsize: Tuple[int, int] = (10, 6),
+                  pad: int = 1,
+                  legends: bool = True,
+                  nodes_ids: bool = True,
+                  node_id_color: str = "black",
+                  edge_curviness: float = 0.1,
+                  edges_ids: bool = False,
+                  edge_id_color: str = "black",
+                  background_color: str = "snow",
+                  legend_box_color: str = "honeydew",
+                  input_color: str = "deepskyblue",
+                  output_color: str = "mediumseagreen",
+                  hidden_color: str = "silver",
+                  bias_color: str = "khaki") -> None:
+        """ Plots the neural network (phenotype) encoded by the genome.
 
-        Self-connecting edges are not drawn.
+        The network is drawn as a graph, with nodes and edges. An edge's color
+        is chosen according to the edge's weight. Edges with greater weights are
+        drawn with more intense / stronger colors. Edges connecting a node to
+        itself aren't be drawn.
 
         For the colors parameters, it's possible to pass a string with the color
         HEX value or a string with the color's name (names available here:
         https://matplotlib.org/3.1.0/gallery/color/named_colors.html).
 
-        :param show: whether to show the image or not.
-        :param block_thread: whether to block the execution's thread while
-            showing the image; useful for visualizing multiple genomes at once.
-        :param save_to: path to save the image.
-        :param save_transparent: if True, the saved image will have a transparent background.
-        :param figsize: size of the matplotlib figure.
-        :param pad: the image's padding (distance between the figure and the image's border).
-        :param legends: if True, a box with legends describing the nodes colors will be drawn.
-        :param nodes_ids: if True, the nodes will have their ID drawn inside them.
-        :param node_id_color: color for nodes id.
-        :param edge_curviness: angle, in radians, of the edges arcs; 0 is a straight line.
-        :param edges_ids: if True, each connection will have its ID drawn on it; some labels might overlap with each
-        other, making only one of them visible.
-        :param edge_id_color: color of the connections ids.
-        :param background_color: color for the plot's background.
-        :param legend_box_color: color for the legends box.
-        :param input_color: color for the input nodes.
-        :param output_color: color for the output nodes.
-        :param hidden_color: color for the hidden nodes.
-        :param bias_color: color for the bias node.
-        :return:
-        """
-        assert show or save_to is not None
-        plt.rcParams['axes.facecolor'] = background_color
+        Args:
+            show (bool): Whether to show the generated image or not. If True, a
+                window will be created by `matplotlib` to show the image.
+            block_thread (bool): Whether to block the execution's thread while
+                showing the image. Useful for visualizing multiple networks at
+                once. In this case, you should call :meth:`.visualize` with this
+                parameter set to `False` on all genomes except for the last one,
+                so all the windows are shown simultaneously.
+            save_to (Optional[str]): Path to save the image. If `None`, the
+                image won't be automatically saved.
+            save_transparent: Whether the saved image should have a transparent
+                background or not.
+            figsize (Tuple[int, int]): Size of the matplotlib figure.
+            pad (int): The image's padding (distance between the figure of the
+                network and the image's border).
+            legends (bool): If `True`, a box with legends describing the nodes
+                colors will be drawn.
+            nodes_ids (bool): If `True`, the nodes will have their ID drawn
+                inside them.
+            node_id_color (str): Color of the drawn nodes ids.
+            edge_curviness (float): Angle, in radians, of the edges arcs. A
+                value of 0 indicates a straight line.
+            edges_ids (bool): If `True`, each connection/edge will have its ID
+                drawn on it. Keep in mind that some labels might overlap with
+                each other, making only one of them visible.
+            edge_id_color (str): Color of the drawn connections/edges ids.
+            background_color (str): Color of the figure's background.
+            legend_box_color (str): Color of the legend box.
+            input_color (str): Color of the input nodes.
+            output_color (str): Color of the output nodes.
+            hidden_color (str): Color of the hidden nodes.
+            bias_color (str): Color of the bias node.
 
+        Raises:
+            RuntimeError: If both `show` and `save_to` parameters are set to
+                `False` (in which case the function wouldn't be doing anything
+                but wasting computation).
+        """
+        if not show and not save_to:
+            raise RuntimeError("Both \"show\" and \"save_to\" parameters are "
+                               "set to False!")
+
+        plt.rcParams['axes.facecolor'] = background_color
         G = nx.MultiDiGraph()
         G.add_nodes_from([n.id for n in self.nodes()])
         plt.figure(figsize=figsize)
@@ -647,12 +727,16 @@ class Genome:
 
         # plotting
         pos = graphviz_layout(G, prog='dot', args="-Grankdir=LR")
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self._input_nodes],
+        nx.draw_networkx_nodes(G, pos=pos,
+                               nodelist=[n.id for n in self._input_nodes],
                                node_color=input_color, label='Input nodes')
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self._output_nodes],
+        nx.draw_networkx_nodes(G, pos=pos,
+                               nodelist=[n.id for n in self._output_nodes],
                                node_color=output_color, label='Output nodes')
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=[n.id for n in self.hidden_nodes],
+        nx.draw_networkx_nodes(G, pos=pos,
+                               nodelist=[n.id for n in self.hidden_nodes],
                                node_color=hidden_color, label='Hidden nodes')
+
         if self._bias_node is not None:
             nx.draw_networkx_nodes(G, pos=pos, nodelist=[self._bias_node.id],
                                    node_color=bias_color, label='Bias node')
@@ -661,20 +745,28 @@ class Genome:
             # calculating edges colors
             edges_weights = list(nx.get_edge_attributes(G, "weight").values())
             min_w, max_w = np.min(edges_weights), np.max(edges_weights)
-            edges_colors = [(1, 0.6 * (1 - (w - min_w) / (max_w - min_w)), 0, 0.3 + 0.7 * (w - min_w) / (max_w - min_w))
+            edges_colors = [(1, 0.6 * (1 - (w - min_w) / (max_w - min_w)),
+                             0, 0.3 + 0.7 * (w - min_w) / (max_w - min_w))
                             for w in edges_weights]
+
             # drawing edges
             nx.draw_networkx_edges(G, pos=pos, edge_color=edges_colors,
                                    connectionstyle=f"arc3, rad={edge_curviness}")
 
         if edges_ids:
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=edges_labels, font_color=edge_id_color)
+            nx.draw_networkx_edge_labels(G, pos, edge_labels=edges_labels,
+                                         font_color=edge_id_color)
 
         if nodes_ids:
-            nx.draw_networkx_labels(G, pos, labels={k.id: k.id for k in self.nodes()}, font_size=10,
-                                    font_color=node_id_color, font_family='sans-serif')
+            nx.draw_networkx_labels(G, pos,
+                                    labels={k.id: k.id
+                                            for k in self.nodes()},
+                                    font_size=10,
+                                    font_color=node_id_color,
+                                    font_family='sans-serif')
         if legends:
-            plt.legend(facecolor=legend_box_color, borderpad=0.8, labelspacing=0.5)
+            plt.legend(facecolor=legend_box_color, borderpad=0.8,
+                       labelspacing=0.5)
 
         plt.tight_layout(pad=pad)
         if save_to is not None:
@@ -711,7 +803,8 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
 
     # new genome
     new_gen = gen1.shallow_copy()
-    new_gen.hid_connections_cache = {**gen2.hid_connections_cache, **gen1.hid_connections_cache}
+    new_gen.hid_connections_cache = {**gen2.hid_connections_cache,
+                                     **gen1.hid_connections_cache}
     copied_nodes = {n.id: n for n in new_gen.nodes()}
 
     # mate (choose new genome's connections)
@@ -737,14 +830,17 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
         if c is not None:
             # if the gene is disabled in either parent, it has a chance to also
             # be disabled in the new genome
-            enabled = (((c1 is not None and not c1.enabled) or (c2 is not None and not c2.enabled))
-                       and utils.chance(gen1.config.disable_inherited_connection_chance))
-
+            enabled = (
+                ((c1 is not None and not c1.enabled)
+                    or (c2 is not None and not c2.enabled))
+                and utils.chance(gen1.config.disable_inherited_connection_chance)
+            )
             chosen_connections.append((c, enabled))
 
             # adding the hidden nodes of the connection (if needed)
             for node in (c.from_node, c.to_node):
-                if node.type == NodeGene.Type.HIDDEN and node.id not in copied_nodes:
+                if (node.type == NodeGene.Type.HIDDEN
+                        and node.id not in copied_nodes):
                     new_node = node.shallow_copy(debug_info="mate_genomes")
                     new_gen.hidden_nodes.append(new_node)
                     copied_nodes[node.id] = new_node
@@ -754,10 +850,10 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
 
     # adding inherited connections
     for c, enabled in chosen_connections:
-        src_node, dest_node = copied_nodes[c.from_node.id], copied_nodes[c.to_node.id]
+        src_node = copied_nodes[c.from_node.id]
+        dest_node = copied_nodes[c.to_node.id]
         try:
-            new_gen.add_connection(src_node=src_node,
-                                   dest_node=dest_node,
+            new_gen.add_connection(src_node=src_node, dest_node=dest_node,
                                    enabled=enabled, cid=c.id, weight=c.weight,
                                    debug_info="mate_genomes")
         except ConnectionExistsError:
@@ -773,22 +869,33 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
 
 
 def __debug_mating(genes, c, gen1, gen2, new_gen):
+    """ Used to debug the "mate_genomes" function. """
     alignment_info = ""
     for gene1, gene2 in zip(*genes):
-        alignment_info += "   " + (f"[cid={gene1.id}, src={gene1.from_node.id}, dest={gene1.to_node.id}]"
-                                   if gene1 is not None else 11 * " " + "-" + 10 * " ")
-        alignment_info += "  |  " + (f"[cid={gene2.id}, src={gene2.from_node.id}, dest={gene2.to_node.id}]"
-                                     if gene2 is not None else 11 * " " + "-" + 11 * " ") + "\n"
+        alignment_info += (
+            "   " + (f"[cid={gene1.id}, src={gene1.from_node.id}, dest={gene1.to_node.id}]"
+                     if gene1 is not None
+                     else 11 * " " + "-" + 10 * " ") +
+            "  |  " + (f"[cid={gene2.id}, src={gene2.from_node.id}, dest={gene2.to_node.id}]"
+                       if gene2 is not None
+                       else 11 * " " + "-" + 11 * " ") +
+            "\n"
+        )
 
     print(
         "\n\n" + 50 * "#" + "\n\n"
-        f"Error while adding the connection {c.from_node.id, c.to_node.id} to a new child node generated by mating.\n"
+        f"Error while adding the connection {c.from_node.id, c.to_node.id} "
+        f"to a new child node generated by mating."
+        "\n"
         f"Parent 1's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen1.connections]}\n"
+        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen1.connections]}"
+        "\n"
         f"Parent 2's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen2.connections]}\n"
+        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen2.connections]}"
+        "\n"
         f"Child's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in new_gen.connections]}\n"
+        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in new_gen.connections]}"
+        "\n"
         f"Genes alignment: \n{alignment_info}\n"
     )
 
@@ -797,17 +904,24 @@ def __debug_mating(genes, c, gen1, gen2, new_gen):
 
 
 class ConnectionExistsError(Exception):
-    """ Exception that indicates that a connection between two given nodes already exists. """
+    """
+    Exception that indicates that a connection between two given nodes already
+    exists.
+    """
     pass
 
 
 class ConnectionToBiasNodeError(Exception):
     """
-    Exception that indicates an attempt has been made to create a connection containing a bias node as destination.
+    Exception that indicates that an attempt has been made to create a
+    connection containing a bias node as destination.
     """
     pass
 
 
 class GenomeIdException(Exception):
-    """ Indicates that an attempt has been made to assign an ID to a genome that already has an ID. """
+    """
+    Indicates that an attempt has been made to assign an ID to a genome that
+    already has an ID.
+    """
     pass
