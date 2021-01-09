@@ -1,0 +1,27 @@
+==================================== NEAT ======================================
+
+>>> Bugs:
+
+	. Why decreasing the species threshold is causing fitness to not improve?
+
+	. Why are so few species being born?
+	
+	. Why is resetting activations after each input/output resulting in the 
+	fitness of the population being stuck at 1 in the 2-XOR problem?
+
+
+>>> Implementation:
+
+	. Genome saving and checkpoints.
+
+	. Infanticide / euthanasia: remove genomes with no in connections to output 
+	nodes or no out connections from input nodes.
+
+	. Extinction of species that haven't improved in a while.
+
+
+
+============================== Fixed-topology NE ===============================
+
+> Implement basic fixed-topology neuroevolution (evolution of weights only).
+

@@ -34,8 +34,11 @@ from abc import ABC, abstractmethod
 from typing import Iterable, TypeVar, Optional
 from typing_extensions import Protocol
 
-T = TypeVar("T")  # used to indicate an item to be processed
-R = TypeVar("R")  # used to indicate a return value
+#: `TypeVar` indicating an item to be scheduled for processing.
+T = TypeVar("T")
+
+#: `TypeVar` indicating the return value of processing of an item.
+R = TypeVar("R")
 
 
 class ItemProcessingCallback(Protocol):

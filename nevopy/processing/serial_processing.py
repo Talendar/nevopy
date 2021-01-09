@@ -24,8 +24,9 @@
 """ Implements a simple wrapper for the serial processing of items.
 """
 
-from nevopy.processing.base_scheduler import *
-from typing import List
+from nevopy.processing.base_scheduler import (ProcessingScheduler,
+                                              ItemProcessingCallback, T, R)
+from typing import List, Iterable
 
 
 class SerialProcessingScheduler(ProcessingScheduler):
@@ -52,8 +53,8 @@ class SerialProcessingScheduler(ProcessingScheduler):
                 :mod:`functools.partial` or to just wrap it with a function.
 
         Returns:
-            A list containing the results of the processed items, in the order
-            they are processed. This means that if the argument passed to
+            A list containing the results of the processing of each item, in the
+            order they are processed. This means that if the argument passed to
             `items` is a `Sequence`, the order of the results will match the
             order of the sequence.
         """

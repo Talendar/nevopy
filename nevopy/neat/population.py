@@ -30,8 +30,9 @@ from nevopy.neat.genome import Genome, mate_genomes
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
-from nevopy.processing.serial_processing import SerialProcessingScheduler
 from nevopy import utils
+from nevopy.processing.pool_processing import PoolProcessingScheduler
+from typing import Optional, Callable
 
 
 class Population:
@@ -44,14 +45,16 @@ class Population:
                  num_inputs,
                  num_outputs,
                  config=None,
-                 processing_scheduler=None) -> None:
+                 processing_scheduler=None,
+                 reproduction_uses_scheduler=False) -> None:
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
+        self._rep_uses_scheduler = reproduction_uses_scheduler
 
-        self._scheduler = (processing_scheduler
+        self._scheduler = (PoolProcessingScheduler
                            if processing_scheduler is not None
-                           else SerialProcessingScheduler())
+                           else PoolProcessingScheduler())
 
         self.config = config if config is not None else Config()
         self._id_handler = IdHandler(num_inputs, num_outputs,
@@ -283,16 +286,21 @@ class Population:
             # print(f"\n{prob}")
 
             # generating offspring
-            babies = self._scheduler.run(
-                items=list(range(offspring_count[sp.id])),
-                func=lambda i: self._generate_offspring(species=sp,
-                                                        rank_prob_dist=prob)
-            )
+            if self._rep_uses_scheduler:
+                babies = self._scheduler.run(
+                     items=list(range(offspring_count[sp.id])),
+                     func=lambda i: self._generate_offspring(
+                         species=sp, rank_prob_dist=prob
+                     )
+                )
+            else:
+                babies = [self._generate_offspring(species=sp,
+                                                   rank_prob_dist=prob)
+                          for _ in range(offspring_count[sp.id])]
             new_pop += babies
 
-            # todo: infanticide / euthanasia (remove individuals with no in
-            #  connections to output nodes or no out connections from input
-            #  nodes)
+            # todo: infanticide (remove individuals with no in connections to
+            #  output nodes or no out connections from input nodes)
 
         # new population
         self.genomes = new_pop
@@ -332,24 +340,24 @@ class Population:
 
         # assigning genomes to species
         for genome in self.genomes:
-            genome_species = None
+            chosen_species = None
 
             # checking compatibility with existing species
             for sp in self._species.values():
                 if genome.distance(sp.representative) <= self.config.species_distance_threshold:
-                    genome_species = sp
+                    chosen_species = sp
                     break
 
             # creating a new species, if needed
-            if genome_species is None:
-                genome_species = Species(species_id=self._id_handler.next_species_id(),
+            if chosen_species is None:
+                chosen_species = Species(species_id=self._id_handler.next_species_id(),
                                          generation=generation)
-                genome_species.representative = genome
-                self._species[genome_species.id] = genome_species
+                chosen_species.representative = genome
+                self._species[chosen_species.id] = chosen_species
 
             # adding genome to species
-            genome_species.members.append(genome)
-            genome.species_id = genome_species.id
+            chosen_species.members.append(genome)
+            genome.species_id = chosen_species.id
 
         # deleting empty species and updating representatives
         for sp in list(self._species.values()):
@@ -358,7 +366,3 @@ class Population:
             else:
                 sp.random_representative()
 
-
-# @ray.remote
-# def _ray_fitness(genome, func):
-#     return func(genome)

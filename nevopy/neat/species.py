@@ -3,7 +3,6 @@ TODO
 """
 
 import numpy as np
-from nevopy.neat.genome import *
 
 
 class Species:
@@ -39,5 +38,4 @@ class Species:
 
     def fittest(self):
         """ Returns the fittest member of the species. """
-        # return sorted(self.members, key=lambda g: g.fitness, reverse=True)[:n]
-        return self.members[np.argmax([g.fitness for g in self.members])]
+        return self.members[int(np.argmax([g.fitness for g in self.members]))]

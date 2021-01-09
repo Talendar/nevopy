@@ -8,7 +8,7 @@ Subpackages
    :maxdepth: 4
 
    nevopy.neat
-   nevopy.parallel_processing
+   nevopy.processing
 
 Submodules
 ----------

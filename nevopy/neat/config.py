@@ -199,13 +199,13 @@ class Config:
                  hidden_nodes_activation=nevopy.activations.steepened_sigmoid,
                  bias_value=1,
                  # reproduction
-                 weak_genomes_removal_pc=0.7,
+                 weak_genomes_removal_pc=0.8,
                  weight_mutation_chance=0.8,
                  new_node_mutation_chance=0.03,
                  new_connection_mutation_chance=0.03,
                  enable_connection_mutation_chance=0.03,
-                 disable_inherited_connection_chance=0.5,
-                 mating_chance=0.5,
+                 disable_inherited_connection_chance=0.75,
+                 mating_chance=0.6,
                  interspecies_mating_chance=0.01,
                  rank_prob_dist_coefficient=2,
                  # weight mutation

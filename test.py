@@ -7,22 +7,8 @@ import nevopy.neat
 from timeit import default_timer as timer
 
 
-# todo: with decreasing the species threshold is causing fitness to not
-#  improve?
-
-# todo: why are so few species being born?
-
-# todo: genome saving and checkpoints
-
-# todo: infanticide / euthanasia (remove individuals with no in
-#  connections to output nodes or no out connections from input
-#  nodes)
-
-# todo: extinction of species that haven't improved
-
-
 # =============== MAKING XOR DATA ==================
-num_variables = 4
+num_variables = 2
 assert num_variables > 1
 
 xor_inputs = []
@@ -55,9 +41,9 @@ def eval_genome(genome, log=False):
 
 
 if __name__ == "__main__":
-    runs = 1
+    runs = 3
     total_time = 0
-    scheduler = nevopy.processing.ray_processing.RayProcessingScheduler()
+    # scheduler = nevopy.processing.ray_processing.RayProcessingScheduler()
 
     pop = None
     for r in range(runs):
@@ -66,9 +52,9 @@ if __name__ == "__main__":
             size=100,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
-            processing_scheduler=scheduler,
+            #processing_scheduler=scheduler,
         )
-        pop.evolve(generations=400,
+        pop.evolve(generations=200,
                    fitness_function=eval_genome)
 
         deltaT = timer() - start_time
