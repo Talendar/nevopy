@@ -136,6 +136,8 @@ class Population:
         self._set_nodes_id(new_nodes)
         self._set_connections_id(new_connections)
 
+        # todo: check for duplicated connections
+
     def evolve(self, generations, fitness_function):
         """
 
@@ -269,6 +271,9 @@ class Population:
                     self.genomes.remove(g)
                 sp.members = sp.members[:r]
 
+        # todo: disallow members of species that haven't been improving to
+        #  reproduce
+
         # calculating the number of children for each species
         offspring_count = self._offspring_proportion(
             num_offspring=self._size - len(new_pop)
@@ -333,24 +338,45 @@ class Population:
         overlap. If g is not compatible with any existing species, a new species
         is created with g as its representative." - Stanley, K. O.
         """
-        # resetting species members
+        extinction_threshold = self.config.species_no_improvement_limit
+
+        # checking improvements and resetting members
+        removed_sids = []
         for sp in self._species.values():
-            # todo: check species improvement (extinction)
+            past_best_fitness = sp.best_fitness
+            sp.best_fitness = sp.fittest().fitness
+
+            if past_best_fitness is not None:
+                if sp.best_fitness > past_best_fitness:
+                    # updating improvement record
+                    sp.last_improvement = generation
+                elif (generation - sp.last_improvement) > extinction_threshold:
+                    # marking species for extinction (it hasn't shown
+                    # improvements in the past few generations)
+                    removed_sids.append(sp.id)
+
+            # resetting members
             sp.members = []
 
+        # extinction of unfit species
+        for sid in removed_sids:
+            self._species.pop(sid)
+
         # assigning genomes to species
+        dist_threshold = self.config.species_distance_threshold
         for genome in self.genomes:
             chosen_species = None
 
             # checking compatibility with existing species
             for sp in self._species.values():
-                if genome.distance(sp.representative) <= self.config.species_distance_threshold:
+                if genome.distance(sp.representative) <= dist_threshold:
                     chosen_species = sp
                     break
 
             # creating a new species, if needed
             if chosen_species is None:
-                chosen_species = Species(species_id=self._id_handler.next_species_id(),
+                sid = self._id_handler.next_species_id()
+                chosen_species = Species(species_id=sid,
                                          generation=generation)
                 chosen_species.representative = genome
                 self._species[chosen_species.id] = chosen_species

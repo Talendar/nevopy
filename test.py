@@ -30,7 +30,7 @@ def eval_genome(genome, log=False):
     genome.reset_activations()
     error = 0
     for x, y in zip(xor_inputs, xor_outputs):
-        # genome.reset_activations()  # todo: check why this causes fitness = 1
+        genome.reset_activations()
         h = genome.process(x)[0]
         error += (y - h) ** 2
         if log:
@@ -41,7 +41,7 @@ def eval_genome(genome, log=False):
 
 
 if __name__ == "__main__":
-    runs = 3
+    runs = 1
     total_time = 0
     # scheduler = nevopy.processing.ray_processing.RayProcessingScheduler()
 
@@ -49,12 +49,12 @@ if __name__ == "__main__":
     for r in range(runs):
         start_time = timer()
         pop = nevopy.neat.population.Population(
-            size=100,
+            size=200,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
             #processing_scheduler=scheduler,
         )
-        pop.evolve(generations=200,
+        pop.evolve(generations=100,
                    fitness_function=eval_genome)
 
         deltaT = timer() - start_time

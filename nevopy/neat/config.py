@@ -64,6 +64,9 @@ class Config:
         species_elitism_threshold (int): Species with a number of members
             superior to this threshold will have their fittest member copied
             unchanged to the next generation.
+        species_no_improvement_limit (int): If a species doesn't show
+            improvement in its best fitness for this amount of generations, it
+            will be extinct.
         weak_genomes_removal_pc (float): Percentage of the least fit individuals
             to be deleted from the population before the reproduction step.
         mating_chance (float): Chance for a genome to reproduce sexually, i.e.,
@@ -141,6 +144,9 @@ class Config:
         species_elitism_threshold (int): Species with a number of members
             superior to this threshold will have their fittest member copied
             unchanged to the next generation.
+        species_no_improvement_limit (int): If a species doesn't show
+            improvement in its best fitness for this amount of generations, it
+            will be extinct.
         weak_genomes_removal_pc (float): Percentage of the least fit individuals
             to be deleted from the population before the reproduction step.
         mating_chance (float): Chance for a genome to reproduce sexually, i.e.,
@@ -199,15 +205,15 @@ class Config:
                  hidden_nodes_activation=nevopy.activations.steepened_sigmoid,
                  bias_value=1,
                  # reproduction
-                 weak_genomes_removal_pc=0.8,
+                 weak_genomes_removal_pc=0.7,
                  weight_mutation_chance=0.8,
-                 new_node_mutation_chance=0.03,
-                 new_connection_mutation_chance=0.03,
-                 enable_connection_mutation_chance=0.03,
+                 new_node_mutation_chance=0.05,
+                 new_connection_mutation_chance=0.05,
+                 enable_connection_mutation_chance=0.05,
                  disable_inherited_connection_chance=0.75,
-                 mating_chance=0.6,
+                 mating_chance=0.5,
                  interspecies_mating_chance=0.01,
-                 rank_prob_dist_coefficient=2,
+                 rank_prob_dist_coefficient=1.7,
                  # weight mutation
                  weight_perturbation_pc=0.1,
                  weight_reset_chance=0.1,
@@ -219,8 +225,9 @@ class Config:
                  # speciation
                  species_distance_threshold=1,
                  species_elitism_threshold=5,
+                 species_no_improvement_limit=15,
                  # others
-                 reset_innovations_period=20,
+                 reset_innovations_period=1,
                  allow_self_connections=True,
                  initial_node_activation=0,):
         values = locals()

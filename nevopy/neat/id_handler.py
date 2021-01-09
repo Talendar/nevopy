@@ -8,11 +8,14 @@ class IdHandler:
 
     todo
 
-    "A possible problem is that the same structural innovation will receive different innovation numbers in the same
-    generation if it occurs by chance more than once. However, by keeping a list of the innovations that occurred in the
-    current generation, it is possible to ensure that when the same structure arises more than once through independent
-    mutations in the same generation, each identical mutation is assigned the same innovation number. Thus, there is no
-    resultant explosion of innovation numbers." - Stanley, K. O. & Miikkulainen, R. (2002)
+    "A possible problem is that the same structural innovation will receive
+    different innovation numbers in the same generation if it occurs by chance
+    more than once. However, by keeping a list of the innovations that occurred
+    in the current generation, it is possible to ensure that when the same
+    structure arises more than once through independent mutations in the same
+    generation, each identical mutation is assigned the same innovation number.
+    Thus, there is no resultant explosion of innovation numbers."
+    - Stanley, K. O. & Miikkulainen, R. (2002)
     """
 
     def __init__(self, num_inputs, num_outputs, has_bias):
@@ -28,8 +31,10 @@ class IdHandler:
         self.reset_counter = 0
 
     def reset(self):
-        """ Resets the cache of new nodes and connections. Should be called at the start of a new generation. """
-        # todo: should this rlly be reset?
+        """ Resets the cache of new nodes and connections.
+
+        Should be called at the start of a new generation.
+        """
         # maybe set this according to a config parameter
         self._new_connections_ids = {}
         self._new_nodes_ids = {}
@@ -61,9 +66,11 @@ class IdHandler:
     def get_hidden_node_id(self, node):
         """ TODO
         """
-        src_id, dest_id = node.parent_connection_nodes[0].id, node.parent_connection_nodes[1].id
+        src_id = node.parent_connection_nodes[0].id
+        dest_id = node.parent_connection_nodes[1].id
         if src_id is None or dest_id is None:
-            raise RuntimeError("Trying to generate an ID to a node whose parents (one or both) have \"None\" IDs!")
+            raise RuntimeError("Trying to generate an ID to a node whose "
+                               "parents (one or both) have \"None\" IDs!")
 
         if src_id in self._new_nodes_ids:
             if dest_id in self._new_nodes_ids[src_id]:
@@ -79,7 +86,9 @@ class IdHandler:
     def get_connection_id(self, connection):
         """ TODO
         """
-        src_id, dest_id = connection.from_node.id, connection.to_node.id
+        src_id = connection.from_node.id
+        dest_id = connection.to_node.id
+
         if src_id in self._new_connections_ids:
             if dest_id in self._new_connections_ids[src_id]:
                 return self._new_connections_ids[src_id][dest_id]

@@ -21,7 +21,8 @@ class Species:
         self.members = []
 
         self._creation_gen = generation
-        self._last_improvement = generation
+        self.last_improvement = generation
+        self.best_fitness = None
         self.fitness_history = []
 
     @property
