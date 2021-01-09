@@ -26,30 +26,37 @@ TODO
 """
 
 import numpy as np
-from nevopy.neat.genome import *
+from nevopy.neat.genome import Genome, mate_genomes
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
+from nevopy.processing.serial_processing import SerialProcessingScheduler
 from nevopy import utils
-
-import ray
-ray.init(address='auto', _redis_password='5241590000000000',
-         ignore_reinit_error=True)
 
 
 class Population:
     """
-
+    TODO
     """
 
-    def __init__(self, size, num_inputs, num_outputs, config=None):
+    def __init__(self,
+                 size,
+                 num_inputs,
+                 num_outputs,
+                 config=None,
+                 processing_scheduler=None) -> None:
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
 
+        self._scheduler = (processing_scheduler
+                           if processing_scheduler is not None
+                           else SerialProcessingScheduler())
+
         self.config = config if config is not None else Config()
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
+        self._rank_prob_dist = None
 
         # creating initial genomes
         self.genomes = [Genome(num_inputs=num_inputs,
@@ -69,7 +76,7 @@ class Population:
 
     def fittest(self):
         """ TODO """
-        return self.genomes[np.argmax([g.fitness for g in self.genomes])]
+        return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
 
     def _set_nodes_id(self, node_list):
         node_queue = [(node, 0) for node in node_list if node.is_id_temp()]
@@ -129,10 +136,15 @@ class Population:
     def evolve(self, generations, fitness_function):
         """
 
+        TODO: remove genomes without enabled connections to the output nodes?
+
         :param generations:
         :param fitness_function:
         :return:
         """
+        # caching the rank-selection probability distribution
+        self._calc_prob_dist()
+
         # evolving
         for generation_num in range(generations):
             # resetting genomes
@@ -145,13 +157,10 @@ class Population:
 
             # calculating fitness
             print("Calculating fitness... ", end="")
-            # fitness_results = [fitness_function(genome)
-            #                    for genome in self.genomes]
+            fitness_results = self._scheduler.run(items=self.genomes,
+                                                  func=fitness_function)
 
-            fitness_results = ray.get([_ray_fitness.remote(genome,
-                                                           fitness_function)
-                                       for genome in self.genomes])
-
+            # assigning fitness and adjusted fitness
             for genome, fitness in zip(self.genomes, fitness_results):
                 genome.fitness = fitness
                 sp = self._species[genome.species_id]
@@ -159,7 +168,8 @@ class Population:
             print("done!")
 
             # info
-            best = self.genomes[np.argmax([g.fitness for g in self.genomes])]
+            best = self.genomes[int(np.argmax([g.fitness
+                                               for g in self.genomes]))]
             print(f"Best fitness: {best.fitness}")
             print("Avg. population fitness: "
                   f"{np.mean([g.fitness for g in self.genomes])}")
@@ -171,9 +181,19 @@ class Population:
             self.speciation(generation=generation_num)
             print("done!\n\n" + "#" * 30 + "\n")
 
-    def _generate_offspring(self, params):
-        sp, rank_prob_dist = params["species"], params["prob_dist"]
-        g1 = np.random.choice(sp.members, p=rank_prob_dist)
+    def _generate_offspring(self,
+                            species: Species,
+                            rank_prob_dist: np.array) -> Genome:
+        """ TODO
+
+        Args:
+            species:
+            rank_prob_dist:
+
+        Returns:
+
+        """
+        g1 = np.random.choice(species.members, p=rank_prob_dist)
 
         # mating / cross-over
         if utils.chance(self.config.mating_chance):
@@ -181,10 +201,10 @@ class Population:
             if (len(self._species) > 1
                     and utils.chance(self.config.interspecies_mating_chance)):
                 g2 = np.random.choice([g for g in self.genomes
-                                       if g.species_id != sp.id])
+                                       if g.species_id != species.id])
             # intraspecific
             else:
-                g2 = np.random.choice(sp.members)
+                g2 = np.random.choice(species.members)
             baby = mate_genomes(g1, g2)
         # binary_fission
         else:
@@ -208,6 +228,20 @@ class Population:
 
         return baby
 
+    def _calc_prob_dist(self):
+        """
+        TODO
+        """
+        alpha = self.config.rank_prob_dist_coefficient
+        self._rank_prob_dist = np.zeros(len(self.genomes))
+
+        self._rank_prob_dist[0] = 1 - 1 / alpha
+        for i in range(1, len(self.genomes)):
+            p = self._rank_prob_dist[i - 1] / alpha
+            if p < 1e-9:
+                break
+            self._rank_prob_dist[i] = p
+
     def reproduction(self):
         """
 
@@ -217,18 +251,20 @@ class Population:
 
         # elitism
         for sp in self._species.values():
-            sp.members.sort(key=lambda genome: genome.fitness)
+            sp.members.sort(key=lambda genome: genome.fitness,
+                            reverse=True)
 
             # preserving the most fit individual
             if len(sp.members) >= self.config.species_elitism_threshold:
-                new_pop.append(sp.members[-1])
+                new_pop.append(sp.members[0])
 
             # removing the least fit individuals
             r = int(len(sp.members) * self.config.weak_genomes_removal_pc)
             if 0 < r < len(sp.members):
-                for g in sp.members[:r]:
+                r = len(sp.members) - r
+                for g in sp.members[r:]:
                     self.genomes.remove(g)
-                sp.members = sp.members[r:]
+                sp.members = sp.members[:r]
 
         # calculating the number of children for each species
         offspring_count = self._offspring_proportion(
@@ -237,19 +273,26 @@ class Population:
 
         # creating new genomes
         for sp in self._species.values():
-            # assigning reproduction probabilities (rank-based selection)
-            rank_prob_dist = np.zeros(len(sp.members))
-            alpha = self.config.rank_prob_dist_coefficient
-            for i in reversed(range(len(sp.members))):
-                rank_prob_dist[i] = alpha ** (i / len(sp.members))
-            rank_prob_dist /= np.sum(rank_prob_dist)
+            # reproduction probabilities (rank-based selection)
+            prob = self._rank_prob_dist[:len(sp.members)]
+            prob_sum = np.sum(prob)
+
+            if abs(prob_sum - 1) > 1e-8:
+                # normalizing distribution
+                prob = prob / prob_sum
+            # print(f"\n{prob}")
 
             # generating offspring
-            # todo: parallelize
-            babies = [self._generate_offspring({"species": sp,
-                                                "prob_dist": rank_prob_dist})
-                      for _ in range(offspring_count[sp.id])]
+            babies = self._scheduler.run(
+                items=list(range(offspring_count[sp.id])),
+                func=lambda i: self._generate_offspring(species=sp,
+                                                        rank_prob_dist=prob)
+            )
             new_pop += babies
+
+            # todo: infanticide / euthanasia (remove individuals with no in
+            #  connections to output nodes or no out connections from input
+            #  nodes)
 
         # new population
         self.genomes = new_pop
@@ -316,6 +359,6 @@ class Population:
                 sp.random_representative()
 
 
-@ray.remote
-def _ray_fitness(genome, func):
-    return func(genome)
+# @ray.remote
+# def _ray_fitness(genome, func):
+#     return func(genome)

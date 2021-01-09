@@ -29,7 +29,7 @@ the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
 from __future__ import annotations
-from typing import Optional, Iterable
+from typing import Optional, Sequence
 
 import numpy as np
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
@@ -94,14 +94,14 @@ class Genome:
                  num_outputs: int,
                  config: Config,
                  genome_id: Optional[int] = None,
-                 initial_connections: bool = True):
+                 initial_connections: bool = True) -> None:
         self.config = config
         self._id = genome_id
         self.species_id = None
 
-        self.new_connections = []
-        self.new_nodes = []
-        self.new_genomes = []
+        self.new_connections = []  # type: List[ConnectionGene]
+        self.new_nodes = []        # type: List[NodeGene]
+        self.new_genomes = []      # type: List[Genome]
 
         self.hid_connections_cache = {}
         self._activated_nodes = None
@@ -567,7 +567,7 @@ class Genome:
             n.activate(zsum)
         return n.activation
 
-    def process(self, X: Iterable[float]) -> np.array:
+    def process(self, X: Sequence[float]) -> np.array:
         """ Feeds the given input to the neural network.
 
         In this implementation, there is no distinction between a genome and
@@ -580,7 +580,7 @@ class Genome:
             least one of the network's output nodes won't be processed.
 
         Args:
-            X (Iterable[float]): An iterable object (like a list or numpy array)
+            X (Sequence[float]): A sequence object (like a list or numpy array)
                 containing the inputs to be fed to the neural network input
                 nodes. It represents a single training sample. The value in the
                 index `i` of `X` will be fed to the :math:`i^{th}` input node

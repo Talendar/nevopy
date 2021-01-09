@@ -25,7 +25,7 @@
 """
 
 from __future__ import annotations
-from typing import Union, Callable, Tuple, List
+from typing import Union, Callable, Tuple, List, Optional
 from enum import Enum
 import uuid
 
@@ -56,12 +56,12 @@ class NodeGene:
             most of the time. Todo: remove.
 
     Attributes:
-        in_connections (:obj:`list` of :obj:`.ConnectionGene`): List with the
-            connections (:class:`.ConnectionGene`) leaving this node, i.e.,
-            connections that have this node as the source.
-        out_connections (:obj:`list` of :obj:`.ConnectionGene`): List with the
-            connections (:class:`.ConnectionGene`) coming to this node, i.e.,
-            connections that have this node as the destination.
+        in_connections (List[ConnectionGene]): List with the connections
+            (:class:`.ConnectionGene`) leaving this node, i.e., connections that
+            have this node as the source.
+        out_connections (List[ConnectionGene]): List with the connections
+            (:class:`.ConnectionGene`) coming to this node, i.e., connections
+            that have this node as the destination.
         _temp_id (None/str): Stores a temporary ID for the node while it isn't
             assigned a definitive ID.
     """
@@ -71,16 +71,17 @@ class NodeGene:
                  node_type: NodeGene.Type,
                  activation_func: Callable[[float], float],
                  initial_activation: float,
-                 parent_connection_nodes: Union[None, tuple] = None,
-                 debug_info: Union[None, str] = None):
+                 parent_connection_nodes: Optional[Tuple[NodeGene,
+                                                         NodeGene]] = None,
+                 debug_info: Union[None, str] = None) -> None:
         self._id = node_id
         self._type = node_type
         self._initial_activation = initial_activation
         self._activation = initial_activation
         self._function = activation_func
         self._parent_connection_nodes = parent_connection_nodes
-        self.in_connections = []
-        self.out_connections = []
+        self.in_connections = []   # type: List[ConnectionGene]
+        self.out_connections = []  # type: List[ConnectionGene]
         self._temp_id = None if self._id is not None else uuid.uuid4().hex[:12]
         self.debug_info = debug_info
 
@@ -146,7 +147,7 @@ class NodeGene:
         return self._activation
 
     @property
-    def parent_connection_nodes(self) -> Union[Tuple[NodeGene, NodeGene], None]:
+    def parent_connection_nodes(self) -> Optional[Tuple[NodeGene, NodeGene]]:
         """ The nodes that form the connection where this node originated.
 
         As specified in the original NEAT paper :cite:`stanley:ec02`, a hidden
@@ -257,12 +258,12 @@ class ConnectionGene:
     """
 
     def __init__(self,
-                 cid: Union[int, None],
+                 cid: Optional[int],
                  from_node: NodeGene,
                  to_node: NodeGene,
                  weight: float,
                  enabled: bool = True,
-                 debug_info: str = None):
+                 debug_info: str = None) -> None:
         self._id = cid
         self._from_node = from_node
         self._to_node = to_node
@@ -271,14 +272,15 @@ class ConnectionGene:
         self.debug_info = debug_info
 
     @property
-    def id(self) -> int:
+    def id(self) -> Optional[int]:
         """ Innovation number of the connection gene.
 
          As described in the original NEAT paper :cite:`stanley:ec02`, this
          value serves as a historical marker for the gene, helping to identify
          homologous genes. Although must of the identification is based on the
          nodes that form the connection, this ID is still helpful to make some
-         comparisons faster.
+         comparisons faster. If it's `None`, then an ID has yet to be assigned
+         to the gene.
         """
         return self._id
 
