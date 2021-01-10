@@ -27,6 +27,7 @@ TODO
 
 import numpy as np
 from nevopy.neat.genome import Genome, mate_genomes
+from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
@@ -45,12 +46,10 @@ class Population:
                  num_inputs,
                  num_outputs,
                  config=None,
-                 processing_scheduler=None,
-                 reproduction_uses_scheduler=False) -> None:
+                 processing_scheduler=None) -> None:
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
-        self._rep_uses_scheduler = reproduction_uses_scheduler
 
         self._scheduler = (PoolProcessingScheduler
                            if processing_scheduler is not None
@@ -60,11 +59,15 @@ class Population:
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
         self._rank_prob_dist = None
+        self._invalid_genomes_replaced = None
+
+        self.__mmh_nodes = None
+        self.__mmh_connections = None
 
         # creating initial genomes
-        self.genomes = [Genome(num_inputs=num_inputs,
+        self.genomes = [Genome(genome_id=self._id_handler.next_genome_id(),
+                               num_inputs=num_inputs,
                                num_outputs=num_outputs,
-                               genome_id=self._id_handler.next_genome_id(),
                                config=self.config)
                         for _ in range(size)]
 
@@ -81,62 +84,13 @@ class Population:
         """ TODO """
         return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
 
-    def _set_nodes_id(self, node_list):
-        node_queue = [(node, 0) for node in node_list if node.is_id_temp()]
-        while node_queue:
-            node, tries = node_queue.pop(0)
-            parents = node.parent_connection_nodes
-            if parents is None:
-                raise RuntimeError("Tried to assign an ID to a new node that "
-                                   "has parents = \"None\"!")
-
-            if not parents[0].is_id_temp() and not parents[1].is_id_temp():
-                node.id = self._id_handler.get_hidden_node_id(node)
-            elif tries > 1:
-                raise RuntimeError("Couldn't assign an ID to a new added node!")
-            else:
-                tries += 1
-                node_queue.append((node, tries))
-
-    def _set_connections_id(self, connection_list):
-        for connection in connection_list:
-            if (connection.from_node.is_id_temp()
-                    or connection.to_node.is_id_temp()):
-                raise RuntimeError("Tried to assign an ID to a connection "
-                                   "between nodes with temp IDs! Did you "
-                                   "update the nodes IDs before trying to "
-                                   "update the connections IDs?")
-            connection.id = self._id_handler.get_connection_id(connection)
-
     def update_ids(self):
+        # todo
         # checking if the innovation ids should be reset
         if (self.config.reset_innovations_period is not None
                 and self._id_handler.reset_counter > self.config.reset_innovations_period):
             self._id_handler.reset()
-            for genome in self.genomes:
-                genome.reset_connections_ids_cache()
         self._id_handler.reset_counter += 1
-
-        # checking genomes
-        genomes_ids = set([g.id for g in self.genomes])
-        new_nodes, new_connections = [], []
-        for genome in self.genomes:
-            # assigning ids to new genomes
-            if genome.id is None:
-                new_id = self._id_handler.next_genome_id()
-                if new_id in genomes_ids:
-                    raise RuntimeError("The ID handler assigned an existing ID "
-                                       "to a genome.")
-                genome.id = new_id
-
-            # retrieving new genes
-            new_nodes += genome.new_nodes
-            new_connections += genome.new_connections
-
-        self._set_nodes_id(new_nodes)
-        self._set_connections_id(new_connections)
-
-        # todo: check for duplicated connections
 
     def evolve(self, generations, fitness_function):
         """
@@ -153,8 +107,8 @@ class Population:
         # evolving
         for generation_num in range(generations):
             # resetting genomes
-            for genome in self.genomes:
-                genome.reset_news_cache()
+            # for genome in self.genomes:
+            #     genome.reset_activations()
 
             print(f"[{100*(generation_num + 1) / generations :.2f}%] "
                   f"Generation {generation_num+1} of {generations}.\n"
@@ -182,9 +136,12 @@ class Population:
             # reproduction and speciation
             print("Reproduction... ", end="")
             self.reproduction()
-            print("done!\nSpeciation... ", end="")
+            print("done!\nInvalid genomes replaced: "
+                  f"{self._invalid_genomes_replaced}")
+            print("Speciation... ", end="")
             self.speciation(generation=generation_num)
-            print("done!\n\n" + "#" * 30 + "\n")
+            print(f"done!")
+            print("\n" + "#" * 30 + "\n")
 
     def _generate_offspring(self,
                             species: Species,
@@ -199,6 +156,7 @@ class Population:
 
         """
         g1 = np.random.choice(species.members, p=rank_prob_dist)
+        baby_id = self._id_handler.next_genome_id()
 
         # mating / cross-over
         if utils.chance(self.config.mating_chance):
@@ -210,10 +168,10 @@ class Population:
             # intraspecific
             else:
                 g2 = np.random.choice(species.members)
-            baby = mate_genomes(g1, g2)
+            baby = mate_genomes(g1, g2, baby_id)
         # binary_fission
         else:
-            baby = g1.deep_copy()
+            baby = g1.deep_copy(baby_id)
 
         # enable connection mutation
         if utils.chance(self.config.enable_connection_mutation_chance):
@@ -225,13 +183,31 @@ class Population:
 
         # new connection mutation
         if utils.chance(self.config.new_connection_mutation_chance):
-            baby.add_random_connection()
+            baby.add_random_connection(self._id_handler)
 
         # new node mutation
         if utils.chance(self.config.new_node_mutation_chance):
-            baby.add_random_hidden_node(cached_hids=self._id_handler.cached_hids())
+            baby.add_random_hidden_node(self._id_handler)
 
-        return baby
+        # checking genome validity
+        valid_out = (not self.config.infanticide_output_nodes
+                     or baby.valid_out_nodes())
+        valid_in = (not self.config.infanticide_input_nodes
+                    or baby.valid_in_nodes())
+
+        # genome is valid
+        if valid_out and valid_in:
+            return baby
+
+        # invalid genome: replacing with a new random genome
+        self._invalid_genomes_replaced += 1
+        return Genome.random_genome(
+            num_inputs=self._num_inputs,
+            num_outputs=self._num_outputs,
+            id_handler=self._id_handler,
+            config=self.config,
+            hidden_nodes_bounds=self.__mmh_nodes,
+            hidden_connections_bounds=self.__mmh_connections)
 
     def _calc_prob_dist(self):
         """
@@ -279,6 +255,11 @@ class Population:
             num_offspring=self._size - len(new_pop)
         )
 
+        # updating mmh nodes and connections (for generating random genomes)
+        self.__update_mmh_nodes()
+        self.__update_mmh_connections()
+        self._invalid_genomes_replaced = 0
+
         # creating new genomes
         for sp in self._species.values():
             # reproduction probabilities (rank-based selection)
@@ -288,28 +269,42 @@ class Population:
             if abs(prob_sum - 1) > 1e-8:
                 # normalizing distribution
                 prob = prob / prob_sum
-            # print(f"\n{prob}")
 
             # generating offspring
-            if self._rep_uses_scheduler:
-                babies = self._scheduler.run(
-                     items=list(range(offspring_count[sp.id])),
-                     func=lambda i: self._generate_offspring(
-                         species=sp, rank_prob_dist=prob
-                     )
-                )
-            else:
-                babies = [self._generate_offspring(species=sp,
-                                                   rank_prob_dist=prob)
-                          for _ in range(offspring_count[sp.id])]
+            babies = [self._generate_offspring(species=sp,
+                                               rank_prob_dist=prob)
+                      for _ in range(offspring_count[sp.id])]
             new_pop += babies
 
-            # todo: infanticide (remove individuals with no in connections to
-            #  output nodes or no out connections from input nodes)
-
-        # new population
+        assert len(new_pop) == self._size
         self.genomes = new_pop
         self.update_ids()
+
+    def __update_mmh_nodes(self):
+        """
+        todo
+        Returns:
+
+        """
+        nums = [len(g.hidden_nodes) for g in self.genomes]
+        self.__mmh_nodes = (np.min(nums), np.max(nums))
+
+    def __update_mmh_connections(self):
+        """ mmh = min-max hidden
+        TODO
+        Returns:
+
+        """
+        min_hcon = max_hcon = 0
+        for g in self.genomes:
+            count = 0
+            for c in g.connections:
+                if c.enabled and (c.from_node.Type == NodeGene.Type.HIDDEN
+                                  or c.to_node.Type == NodeGene.Type.HIDDEN):
+                    count += 1
+            min_hcon = min(min_hcon, count)
+            max_hcon = max(max_hcon, count)
+        self.__mmh_connections = (min_hcon, max_hcon)
 
     def _offspring_proportion(self, num_offspring):
         """ Roulette wheel selection. """
@@ -392,3 +387,17 @@ class Population:
             else:
                 sp.random_representative()
 
+    def info(self):
+        no_hnode = invalid_out = no_cons = 0
+        for g in self.genomes:
+            invalid_out += 0 if g.valid_out_nodes() else 1
+            no_hnode += 1 if len(g.hidden_nodes) == 0 else 0
+            no_cons += (0 if [c for c in g.connections
+                              if (c.enabled and not c.self_connecting())]
+                        else 1)
+
+        return (f"Size: {len(self.genomes)}\n"
+                f"Species: {len(self._species)}\n"
+                f"Invalid genomes (out nodes): {invalid_out}\n"
+                f"No-hidden node genomes: {no_hnode}\n"
+                f"No enabled connection (ignore self connections): {no_cons}")

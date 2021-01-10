@@ -27,7 +27,6 @@
 from __future__ import annotations
 from typing import Union, Callable, Tuple, List, Optional
 from enum import Enum
-import uuid
 
 
 class NodeGene:
@@ -40,7 +39,7 @@ class NodeGene:
 
     Args:
         node_id (int/None): An int specifying the node's ID or None, in which
-            case a temporary ID will be generated.
+            case a temporary ID will be generated. todo: fix
         node_type (NodeGene.Type): the node's type.
         activation_func (Callable[[float], float]): Activation function to be
             used by the node. It should receive a float as input and return a
@@ -62,27 +61,22 @@ class NodeGene:
         out_connections (List[ConnectionGene]): List with the connections
             (:class:`.ConnectionGene`) coming to this node, i.e., connections
             that have this node as the destination.
-        _temp_id (None/str): Stores a temporary ID for the node while it isn't
-            assigned a definitive ID.
     """
 
     def __init__(self,
-                 node_id: Union[int, str],
+                 node_id: int,
                  node_type: NodeGene.Type,
                  activation_func: Callable[[float], float],
                  initial_activation: float,
-                 parent_connection_nodes: Optional[Tuple[NodeGene,
-                                                         NodeGene]] = None,
                  debug_info: Union[None, str] = None) -> None:
+        assert node_id is not None
         self._id = node_id
         self._type = node_type
         self._initial_activation = initial_activation
         self._activation = initial_activation
         self._function = activation_func
-        self._parent_connection_nodes = parent_connection_nodes
         self.in_connections = []   # type: List[ConnectionGene]
-        self.out_connections = []  # type: List[ConnectionGene]
-        self._temp_id = None if self._id is not None else uuid.uuid4().hex[:12]
+        self.out_connections = []  # type: List[ConnectionGene]  # todo: remove
         self.debug_info = debug_info
 
     class Type(Enum):
@@ -90,8 +84,9 @@ class NodeGene:
         INPUT, BIAS, HIDDEN, OUTPUT = range(4)
 
     @property
-    def id(self) -> Union[int, str]:
+    def id(self) -> int:
         """ Innovation ID of the gene.
+        todo: fix
 
         This ID is used to mate genomes and to calculate their difference.
 
@@ -104,34 +99,7 @@ class NodeGene:
             of the node. Otherwise: a string containing a temporary hexadecimal
             unique ID for the node.
         """
-        return self._id if self._id is not None else self._temp_id
-
-    @id.setter
-    def id(self, new_id: int) -> None:
-        """ Assigns an ID to a node that has a temporary ID.
-
-        Args:
-            new_id (int): The node's definitive ID.
-
-        Raises:
-            NodeIdException: If the node already has a definitive ID, i.e., the
-            node isn't using a temporary ID anymore. This will always be raised
-            when this setter is called on non-hidden nodes.
-        """
-        if self._id is not None:
-            raise NodeIdException("Attempt to assign a new ID to a node gene "
-                                  "that already has an ID!")
-        self._id = new_id
-        self._temp_id = None
-
-    def is_id_temp(self) -> bool:
-        """ Checks whether the node has a temporary ID.
-
-        Returns:
-            True if the node is using a temporary ID, False otherwise (the node
-            has already been assigned a definitive ID).
-        """
-        return self._id is None
+        return self._id
 
     @property
     def type(self) -> NodeGene.Type:
@@ -145,41 +113,6 @@ class NodeGene:
         last processed.
         """
         return self._activation
-
-    @property
-    def parent_connection_nodes(self) -> Optional[Tuple[NodeGene, NodeGene]]:
-        """ The nodes that form the connection where this node originated.
-
-        As specified in the original NEAT paper :cite:`stanley:ec02`, a hidden
-        node (:attr:`~NodeGene.Type.HIDDEN`) is created by diving an existing
-        connection between two nodes in the genome. We call these two nodes the
-        parents of the newly created hidden node. They are later used to assign
-        an innovation ID to the created node.
-
-        The reason why a reference to the parents is kept, instead of just their
-        ID, is that, when this node is created, one or both parents might not
-        have been assigned a definitive ID. In this case, it wouldn't be
-        possible to find then later (when their ID change) unless we keep a
-        reference to them.
-
-        Returns:
-            A tuple with the nodes that form the connection where this node
-            originated. The first node is the connection's source node and the
-            second node is the connection's destination node.
-
-            If the node doesn't have parents, None is returned. This behaviour
-            isn't expected, since all hidden nodes are expected to have parents
-            and calls to this property on non-hidden nodes should raise an
-            exception.
-
-        Raises:
-            NodeParentsException: If the node type is not :attr:`~NodeGene.Type.HIDDEN`.
-            Only hidden nodes have parents.
-        """
-        if self._type != NodeGene.Type.HIDDEN:
-            raise NodeParentsException("Attempt to get the parents of a "
-                                       "non-hidden node!")
-        return self._parent_connection_nodes
 
     def activate(self, x: float) -> None:
         """ Applies the node's activation function to the given input.
@@ -208,7 +141,6 @@ class NodeGene:
                         node_type=self._type,
                         activation_func=self._function,
                         initial_activation=self._initial_activation,
-                        parent_connection_nodes=self._parent_connection_nodes,
                         debug_info=debug_info)
 
     def reset_activation(self) -> None:
@@ -237,7 +169,7 @@ class ConnectionGene:
             connections in different genomes. Unlike a hidden :class:`~NodeGene`,
             a temporary ID isn't required here (the identification of
             connections without IDs can be done through the nodes that compose
-            it).
+            it). todo: fix
         from_node (NodeGene): Node from where the connection is originated. The
             source node of the connection.
         to_node (NodeGene): Node to where the connection is headed. The
@@ -258,7 +190,7 @@ class ConnectionGene:
     """
 
     def __init__(self,
-                 cid: Optional[int],
+                 cid: int,
                  from_node: NodeGene,
                  to_node: NodeGene,
                  weight: float,
@@ -272,8 +204,9 @@ class ConnectionGene:
         self.debug_info = debug_info
 
     @property
-    def id(self) -> Optional[int]:
+    def id(self) -> int:
         """ Innovation number of the connection gene.
+        #todo: fix
 
          As described in the original NEAT paper :cite:`stanley:ec02`, this
          value serves as a historical marker for the gene, helping to identify
@@ -283,34 +216,6 @@ class ConnectionGene:
          to the gene.
         """
         return self._id
-
-    @id.setter
-    def id(self, new_id: int) -> None:
-        """ Assigns an ID to a connection gene that was created without an ID.
-
-        A connection gene can be created without an ID, in which case one can be
-        assigned to it later, through this setter. In cases where it's necessary
-        to create a bunch of connections for different genomes, delaying the
-        assignment of an ID to the gene is useful, because, once all connections
-        have been created, it's easier to assign similar IDs to homologous
-        connections in different genomes. Unlike the a hidden :class:`~NodeGene`,
-        a temporary ID isn't required here (the identification of connections
-        without IDs can be done through the nodes that compose it).
-
-        Args:
-            new_id (int): The ID of the connection gene.
-
-        Raises:
-            ConnectionIdException: If the connection has already been assigned
-            an ID, either during its creation or through a previous call to this
-            setter.
-        """
-        if self._id is not None:
-            raise ConnectionIdException(
-                "Attempt to assign a new ID to a connection gene that already "
-                "has an ID!"
-            )
-        self._id = new_id
 
     @property
     def from_node(self) -> NodeGene:
@@ -322,29 +227,37 @@ class ConnectionGene:
         """ Node to where the connection is headed (destination node). """
         return self._to_node
 
+    def self_connecting(self):
+        """
+        TODO
+        Returns:
 
-def connection_exists(src_node: NodeGene, dest_node: NodeGene) -> bool:
-    """ Checks if the connection `src_node->dest_node` exists.
+        """
+        return self._from_node == self._to_node
 
-    A connection `A->B` between the nodes `A` and `B` exists if `A->B` is in
-    node `A's` :attr:`~NodeGene.out_connections` or `A->B` is in node `B's`
-    :attr:`~NodeGene.in_connections`.
 
-    Args:
-        src_node (NodeGene): The node from where the connection leaves (source
-            node).
-        dest_node (NodeGene): The node to where the connection is headed
-            (destination node).
-
-    Returns:
-        True if the connection `src_node->dest_node` exists and False otherwise.
-    """
-    for dest_cin, src_cout in zip(dest_node.in_connections,
-                                  src_node.out_connections):
-        if (dest_cin.from_node.id == src_node.id
-                or src_cout.to_node.id == dest_node.id):
-            return True
-    return False
+# def connection_exists(src_node: NodeGene, dest_node: NodeGene) -> bool:
+#     """ Checks if the connection `src_node->dest_node` exists.
+#
+#     A connection `A->B` between the nodes `A` and `B` exists if `A->B` is in
+#     node `A's` :attr:`~NodeGene.out_connections` or `A->B` is in node `B's`
+#     :attr:`~NodeGene.in_connections`.
+#
+#     Args:
+#         src_node (NodeGene): The node from where the connection leaves (source
+#             node).
+#         dest_node (NodeGene): The node to where the connection is headed
+#             (destination node).
+#
+#     Returns:
+#         True if the connection `src_node->dest_node` exists and False otherwise.
+#     """
+#     for dest_cin, src_cout in zip(dest_node.in_connections,
+#                                   src_node.out_connections):
+#         if (dest_cin.from_node.id == src_node.id
+#                 or src_cout.to_node.id == dest_node.id):
+#             return True
+#     return False
 
 
 def align_connections(

@@ -60,14 +60,9 @@ class IdHandler:
         self._species_counter += 1
         return sid
 
-    def cached_hids(self):
-        return self._new_nodes_ids
-
-    def get_hidden_node_id(self, node):
+    def next_hidden_node_id(self, src_id, dest_id):
         """ TODO
         """
-        src_id = node.parent_connection_nodes[0].id
-        dest_id = node.parent_connection_nodes[1].id
         if src_id is None or dest_id is None:
             raise RuntimeError("Trying to generate an ID to a node whose "
                                "parents (one or both) have \"None\" IDs!")
@@ -83,12 +78,9 @@ class IdHandler:
         self._new_nodes_ids[src_id][dest_id] = hid
         return hid
 
-    def get_connection_id(self, connection):
+    def next_connection_id(self, src_id, dest_id):
         """ TODO
         """
-        src_id = connection.from_node.id
-        dest_id = connection.to_node.id
-
         if src_id in self._new_connections_ids:
             if dest_id in self._new_connections_ids[src_id]:
                 return self._new_connections_ids[src_id][dest_id]

@@ -30,7 +30,7 @@ def eval_genome(genome, log=False):
     genome.reset_activations()
     error = 0
     for x, y in zip(xor_inputs, xor_outputs):
-        genome.reset_activations()
+        # genome.reset_activations()
         h = genome.process(x)[0]
         error += (y - h) ** 2
         if log:
@@ -67,6 +67,5 @@ if __name__ == "__main__":
     print("\n" + 20*"=" +
           f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s")
-
 
 

@@ -2,20 +2,20 @@
 
 >>> Bugs:
 	
-	. Resetting innovations every generation (period=1 or 2) is causing 
-	"ConnectionExistsError". Maybe check for duplicate connections and remove
-	them.
-	
-	. Why are so few species being born?
-	
 
 
 >>> Implementation:
 
 	. Genome saving and checkpoints.
 
-	. Infanticide / euthanasia: remove genomes with no in connections to output 
-	nodes or no out connections from input nodes.
+	. Mass extinction: delete the whole population if it hasn't shown 
+	improvement for the past few generations
+	
+	. History of species (draw a figure showing when species were born and when
+	they were extinct).
+	
+	. Adaptable mutation rates (based on how long the population's fitness 
+	hasn't improved.
 
 
 

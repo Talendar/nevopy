@@ -116,6 +116,34 @@ class Config:
             on at least one of the parent genomes.
         initial_node_activation (float): Initial activation value cached by a
             node when it's created or reset.
+        infanticide_output_nodes (bool): If `True`, newborn genomes with no
+            enabled connections incoming to one or more output nodes will be
+            deleted and replaced by a new randomly generated genome. Note that
+            the term "infanticide" is being used here without any political or
+            cultural connotation. It's used because it is the word that best
+            describe the phenomenon at hand and is widely used in the scientific
+            field of zoology (see
+            `this <https://en.wikipedia.org/wiki/Infanticide_(zoology)>`_
+            article).
+        infanticide_input_nodes (bool): If `True`, newborn genomes with no
+            enabled connections leaving one or more input nodes will be deleted
+            and replaced by a new randomly generated genome. Note that the term
+            "infanticide" is being used here without any political or cultural
+            connotation. It's used because it is the word that best describe the
+            phenomenon at hand and is widely used in the scientific field of
+            zoology (see
+            `this <https://en.wikipedia.org/wiki/Infanticide_(zoology)>`_
+            article).
+        random_genome_max_bonus_hnodes (int): Let `h_bonus` be the argument
+            passed to this parameter and `h_min` and `h_max` the minimum and the
+            maximum number of hidden nodes within individuals of the population.
+            When a random genome is created to replace one of the population's
+            genomes, the number of hidden nodes in it will be a random number
+            picked from the interval [h_min, h_max + h_bonus].
+        random_genome_max_bonus_hcons (int): The same as
+            :attr:`.Config.random_genome_max_bonus_hnodes`, except it refers to
+            the number of connections involving hidden nodes in the new randomly
+            generated genome.
 
     Attributes:
         file_pathname (Optional[str]): The pathname of a file from where the
@@ -196,6 +224,34 @@ class Config:
             on at least one of the parent genomes.
         initial_node_activation (float): Initial activation value cached by a
             node when it's created or reset.
+        infanticide_output_nodes (bool): If `True`, newborn genomes with no
+            enabled connections incoming to one or more output nodes will be
+            deleted and replaced by a new randomly generated genome. Note that
+            the term "infanticide" is being used here without any political or
+            cultural connotation. It's used because it is the word that best
+            describe the phenomenon at hand and is widely used in the scientific
+            field of zoology (see
+            `this <https://en.wikipedia.org/wiki/Infanticide_(zoology)>`_
+            article).
+        infanticide_input_nodes (bool): If `True`, newborn genomes with no
+            enabled connections leaving one or more input nodes will be deleted
+            and replaced by a new randomly generated genome. Note that the term
+            "infanticide" is being used here without any political or cultural
+            connotation. It's used because it is the word that best describe the
+            phenomenon at hand and is widely used in the scientific field of
+            zoology (see
+            `this <https://en.wikipedia.org/wiki/Infanticide_(zoology)>`_
+            article).
+        random_genome_max_bonus_hnodes (int): Let `h_bonus` be the argument
+            passed to this parameter and `h_min` and `h_max` the minimum and the
+            maximum number of hidden nodes within individuals of the population.
+            When a random genome is created to replace one of the population's
+            genomes, the number of hidden nodes in it will be a random number
+            picked from the interval [h_min, h_max + h_bonus].
+        random_genome_max_bonus_hcons (int): The same as
+            :attr:`.Config.random_genome_max_bonus_hnodes`, except it refers to
+            the number of connections involving hidden nodes in the new randomly
+            generated genome.
     """
 
     def __init__(self,
@@ -205,15 +261,21 @@ class Config:
                  hidden_nodes_activation=nevopy.activations.steepened_sigmoid,
                  bias_value=1,
                  # reproduction
-                 weak_genomes_removal_pc=0.7,
+                 weak_genomes_removal_pc=0.75,
                  weight_mutation_chance=0.8,
-                 new_node_mutation_chance=0.05,
-                 new_connection_mutation_chance=0.05,
-                 enable_connection_mutation_chance=0.05,
+                 new_node_mutation_chance=0.03,
+                 new_connection_mutation_chance=0.03,
+                 enable_connection_mutation_chance=0.03,
                  disable_inherited_connection_chance=0.75,
-                 mating_chance=0.5,
-                 interspecies_mating_chance=0.01,
+                 mating_chance=0.75,
+                 interspecies_mating_chance=0.05,
                  rank_prob_dist_coefficient=1.7,
+                 # infanticide
+                 infanticide_output_nodes=True,
+                 infanticide_input_nodes=False,
+                 # random genomes
+                 random_genome_max_bonus_hnodes=1,
+                 random_genome_max_bonus_hcons=1,
                  # weight mutation
                  weight_perturbation_pc=0.1,
                  weight_reset_chance=0.1,
@@ -223,11 +285,11 @@ class Config:
                  disjoint_genes_coefficient=1,
                  weight_difference_coefficient=0.4,
                  # speciation
-                 species_distance_threshold=1,
+                 species_distance_threshold=1.5,
                  species_elitism_threshold=5,
                  species_no_improvement_limit=15,
                  # others
-                 reset_innovations_period=1,
+                 reset_innovations_period=5,
                  allow_self_connections=True,
                  initial_node_activation=0,):
         values = locals()

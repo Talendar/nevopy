@@ -58,6 +58,7 @@ class Genome:
         NEAT algorithm.
 
     Args:
+        todo: fix
         num_inputs (int): Number of input nodes in the network.
         num_outputs (int): Number of output nodes in the network.
         config (Config): Settings of the current evolution session.
@@ -69,18 +70,6 @@ class Genome:
     Attributes:
         config (Config): Settings of the current evolution session.
         species_id (int): Indicates the species to which the genome belongs.
-        new_connections (:obj:`list` of :obj:`.ConnectionGene`): List with the
-            connection genes recently added to the genome.
-        new_nodes (:obj:`list` of :obj:`.NodeGene`): List with the hidden nodes
-            recently added to the genome.
-        new_genomes (:obj:`list` of :obj:`.Genome`): List with the recently
-            created copies of the current genome.
-        hid_connections_cache (dict): Dictionary in which the keys are the IDs
-            of node genes in the network. The value associated with each key is
-            a `set` that contains the IDs of the nodes to which the "key-node"
-            has recently been connected to. This way, given two nodes `A` and
-            `B`, if `B.id` is in `hid_connections_cache[A.id]` this means that
-            the connection `A->B` has recently been added to the genome.
         fitness (float): The last calculated fitness of the genome.
         adj_fitness (float): The last calculated adjusted fitness of the genome.
         hidden_nodes (:obj:`list` of :obj:`.NodeGene`): List with all the node
@@ -90,20 +79,14 @@ class Genome:
     """
 
     def __init__(self,
+                 genome_id: int,
                  num_inputs: int,
                  num_outputs: int,
                  config: Config,
-                 genome_id: Optional[int] = None,
                  initial_connections: bool = True) -> None:
         self.config = config
         self._id = genome_id
         self.species_id = None
-
-        self.new_connections = []  # type: List[ConnectionGene]
-        self.new_nodes = []        # type: List[NodeGene]
-        self.new_genomes = []      # type: List[Genome]
-
-        self.hid_connections_cache = {}
         self._activated_nodes = None
 
         self.fitness = 0
@@ -115,6 +98,7 @@ class Genome:
         self._bias_node = None
 
         self.connections = []
+        self._existing_connections_dict = {}
         self._output_activation = self.config.out_nodes_activation
         self._hidden_activation = self.config.hidden_nodes_activation
 
@@ -154,12 +138,12 @@ class Genome:
             if initial_connections:
                 for in_node in self._input_nodes:
                     connection_counter += 1
-                    self.add_connection(in_node, out_node,
-                                        cid=connection_counter,
+                    self.add_connection(connection_counter,
+                                        in_node, out_node,
                                         debug_info="__init__ genome")
 
     @property
-    def id(self) -> Union[int, None]:
+    def id(self) -> int:
         """ Identifies a genome.
 
         Returns:
@@ -168,60 +152,11 @@ class Genome:
         """
         return self._id
 
-    @id.setter
-    def id(self, new_id: int) -> None:
-        """ Assigns an ID to the genome.
-
-        Args:
-            new_id (int): The new ID.
-
-        Raises:
-            GenomeIdException: If the genome already has an ID, either assigned
-                during its creation or by a previous call to this setter.
-
-        """
-        if self._id is not None:
-            raise GenomeIdException("Attempt to assign a new ID to a genome "
-                                    "that already has an ID!")
-        self._id = new_id
-
     def reset_activations(self) -> None:
         """ Resets cached activations of the genome's nodes."""
         self._activated_nodes = None
         for n in self.nodes():
             n.reset_activation()
-
-    def reset_news_cache(self) -> None:
-        """
-        Resets the genome's cache of newly created nodes, connections and
-        copies.
-
-        Note:
-            This should be called at the beginning of each new generation.
-        """
-        self.new_nodes = []
-        self.new_connections = []
-        self.new_genomes = []
-
-    def reset_connections_ids_cache(self) -> None:
-        """ Resets the genome's internal innovations IDs cache.
-
-        This method resets the dictionary stored in
-        :attr:`hid_connections_cache`, effectively removing from the genome's
-        cache the information related to past innovations. Doing that allow new
-        hidden nodes to be created on connections where a previous innovation
-        (the adding of a new hidden node) already occurred.
-
-        New hidden nodes are created by "breaking in two" an existing connection
-        in the genome. While :attr:`hid_connections_cache` isn't reset,
-        connections in this genome where hidden nodes were previously created on
-        can't be selected to host the creation of a new hidden node. This limits
-        the available positions for new hidden nodes.
-
-        Note:
-            This should be called whenever the id handler is reset.
-        """
-        self.hid_connections_cache = {}
 
     def distance(self, other: Genome) -> float:
         """ Calculates the distance between two genomes.
@@ -276,14 +211,21 @@ class Genome:
         return (((c1 * excess + c2 * disjoint) / n)
                 + c3 * weight_diff / num_matches)
 
+    def connection_exists(self, src_id, dest_id):
+        try:
+            return dest_id in self._existing_connections_dict[src_id]
+        except KeyError:
+            return False
+
     def add_connection(self,
+                       cid: int,
                        src_node: NodeGene,
                        dest_node: NodeGene,
                        enabled: bool = True,
-                       cid: Optional[int] = None,
                        weight: Optional[float] = None,
                        debug_info: Optional[str] = None) -> None:
         """ Adds a new connection gene to the genome.
+        todo: fix
 
         Args:
             src_node (NodeGene): Node from where the connection leaves (source
@@ -308,10 +250,10 @@ class Genome:
             ConnectionToBiasNodeError: If `dest_node` is an input or bias node
                 (nodes of these types do not process inputs!).
         """
-        if connection_exists(src_node, dest_node):
+        if self.connection_exists(src_node.id, dest_node.id):
             raise ConnectionExistsError(
                 f"Attempt to create an already existing connection "
-                f"({src_node.id}->{dest_node.id}).")
+                f"({src_node.id}->{dest_node.id}). {debug_info}")
         if (dest_node.type == NodeGene.Type.BIAS
                 or dest_node.type == NodeGene.Type.INPUT):
             raise ConnectionToBiasNodeError(
@@ -326,16 +268,22 @@ class Genome:
                                     from_node=src_node, to_node=dest_node,
                                     weight=weight,
                                     debug_info=debug_info)
-        if cid is None:
-            self.new_connections.append(connection)
 
         connection.enabled = enabled
         self.connections.append(connection)
         src_node.out_connections.append(connection)
         dest_node.in_connections.append(connection)
 
-    def add_random_connection(self) -> Union[Tuple[NodeGene, NodeGene], None]:
+        if src_node.id not in self._existing_connections_dict:
+            self._existing_connections_dict[src_node.id] = {}
+        self._existing_connections_dict[src_node.id][dest_node.id] = connection
+
+    def add_random_connection(self,
+                              id_handler
+    ) -> Union[Tuple[NodeGene, NodeGene], None]:
         """  Adds a new connection between two nodes in the genome.
+
+        todo: fix
 
         This is an implementation of the `add connection mutation`, described in
         the original NEAT paper :cite:`stanley:ec02`.
@@ -356,12 +304,13 @@ class Genome:
         for src_node in all_src_nodes:
             for dest_node in all_dest_nodes:
                 if src_node != dest_node or self.config.allow_self_connections:
-                    try:
-                        self.add_connection(src_node, dest_node,
+                    if not self.connection_exists(src_node.id, dest_node.id):
+                        cid = id_handler.next_connection_id(src_node.id,
+                                                            dest_node.id)
+                        self.add_connection(cid,
+                                            src_node, dest_node,
                                             debug_info="add_random_connection")
                         return src_node, dest_node
-                    except ConnectionExistsError:
-                        pass
         return None
 
     def enable_random_connection(self) -> None:
@@ -371,20 +320,7 @@ class Genome:
             connection = np.random.choice(disabled)
             connection.enabled = True
 
-    def _eligible_hidden_node_parents(self,
-                                      src: NodeGene,
-                                      dest: NodeGene) -> bool:
-        """
-        Returns True if the connection src->dest can be used to create a new
-        hidden node and False otherwise.
-        """
-        try:
-            return dest.id not in self.hid_connections_cache[src.id]
-        except KeyError:
-            return True
-
-    def add_random_hidden_node(self,
-                               cached_hids: Optional[dict] = None) -> None:
+    def add_random_hidden_node(self, id_handler):  #todo return type
         """ Adds a new hidden node to the genome in a random position.
 
         This method implements the `add node mutation` procedure described in
@@ -397,57 +333,53 @@ class Genome:
         receives the same weight as the old connection." - :cite:`stanley:ec02`
 
         Args:
+            TODO:
             cached_hids (Optional[dict]): A dictionary with the nodes of new
                 connections, cached by the id handler. This is used to assign
                 the same ID to homologous genes created in different genomes. If
                 `None` is passed, a new temporary ID is assigned to the new
                 node.
         """
-        eligible_connections = [
-            c for c in self.connections
-            if self._eligible_hidden_node_parents(c.from_node, c.to_node)
-        ]
-
+        eligible_connections = [c for c in self.connections if c.enabled]
         if not eligible_connections:
-            return
+            return None
+        np.random.shuffle(eligible_connections)
 
-        original_connection = np.random.choice(eligible_connections)
-        original_connection.enabled = False
+        for original_connection in eligible_connections:
+            src_node = original_connection.from_node
+            dest_node = original_connection.to_node
 
-        src_node = original_connection.from_node
-        dest_node = original_connection.to_node
+            hid = id_handler.next_hidden_node_id(src_node.id, dest_node.id)
+            if (self.connection_exists(src_node.id, hid)
+                    or self.connection_exists(hid, dest_node.id)):
+                # might happen if the id handler cache hasn't been reset yet
+                continue
 
-        # checking cached ids
-        new_node_id = None
-        if cached_hids is not None:
-            try:
-                new_node_id = cached_hids[src_node.id][dest_node.id]
-            except KeyError:
-                pass
+            original_connection.enabled = False
+            new_node = NodeGene(
+                node_id=hid,
+                node_type=NodeGene.Type.HIDDEN,
+                activation_func=self._hidden_activation,
+                initial_activation=self.config.initial_node_activation,
+                debug_info="add_random_hidden_node"
+            )
+            self.hidden_nodes.append(new_node)
 
-        # creating new hidden node
-        new_node = NodeGene(node_id=new_node_id,
-                            node_type=NodeGene.Type.HIDDEN,
-                            activation_func=self._hidden_activation,
-                            initial_activation=self.config.initial_node_activation,
-                            parent_connection_nodes=(src_node, dest_node),
-                            debug_info="add_random_hidden_node")
+            # adding connections
+            cid = id_handler.next_connection_id(src_node.id, new_node.id)
+            self.add_connection(cid,
+                                src_node, new_node,
+                                weight=1,
+                                debug_info="[add hidden node]")
 
-        self.hidden_nodes.append(new_node)
-        self.new_nodes.append(new_node)
+            cid = id_handler.next_connection_id(new_node.id, dest_node.id)
+            self.add_connection(cid,
+                                new_node, dest_node,
+                                weight=original_connection.weight,
+                                debug_info="[add hidden node]")
+            return new_node
 
-        # adding connections
-        self.add_connection(src_node, new_node,
-                            weight=1,
-                            debug_info=f"[add_random_hidden_node]")
-        self.add_connection(new_node, dest_node,
-                            weight=original_connection.weight,
-                            debug_info=f"[add_random_hidden_node]")
-
-        # caching innovation
-        if src_node.id not in self.hid_connections_cache:
-            self.hid_connections_cache[src_node.id] = set()
-        self.hid_connections_cache[src_node.id].add(dest_node.id)
+        return None
 
     def mutate_weights(self) -> None:
         """ Randomly mutates the weights of the genome's connections.
@@ -466,26 +398,25 @@ class Genome:
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self) -> Genome:
+    def shallow_copy(self, new_genome_id) -> Genome:
         """ Makes a simple/shallow copy of the genome.
-
+        TODO
         Returns:
             A copy of the genome without any of its connections (including the
             ones between input and output nodes) and hidden nodes. The new
             genome won't be assigned any ID and will inherit the parent's cache
             of innovations (:attr:`.hid_connections_cache`).
         """
-        new_genome = Genome(num_inputs=len(self._input_nodes),
+        new_genome = Genome(genome_id=new_genome_id,
+                            num_inputs=len(self._input_nodes),
                             num_outputs=len(self._output_nodes),
                             config=self.config,
-                            initial_connections=False,
-                            genome_id=None)
-        new_genome.hid_connections_cache = dict(self.hid_connections_cache)
-        self.new_genomes.append(new_genome)
+                            initial_connections=False)
         return new_genome
 
-    def deep_copy(self) -> Genome:
+    def deep_copy(self, new_genome_id: int) -> Genome:
         """ Makes an exact/deep copy (except for the ID) of the genome.
+        todo
 
         All the genome's nodes and connections are copied. The new genome won't
         be assigned any ID.
@@ -493,7 +424,7 @@ class Genome:
         Returns:
             An exact/deep copy (except for the ID) of the genome.
         """
-        new_genome = self.shallow_copy()
+        new_genome = self.shallow_copy(new_genome_id)
         copied_nodes = {n.id: n for n in new_genome.nodes()}
 
         # creating required nodes
@@ -506,9 +437,10 @@ class Genome:
         for c in self.connections:
             try:
                 new_genome.add_connection(
+                    cid=c.id,
                     src_node=copied_nodes[c.from_node.id],
                     dest_node=copied_nodes[c.to_node.id],
-                    enabled=c.enabled, cid=c.id, weight=c.weight,
+                    enabled=c.enabled, weight=c.weight,
                     debug_info="[deep_copy]")
             except ConnectionExistsError:
                 cons = [f"[{con.id}] {con.from_node.id}->{con.to_node.id} "
@@ -627,6 +559,75 @@ class Genome:
                 self._output_nodes +
                 self.hidden_nodes)
 
+    def valid_out_nodes(self) -> bool:
+        """ Checks if all of the genome's output nodes are valid.
+
+        An output node is considered to be valid if it receives, during its
+        processing, at least one input, i.e., the node has at least one enabled
+        incoming connection. Invalid output nodes simply outputs a fixed
+        default value and are, in many cases, undesirable.
+
+        Returns:
+            `True` if all the genome's output nodes have at least one enabled
+            incoming connection and `False` otherwise. Self-connecting
+            connections are not considered.
+        """
+        for out_node in self._output_nodes:
+            valid = False
+            for in_con in out_node.in_connections:
+                if in_con.enabled and not in_con.self_connecting():
+                    valid = True
+                    break
+            if not valid:
+                return False
+        return True
+
+    def valid_in_nodes(self) -> bool:
+        """ TODO
+
+        Returns:
+
+        """
+        for in_node in self._input_nodes:
+            valid = False
+            for out_con in in_node.out_connections:
+                if out_con.enabled:
+                    valid = True
+                    break
+            if not valid:
+                return False
+        return True
+
+    @staticmethod
+    def random_genome(num_inputs: int,
+                      num_outputs: int,
+                      config: Config,
+                      id_handler,
+                      hidden_nodes_bounds: Tuple[int, int],
+                      hidden_connections_bounds: Tuple[int, int]) -> Genome:
+        """
+        TODO
+        """
+        new_genome = Genome(genome_id=id_handler.next_genome_id(),
+                            num_inputs=num_inputs,
+                            num_outputs=num_outputs,
+                            config=config)
+
+        # adding hidden nodes
+        min_hn = hidden_nodes_bounds[0]
+        max_hn = hidden_nodes_bounds[1] + config.random_genome_max_bonus_hnodes
+        for _ in range(np.random.randint(low=min_hn, high=(max_hn + 1))):
+            new_genome.add_random_hidden_node(id_handler)
+
+        # adding random connections
+        min_hcon = hidden_connections_bounds[0]
+        max_hcon = (hidden_connections_bounds[1]
+                    + config.random_genome_max_bonus_hcons)
+        for _ in range(np.random.randint(low=min_hcon, high=(max_hcon + 1))):
+            new_genome.add_random_connection(id_handler)
+
+        return new_genome
+
     def info(self) -> str:
         """
         Returns a string with the genome's nodes activations and connections.
@@ -744,10 +745,13 @@ class Genome:
         if G.number_of_edges() > 0:
             # calculating edges colors
             edges_weights = list(nx.get_edge_attributes(G, "weight").values())
-            min_w, max_w = np.min(edges_weights), np.max(edges_weights)
-            edges_colors = [(1, 0.6 * (1 - (w - min_w) / (max_w - min_w)),
-                             0, 0.3 + 0.7 * (w - min_w) / (max_w - min_w))
-                            for w in edges_weights]
+            if len(edges_weights) == 1:
+                edges_colors = [(1, 0.5, 0, 1)]
+            else:
+                min_w, max_w = np.min(edges_weights), np.max(edges_weights)
+                edges_colors = [(1, 0.6 * (1 - (w - min_w) / (max_w - min_w)),
+                                 0, 0.3 + 0.7 * (w - min_w) / (max_w - min_w))
+                                for w in edges_weights]
 
             # drawing edges
             nx.draw_networkx_edges(G, pos=pos, edge_color=edges_colors,
@@ -776,9 +780,11 @@ class Genome:
             plt.show(block=block_thread)
 
 
-def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
+def mate_genomes(gen1: Genome,
+                 gen2: Genome,
+                 new_genome_id: int) -> Genome:
     """ Mates two genomes to produce a new genome (offspring).
-
+    todo
     Sexual reproduction. Follows the idea described in the original paper of
     the NEAT algorithm:
 
@@ -802,9 +808,7 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
     genes = align_connections(gen1.connections, gen2.connections)
 
     # new genome
-    new_gen = gen1.shallow_copy()
-    new_gen.hid_connections_cache = {**gen2.hid_connections_cache,
-                                     **gen1.hid_connections_cache}
+    new_gen = gen1.shallow_copy(new_genome_id)
     copied_nodes = {n.id: n for n in new_gen.nodes()}
 
     # mate (choose new genome's connections)
@@ -830,32 +834,30 @@ def mate_genomes(gen1: Genome, gen2: Genome) -> Genome:
         if c is not None:
             # if the gene is disabled in either parent, it has a chance to also
             # be disabled in the new genome
-            enabled = (
-                ((c1 is not None and not c1.enabled)
-                    or (c2 is not None and not c2.enabled))
-                and utils.chance(gen1.config.disable_inherited_connection_chance)
-            )
+            enabled = True
+            if ((c1 is not None and not c1.enabled)
+                    or (c2 is not None and not c2.enabled)):
+                enabled = not utils.chance(
+                    gen1.config.disable_inherited_connection_chance)
             chosen_connections.append((c, enabled))
 
             # adding the hidden nodes of the connection (if needed)
             for node in (c.from_node, c.to_node):
                 if (node.type == NodeGene.Type.HIDDEN
                         and node.id not in copied_nodes):
-                    new_node = node.shallow_copy(debug_info="mate_genomes")
+                    new_node = node.shallow_copy(debug_info="[mate_genomes]")
                     new_gen.hidden_nodes.append(new_node)
                     copied_nodes[node.id] = new_node
-
-    # todo: solve new genomes being created without connections
-    # this is not a bug, but it does add useless genomes to the population
 
     # adding inherited connections
     for c, enabled in chosen_connections:
         src_node = copied_nodes[c.from_node.id]
         dest_node = copied_nodes[c.to_node.id]
         try:
-            new_gen.add_connection(src_node=src_node, dest_node=dest_node,
-                                   enabled=enabled, cid=c.id, weight=c.weight,
-                                   debug_info="mate_genomes")
+            new_gen.add_connection(cid=c.id,
+                                   src_node=src_node, dest_node=dest_node,
+                                   enabled=enabled, weight=c.weight,
+                                   debug_info="[mate_genomes]")
         except ConnectionExistsError:
             # if this exception is raised, it means that the connection was
             # already inherited from the other parent; this is possible because,
@@ -873,10 +875,12 @@ def __debug_mating(genes, c, gen1, gen2, new_gen):
     alignment_info = ""
     for gene1, gene2 in zip(*genes):
         alignment_info += (
-            "   " + (f"[cid={gene1.id}, src={gene1.from_node.id}, dest={gene1.to_node.id}]"
+            "   " + (f"[cid={gene1.id}, src={gene1.from_node.id}, "
+                     f"dest={gene1.to_node.id}]"
                      if gene1 is not None
                      else 11 * " " + "-" + 10 * " ") +
-            "  |  " + (f"[cid={gene2.id}, src={gene2.from_node.id}, dest={gene2.to_node.id}]"
+            "  |  " + (f"[cid={gene2.id}, src={gene2.from_node.id}, "
+                       f"dest={gene2.to_node.id}]"
                        if gene2 is not None
                        else 11 * " " + "-" + 11 * " ") +
             "\n"
