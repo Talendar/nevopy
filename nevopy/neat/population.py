@@ -60,9 +60,13 @@ class Population:
                                      has_bias=self.config.bias_value is not None)
         self._rank_prob_dist = None
         self._invalid_genomes_replaced = None
+        self._mass_extinction_counter = 0
 
-        self.__mmh_nodes = None
-        self.__mmh_connections = None
+        self.__max_hidden_nodes = None
+        self.__max_hidden_connections = None
+
+        self._past_best_fitness = None
+        self._last_improvement = 0
 
         # creating initial genomes
         self.genomes = [Genome(genome_id=self._id_handler.next_genome_id(),
@@ -84,14 +88,6 @@ class Population:
         """ TODO """
         return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
 
-    def update_ids(self):
-        # todo
-        # checking if the innovation ids should be reset
-        if (self.config.reset_innovations_period is not None
-                and self._id_handler.reset_counter > self.config.reset_innovations_period):
-            self._id_handler.reset()
-        self._id_handler.reset_counter += 1
-
     def evolve(self, generations, fitness_function):
         """
 
@@ -103,6 +99,10 @@ class Population:
         """
         # caching the rank-selection probability distribution
         self._calc_prob_dist()
+
+        # resetting improvement record
+        self._last_improvement = 0
+        self._past_best_fitness = float("-inf")
 
         # evolving
         for generation_num in range(generations):
@@ -124,20 +124,69 @@ class Population:
                 genome.fitness = fitness
                 sp = self._species[genome.species_id]
                 genome.adj_fitness = genome.fitness / len(sp.members)
+            best = self.fittest()
             print("done!")
 
             # info
-            best = self.genomes[int(np.argmax([g.fitness
-                                               for g in self.genomes]))]
             print(f"Best fitness: {best.fitness}")
             print("Avg. population fitness: "
                   f"{np.mean([g.fitness for g in self.genomes])}")
 
-            # reproduction and speciation
-            print("Reproduction... ", end="")
-            self.reproduction()
-            print("done!\nInvalid genomes replaced: "
-                  f"{self._invalid_genomes_replaced}")
+            # counting max number of hidden nodes in one genome
+            self.__max_hidden_nodes = np.max([len(g.hidden_nodes)
+                                              for g in self.genomes])
+
+            # counting max number of hidden connections in one genome
+            self.__max_hidden_connections = np.max([
+                len([c for c in g.connections
+                     if c.enabled and (c.from_node.type == NodeGene.Type.HIDDEN
+                                       or c.to_node.type == NodeGene.Type.HIDDEN)
+                     ])
+                for g in self.genomes
+            ])
+
+            # checking improvements
+            improv_diff = best.fitness - self._past_best_fitness
+            improv_min_pc = self.config.maex_improvement_threshold_pc
+            if improv_diff >= abs(self._past_best_fitness * improv_min_pc):
+                self._mass_extinction_counter = 0
+                self._past_best_fitness = best.fitness
+            else:
+                self._mass_extinction_counter += 1
+            self.config.update_mass_extinction(self._mass_extinction_counter)
+
+            # checking mass extinction
+            print(f"Mass extinction counter: {self._mass_extinction_counter}/"
+                  f"{self.config.mass_extinction_threshold}")
+            if (self._mass_extinction_counter
+                    >= self.config.mass_extinction_threshold):
+                # mass extinction
+                print("Mass extinction in progress... ", end="")
+                self._mass_extinction_counter = 0
+                self.genomes = [best]
+                for _ in range(self._size - 1):
+                    self.genomes.append(Genome.random_genome(
+                        num_inputs=self._num_inputs,
+                        num_outputs=self._num_outputs,
+                        id_handler=self._id_handler,
+                        config=self.config,
+                        max_hidden_nodes=self.__max_hidden_nodes,
+                        max_hidden_connections=self.__max_hidden_connections,
+                    ))
+                assert len(self.genomes) == self._size
+                print(" done!")
+            else:
+                # reproduction
+                print(f"New node mutation chance: "
+                      f"{self.config.new_node_mutation_chance*100 : .2f}%")
+                print(f"New connection mutation chance: "
+                      f"{self.config.new_connection_mutation_chance*100 : .2f}%")
+                print("Reproduction... ", end="")
+                self.reproduction()
+                print("done!\nInvalid genomes replaced: "
+                      f"{self._invalid_genomes_replaced}")
+
+            # speciation
             print("Speciation... ", end="")
             self.speciation(generation=generation_num)
             print(f"done!")
@@ -206,8 +255,8 @@ class Population:
             num_outputs=self._num_outputs,
             id_handler=self._id_handler,
             config=self.config,
-            hidden_nodes_bounds=self.__mmh_nodes,
-            hidden_connections_bounds=self.__mmh_connections)
+            max_hidden_nodes=self.__max_hidden_nodes,
+            max_hidden_connections=self.__max_hidden_connections)
 
     def _calc_prob_dist(self):
         """
@@ -255,12 +304,8 @@ class Population:
             num_offspring=self._size - len(new_pop)
         )
 
-        # updating mmh nodes and connections (for generating random genomes)
-        self.__update_mmh_nodes()
-        self.__update_mmh_connections()
-        self._invalid_genomes_replaced = 0
-
         # creating new genomes
+        self._invalid_genomes_replaced = 0
         for sp in self._species.values():
             # reproduction probabilities (rank-based selection)
             prob = self._rank_prob_dist[:len(sp.members)]
@@ -278,33 +323,12 @@ class Population:
 
         assert len(new_pop) == self._size
         self.genomes = new_pop
-        self.update_ids()
 
-    def __update_mmh_nodes(self):
-        """
-        todo
-        Returns:
-
-        """
-        nums = [len(g.hidden_nodes) for g in self.genomes]
-        self.__mmh_nodes = (np.min(nums), np.max(nums))
-
-    def __update_mmh_connections(self):
-        """ mmh = min-max hidden
-        TODO
-        Returns:
-
-        """
-        min_hcon = max_hcon = 0
-        for g in self.genomes:
-            count = 0
-            for c in g.connections:
-                if c.enabled and (c.from_node.Type == NodeGene.Type.HIDDEN
-                                  or c.to_node.Type == NodeGene.Type.HIDDEN):
-                    count += 1
-            min_hcon = min(min_hcon, count)
-            max_hcon = max(max_hcon, count)
-        self.__mmh_connections = (min_hcon, max_hcon)
+        # checking if the innovation ids should be reset
+        if (self.config.reset_innovations_period is not None
+                and self._id_handler.reset_counter > self.config.reset_innovations_period):
+            self._id_handler.reset()
+        self._id_handler.reset_counter += 1
 
     def _offspring_proportion(self, num_offspring):
         """ Roulette wheel selection. """

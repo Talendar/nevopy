@@ -5,6 +5,7 @@ todo
 
 import nevopy.neat
 from timeit import default_timer as timer
+import random
 
 
 # =============== MAKING XOR DATA ==================
@@ -26,11 +27,15 @@ for num in range(2 ** num_variables):
 # ===================================================
 
 
-def eval_genome(genome, log=False):
-    genome.reset_activations()
+def eval_genome(genome, shuffle=True, log=False):
+    idx = list(range(len(xor_inputs)))
+    if shuffle:
+        random.shuffle(idx)
+
     error = 0
-    for x, y in zip(xor_inputs, xor_outputs):
-        # genome.reset_activations()
+    for i in idx:
+        x, y = xor_inputs[i], xor_outputs[i]
+        genome.reset_activations()
         h = genome.process(x)[0]
         error += (y - h) ** 2
         if log:
@@ -49,7 +54,7 @@ if __name__ == "__main__":
     for r in range(runs):
         start_time = timer()
         pop = nevopy.neat.population.Population(
-            size=200,
+            size=150,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
             #processing_scheduler=scheduler,

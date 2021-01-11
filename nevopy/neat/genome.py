@@ -603,8 +603,8 @@ class Genome:
                       num_outputs: int,
                       config: Config,
                       id_handler,
-                      hidden_nodes_bounds: Tuple[int, int],
-                      hidden_connections_bounds: Tuple[int, int]) -> Genome:
+                      max_hidden_nodes: int,
+                      max_hidden_connections: int) -> Genome:
         """
         TODO
         """
@@ -614,17 +614,22 @@ class Genome:
                             config=config)
 
         # adding hidden nodes
-        min_hn = hidden_nodes_bounds[0]
-        max_hn = hidden_nodes_bounds[1] + config.random_genome_max_bonus_hnodes
-        for _ in range(np.random.randint(low=min_hn, high=(max_hn + 1))):
-            new_genome.add_random_hidden_node(id_handler)
+        max_hnodes = max_hidden_nodes + config.random_genome_bonus_nodes
+        if max_hnodes > 0:
+            for _ in range(np.random.randint(low=0, high=(max_hnodes + 1))):
+                new_genome.add_random_hidden_node(id_handler)
 
         # adding random connections
-        min_hcon = hidden_connections_bounds[0]
-        max_hcon = (hidden_connections_bounds[1]
-                    + config.random_genome_max_bonus_hcons)
-        for _ in range(np.random.randint(low=min_hcon, high=(max_hcon + 1))):
-            new_genome.add_random_connection(id_handler)
+        max_hcons = (max_hidden_connections
+                     + config.random_genome_bonus_connections)
+        if max_hcons > 0:
+            for _ in range(np.random.randint(low=0, high=(max_hcons + 1))):
+                new_genome.add_random_connection(id_handler)
+
+        # print("\n\n\n>>>>> RANDOM GENOME <<<<<<<")
+        # print(f"[Hidden nodes] max: {max_hnodes} | actual: {len(new_genome.hidden_nodes)}\n"
+        #       f"[Connections] max hidden: {max_hcons} | actual total: {len(new_genome.connections)}"
+        #       f"\n\n")
 
         return new_genome
 

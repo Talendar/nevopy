@@ -254,6 +254,13 @@ class Config:
             generated genome.
     """
 
+    __MAEX_KEYS = {"weight_mutation_chance",
+                   "new_node_mutation_chance",
+                   "new_connection_mutation_chance",
+                   "enable_connection_mutation_chance",
+                   "weight_perturbation_pc",
+                   "weight_reset_chance"}
+
     def __init__(self,
                  file_pathname=None,
                  # genome creation
@@ -261,31 +268,36 @@ class Config:
                  hidden_nodes_activation=nevopy.activations.steepened_sigmoid,
                  bias_value=1,
                  # reproduction
+                 # todo: doc
                  weak_genomes_removal_pc=0.75,
-                 weight_mutation_chance=0.8,
-                 new_node_mutation_chance=0.03,
-                 new_connection_mutation_chance=0.03,
-                 enable_connection_mutation_chance=0.03,
+                 weight_mutation_chance=(0.7, 0.9),
+                 new_node_mutation_chance=(0.02, 0.25),
+                 new_connection_mutation_chance=(0.02, 0.25),
+                 enable_connection_mutation_chance=(0.02, 0.25),
                  disable_inherited_connection_chance=0.75,
                  mating_chance=0.75,
                  interspecies_mating_chance=0.05,
                  rank_prob_dist_coefficient=1.7,
+                 # mass extinction
+                 # todo: doc
+                 mass_extinction_threshold=75,
+                 maex_improvement_threshold_pc=0.05,
                  # infanticide
                  infanticide_output_nodes=True,
-                 infanticide_input_nodes=False,
+                 infanticide_input_nodes=True,
                  # random genomes
-                 random_genome_max_bonus_hnodes=1,
-                 random_genome_max_bonus_hcons=1,
+                 random_genome_bonus_nodes=1,
+                 random_genome_bonus_connections=1,
                  # weight mutation
-                 weight_perturbation_pc=0.1,
-                 weight_reset_chance=0.1,
-                 new_weight_interval=(-1, 1),
+                 weight_perturbation_pc=(0.1, 0.4),
+                 weight_reset_chance=(0.1, 0.3),
+                 new_weight_interval=(-2, 2),
                  # genome distance coefficients
                  excess_genes_coefficient=1,
                  disjoint_genes_coefficient=1,
-                 weight_difference_coefficient=0.4,
+                 weight_difference_coefficient=0.5,
                  # speciation
-                 species_distance_threshold=1.5,
+                 species_distance_threshold=2,
                  species_elitism_threshold=5,
                  species_no_improvement_limit=15,
                  # others
@@ -301,5 +313,17 @@ class Config:
 
         self.__dict__.update(values)
 
-    def __getitem__(self, key):
-        return self.__dict__[key]
+        # mass extinction ("maex")
+        self._maex_cache = {}
+        self.update_mass_extinction(0)
+
+    def __getattribute__(self, key):
+        if key in Config.__MAEX_KEYS:
+            return self._maex_cache[key]
+        return super().__getattribute__(key)
+
+    def update_mass_extinction(self, maex_counter):
+        for k in Config.__MAEX_KEYS:
+            base_value, max_value = self.__dict__[k]
+            unit = (max_value - base_value) / self.mass_extinction_threshold
+            self._maex_cache[k] = (base_value + unit * maex_counter)

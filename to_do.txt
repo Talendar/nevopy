@@ -7,15 +7,11 @@
 >>> Implementation:
 
 	. Genome saving and checkpoints.
-
-	. Mass extinction: delete the whole population if it hasn't shown 
-	improvement for the past few generations
 	
 	. History of species (draw a figure showing when species were born and when
 	they were extinct).
 	
-	. Adaptable mutation rates (based on how long the population's fitness 
-	hasn't improved.
+	. Allow callers to pass callbacks to "Population.evolve()".
 
 
 
