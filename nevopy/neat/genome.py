@@ -31,6 +31,10 @@ the network it encodes. In NEAT, the genome is the entity subject to evolution.
 from __future__ import annotations
 from typing import Optional, Sequence
 
+import pickle
+import os
+from pathlib import Path
+
 import numpy as np
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
@@ -626,12 +630,41 @@ class Genome:
             for _ in range(np.random.randint(low=0, high=(max_hcons + 1))):
                 new_genome.add_random_connection(id_handler)
 
-        # print("\n\n\n>>>>> RANDOM GENOME <<<<<<<")
-        # print(f"[Hidden nodes] max: {max_hnodes} | actual: {len(new_genome.hidden_nodes)}\n"
-        #       f"[Connections] max hidden: {max_hcons} | actual total: {len(new_genome.connections)}"
-        #       f"\n\n")
-
         return new_genome
+
+    def save(self, abs_path: str) -> None:
+        """ Saves the genome in the given absolute path.
+
+        This method uses :py:mod:`pickle` to save the genome.
+
+        Args:
+            abs_path (str): Absolute path of the saving file. If the given path
+                doesn't end with the suffix ".pkl", it will be automatically
+                added.
+        """
+        p = Path(abs_path)
+        if not p.suffixes:
+            p = Path(str(abs_path) + ".pkl")
+            print(p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(str(p), "wb") as out_file:
+            pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def load(abs_path: str) -> Genome:
+        """ Loads the genome from the given absolute path.
+
+        This method uses :py:mod:`pickle` to load the genome.
+
+        Args:
+            abs_path (str): Absolute path of the saved ".pkl" file.
+
+        Returns:
+            The loaded genome.
+        """
+        with open(abs_path, "rb") as in_file:
+            return pickle.load(in_file)
 
     def info(self) -> str:
         """

@@ -6,12 +6,13 @@
 
 >>> Implementation:
 
-	. Genome saving and checkpoints.
+	. Allow callers to pass callbacks to "Population.evolve()".
+		- General callback interface
+		- Checkpoints callback (pre-built)
+		- Logs callback (pre-built)
 	
 	. History of species (draw a figure showing when species were born and when
 	they were extinct).
-	
-	. Allow callers to pass callbacks to "Population.evolve()".
 
 
 

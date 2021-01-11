@@ -25,6 +25,12 @@
 TODO
 """
 
+from __future__ import annotations
+from typing import Optional, Callable
+
+import pickle
+from pathlib import Path
+
 import numpy as np
 from nevopy.neat.genome import Genome, mate_genomes
 from nevopy.neat.genes import NodeGene
@@ -32,14 +38,16 @@ from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy import utils
-from nevopy.processing.pool_processing import PoolProcessingScheduler
-from typing import Optional, Callable
+from nevopy.processing.pool_processing import (ProcessingScheduler,
+                                               PoolProcessingScheduler)
 
 
 class Population:
     """
     TODO
     """
+
+    _DEFAULT_SCHEDULER = PoolProcessingScheduler
 
     def __init__(self,
                  size,
@@ -51,9 +59,9 @@ class Population:
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
 
-        self._scheduler = (PoolProcessingScheduler
+        self._scheduler = (processing_scheduler
                            if processing_scheduler is not None
-                           else PoolProcessingScheduler())
+                           else Population._DEFAULT_SCHEDULER())
 
         self.config = config if config is not None else Config()
         self._id_handler = IdHandler(num_inputs, num_outputs,
@@ -410,6 +418,54 @@ class Population:
                 self._species.pop(sp.id)
             else:
                 sp.random_representative()
+
+    def save(self, abs_path: str) -> None:
+        """ Saves the population in the given absolute path.
+
+        This method uses :py:mod:`pickle` to save the genome. The processing
+        scheduler used by the population won't be saved (a new one will have to
+        be assigned to the population when it's loaded again).
+
+        Args:
+            abs_path (str): Absolute path of the saving file. If the given path
+                doesn't end with the suffix ".pkl", it will be automatically
+                added.
+        """
+        p = Path(abs_path)
+        if not p.suffixes:
+            p = Path(str(abs_path) + ".pkl")
+            print(p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+
+        scheduler_cache = self._scheduler
+        self._scheduler = None
+        with open(str(p), "wb") as out_file:
+            pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
+
+        self._scheduler = scheduler_cache
+
+    @staticmethod
+    def load(abs_path: str,
+             scheduler: Optional[ProcessingScheduler] = None) -> Population:
+        """ Loads the population from the given absolute path.
+
+        This method uses :py:mod:`pickle` to load the genome.
+
+        Args:
+            abs_path (str): Absolute path of the saved ".pkl" file.
+            scheduler (Optional[ProcessingScheduler]): Processing scheduler to
+                be used by the population. If `None`, the default one will be
+                used.
+
+        Returns:
+            The loaded population.
+        """
+        with open(abs_path, "rb") as in_file:
+            pop = pickle.load(in_file)
+
+        pop._scheduler = (scheduler if scheduler is not None
+                          else Population._DEFAULT_SCHEDULER())
+        return pop
 
     def info(self):
         no_hnode = invalid_out = no_cons = 0
