@@ -1,5 +1,5 @@
 """
-NEvoPy
+NEvoPY
 todo
 """
 
@@ -27,7 +27,9 @@ for num in range(2 ** num_variables):
 # ===================================================
 
 
-def eval_genome(genome, shuffle=True, log=False):
+def eval_genome(genome: nevopy.neat.genome.Genome,
+                shuffle=True,
+                log=False) -> float:
     idx = list(range(len(xor_inputs)))
     if shuffle:
         random.shuffle(idx)

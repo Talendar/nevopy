@@ -100,8 +100,8 @@ class Genome:
         self.species_id = None        # type: Optional[int]
         self._activated_nodes = None  # type: Optional[Dict[int, bool]]
 
-        self.fitness = 0
-        self.adj_fitness = 0
+        self.fitness = 0.0
+        self.adj_fitness = 0.0
 
         self._input_nodes = []
         self.hidden_nodes = []  # type: List[NodeGene]
