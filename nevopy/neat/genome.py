@@ -29,10 +29,9 @@ the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
 from __future__ import annotations
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Dict, Set
 
 import pickle
-import os
 from pathlib import Path
 
 import numpy as np
@@ -42,6 +41,7 @@ import nevopy.activations as activations
 import nevopy.utils as utils
 from nevopy.neat.genes import *
 from nevopy.neat.config import Config
+from nevopy.neat.id_handler import IdHandler
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -61,13 +61,16 @@ class Genome:
         The instances of this class are the entities subject to evolution by the
         NEAT algorithm.
 
+    Note:
+        The encoded networks are Graph Neural Networks (GNNs), connectionist
+        models that capture the dependence of graphs via message passing between
+        the nodes of graphs.
+
     Args:
-        todo: fix
+        genome_id (int): Unique identifier of the genome.
         num_inputs (int): Number of input nodes in the network.
         num_outputs (int): Number of output nodes in the network.
         config (Config): Settings of the current evolution session.
-        genome_id (Optional[int]): An ID used to identify the genome. If `None`
-            is passed, the genome's ID can be assigned later.
         initial_connections (bool): If True, connections between the input nodes
             and the output nodes of the network will be created.
 
@@ -80,6 +83,10 @@ class Genome:
             genes of the type :attr:`.NodeGene.Type.HIDDEN` in the genome.
         connections (:obj:`list` of :obj:`.ConnectionGene`): List with all the
             connection genes in the genome.
+        _existing_connections_dict (Dict[int, Set]): Used as a fast lookup table
+            to consult existing connections in the network. Given a node N, it
+            maps N's ID to the IDs of all the nodes that have a connection with
+            N as the source.
     """
 
     def __init__(self,
@@ -90,19 +97,20 @@ class Genome:
                  initial_connections: bool = True) -> None:
         self.config = config
         self._id = genome_id
-        self.species_id = None
-        self._activated_nodes = None
+        self.species_id = None        # type: Optional[int]
+        self._activated_nodes = None  # type: Optional[Dict[int, bool]]
 
         self.fitness = 0
         self.adj_fitness = 0
 
         self._input_nodes = []
-        self.hidden_nodes = []
+        self.hidden_nodes = []  # type: List[NodeGene]
         self._output_nodes = []
         self._bias_node = None
 
-        self.connections = []
-        self._existing_connections_dict = {}
+        self.connections = []  # type: List[ConnectionGene]
+        self._existing_connections_dict = {} \
+            # type: Dict[int, Dict[int, ConnectionGene]]
         self._output_activation = self.config.out_nodes_activation
         self._hidden_activation = self.config.hidden_nodes_activation
 
@@ -148,16 +156,15 @@ class Genome:
 
     @property
     def id(self) -> int:
-        """ Identifies a genome.
-
-        Returns:
-            An ID (int), if the genome has one, or `None`, if no ID has been
-            assigned to the genome.
-        """
+        """ Unique identifier of the genome. """
         return self._id
 
     def reset_activations(self) -> None:
-        """ Resets cached activations of the genome's nodes."""
+        """ Resets cached activations of the genome's nodes.
+
+        It restores the current activation value of all the nodes in the network
+        to their initial value.
+        """
         self._activated_nodes = None
         for n in self.nodes():
             n.reset_activation()
@@ -165,9 +172,9 @@ class Genome:
     def distance(self, other: Genome) -> float:
         """ Calculates the distance between two genomes.
 
-        The shorter the distance between two genomes are, the greater the
-        similarity between them is. In the context of NEAT, the similarity
-        between genomes increases as:
+        The shorter the distance between two genomes, the greater the similarity
+        between them is. In the context of NEAT, the similarity between genomes
+        increases as:
 
             1) the number of matching connection genes increases;
             2) the absolute difference between the matching connections weights
@@ -187,25 +194,30 @@ class Genome:
 
         Args:
             other (Genome): The other genome.
+
+        Returns:
+            The distance between the genomes.
         """
         genes = align_connections(self.connections, other.connections)
-        excess = disjoint = weight_diff = num_matches = 0
+        excess = disjoint = num_matches = 0
+        weight_diff = 0.0
 
         g1_max_innov = np.amax([c.id for c in self.connections])
         g2_max_innov = np.amax([c.id for c in other.connections])
 
-        for c1, c2 in zip(*genes):
+        for cn1, cn2 in zip(*genes):
             # non-matching genes:
-            if c1 is None or c2 is None:
-                if ((c1 is None and c2.id > g1_max_innov)
-                        or (c2 is None and c1.id > g2_max_innov)):
+            if cn1 is None or cn2 is None:
+                # if c1 is None, c2 can't be None (and vice-versa)
+                if ((cn1 is None and cn2.id > g1_max_innov)
+                        or (cn2 is None and cn1.id > g2_max_innov)):
                     excess += 1
                 else:
                     disjoint += 1
             # matching genes:
             else:
                 num_matches += 1
-                weight_diff += abs(c1.weight - c2.weight)
+                weight_diff += abs(cn1.weight - cn2.weight)
 
         c1 = self.config.excess_genes_coefficient
         c2 = self.config.disjoint_genes_coefficient
@@ -215,7 +227,17 @@ class Genome:
         return (((c1 * excess + c2 * disjoint) / n)
                 + c3 * weight_diff / num_matches)
 
-    def connection_exists(self, src_id, dest_id):
+    def connection_exists(self, src_id: int, dest_id: int) -> bool:
+        """ Checks whether a connection between the given nodes exists.
+
+        Args:
+            src_id (int): ID of the connection's source node.
+            dest_id (int): ID of the connection's destination node.
+
+        Returns:
+            `True` if the specified connection exists in the genome's network
+            and `False` otherwise.
+        """
         try:
             return dest_id in self._existing_connections_dict[src_id]
         except KeyError:
@@ -229,28 +251,24 @@ class Genome:
                        weight: Optional[float] = None,
                        debug_info: Optional[str] = None) -> None:
         """ Adds a new connection gene to the genome.
-        todo: fix
 
         Args:
+            cid (int): ID of the connection. It's used as a historical marker
+                of the connection's creation, acting as an "innovation number".
             src_node (NodeGene): Node from where the connection leaves (source
                 node).
             dest_node (NodeGene): Node to where the connection is headed
                 (destination node).
             enabled (bool): Whether the new connection should be enabled or not.
-            cid (Optional[int]): ID of the connection. If no ID is specified
-                (`None` is passed as argument) the new connection is considered
-                to be an innovation (instead of just a copy) and is added to the
-                :attr:`.new_connections` list. In this case, an ID can be
-                assigned to it later.
             weight (Optional[float]): The weight of the connection. If `None`, a
-                random value (belonging to an interval specified in the
-                settings) will be chosen.
+                random value (within the interval specified in the settings)
+                will be chosen.
             debug_info (Optional[str]): Used for debugging. Should be ignored
                 most of the time.
 
         Raises:
             ConnectionExistsError: If the connection `src_node->dest_node`
-                already exists.
+                already exists in the genome.
             ConnectionToBiasNodeError: If `dest_node` is an input or bias node
                 (nodes of these types do not process inputs!).
         """
@@ -283,19 +301,22 @@ class Genome:
         self._existing_connections_dict[src_node.id][dest_node.id] = connection
 
     def add_random_connection(self,
-                              id_handler
-    ) -> Union[Tuple[NodeGene, NodeGene], None]:
-        """  Adds a new connection between two nodes in the genome.
-
-        todo: fix
+                              id_handler: IdHandler,
+    ) -> Optional[Tuple[NodeGene, NodeGene]]:
+        """  Adds a new connection between two random nodes in the genome.
 
         This is an implementation of the `add connection mutation`, described in
         the original NEAT paper :cite:`stanley:ec02`.
 
+        Args:
+            id_handler (IdHandler): ID handler that will be used to assign an ID
+                to the new connection. The handler's internal cache of existing
+                connections will be updated accordingly.
+
         Returns:
-            A tuple containing the source node and the destination node of
-            the connection, if a new connection was successfully created. None,
-            if there is no space in the genome for a new connection.
+            A tuple containing the source node and the destination node of the
+            connection, if a new connection was successfully created. `None`, if
+            there is no space in the genome for a new connection.
         """
         all_src_nodes = self.nodes()
         np.random.shuffle(all_src_nodes)
@@ -324,7 +345,8 @@ class Genome:
             connection = np.random.choice(disabled)
             connection.enabled = True
 
-    def add_random_hidden_node(self, id_handler):  #todo return type
+    def add_random_hidden_node(self,
+                               id_handler: IdHandler) -> Optional[NodeGene]:
         """ Adds a new hidden node to the genome in a random position.
 
         This method implements the `add node mutation` procedure described in
@@ -336,13 +358,18 @@ class Genome:
         new node receives a weight of 1, and the new connection leading out
         receives the same weight as the old connection." - :cite:`stanley:ec02`
 
+        Only currently enabled connections are considered eligible to "host" the
+        new hidden node.
+
         Args:
-            TODO:
-            cached_hids (Optional[dict]): A dictionary with the nodes of new
-                connections, cached by the id handler. This is used to assign
-                the same ID to homologous genes created in different genomes. If
-                `None` is passed, a new temporary ID is assigned to the new
-                node.
+            id_handler (IdHandler): ID handler that will be used to assign an ID
+                to the new hidden node. The handler's internal cache of existing
+                nodes and connections will be updated accordingly.
+
+        Returns:
+            The new hidden node, if it was successfully created. `None` if it
+            wasn't possible to find a connection to "host" the new node. This
+            usually happens when the ID handler hasn't been reset in a while.
         """
         eligible_connections = [c for c in self.connections if c.enabled]
         if not eligible_connections:
@@ -393,23 +420,25 @@ class Genome:
         """
         for connection in self.connections:
             if utils.chance(self.config.weight_reset_chance):
-                # checking whether the weight will be reset
+                # perturbating the connection
                 connection.weight = np.random.uniform(
                     *self.config.new_weight_interval)
             else:
+                # resetting the connection
                 p = np.random.uniform(low=-self.config.weight_perturbation_pc,
                                       high=self.config.weight_perturbation_pc)
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self, new_genome_id) -> Genome:
+    def shallow_copy(self, new_genome_id: int) -> Genome:
         """ Makes a simple/shallow copy of the genome.
-        TODO
+
+        Args:
+            new_genome_id (int): Unique identifier of the new genome.
+
         Returns:
             A copy of the genome without any of its connections (including the
-            ones between input and output nodes) and hidden nodes. The new
-            genome won't be assigned any ID and will inherit the parent's cache
-            of innovations (:attr:`.hid_connections_cache`).
+            ones between input and output nodes) and hidden nodes.
         """
         new_genome = Genome(genome_id=new_genome_id,
                             num_inputs=len(self._input_nodes),
@@ -420,10 +449,12 @@ class Genome:
 
     def deep_copy(self, new_genome_id: int) -> Genome:
         """ Makes an exact/deep copy (except for the ID) of the genome.
-        todo
 
-        All the genome's nodes and connections are copied. The new genome won't
-        be assigned any ID.
+        All the nodes and connections of the parent genome are copied to the new
+        genome.
+
+        Args:
+            new_genome_id (int): Unique identifier of the new genome.
 
         Returns:
             An exact/deep copy (except for the ID) of the genome.
@@ -495,7 +526,7 @@ class Genome:
             # node m depends on the activation of n, the old activation of n
             # is used.
             self._activated_nodes[n.id] = True
-            zsum = 0
+            zsum = 0.0
             for connection in n.in_connections:
                 if connection.enabled:
                     src_node, weight = connection.from_node, connection.weight
@@ -508,7 +539,8 @@ class Genome:
 
         In this implementation, there is no distinction between a genome and
         the neural network it encodes. The genome will emulate a neural network
-        (its phenotype) in order to process the given input.
+        (its phenotype) in order to process the given input. The encoded network
+        is a Graph Neural Networks (GNN).
 
          Note:
             The processing is done recursively, starting from the output nodes
@@ -564,7 +596,7 @@ class Genome:
                 self.hidden_nodes)
 
     def valid_out_nodes(self) -> bool:
-        """ Checks if all of the genome's output nodes are valid.
+        """ Checks if all the genome's output nodes are valid.
 
         An output node is considered to be valid if it receives, during its
         processing, at least one input, i.e., the node has at least one enabled
@@ -587,10 +619,15 @@ class Genome:
         return True
 
     def valid_in_nodes(self) -> bool:
-        """ TODO
+        """ Checks if all the genome's input nodes are valid.
+
+        An input node is considered to be valid if it has at least one enabled
+        connection leaving it, i.e., its activation is used as input by at least
+        one other node.
 
         Returns:
-
+            `True` if all the genome's input nodes are valid and `False`
+            otherwise.
         """
         for in_node in self._input_nodes:
             valid = False
@@ -606,11 +643,27 @@ class Genome:
     def random_genome(num_inputs: int,
                       num_outputs: int,
                       config: Config,
-                      id_handler,
+                      id_handler: IdHandler,
                       max_hidden_nodes: int,
                       max_hidden_connections: int) -> Genome:
-        """
-        TODO
+        """ Creates a new random genome.
+
+        Args:
+            num_inputs (int): Number of input nodes in the new genome.
+            num_outputs (int): Number of output nodes in the new genome.
+            config (Config): Settings of the current evolution session.
+            id_handler (IdHandler): ID handler used to assign IDs to the new
+                genome's hidden nodes and connections.
+            max_hidden_nodes (int): Maximum number of hidden nodes the new
+                genome can have. The number of hidden nodes in the genome will
+                be randomly picked from the interval `[0, max_hidden_nodes]`.
+            max_hidden_connections (int): Maximum number of hidden connections
+                (connections involving at least one hidden node) the new genome
+                can have. The number of hidden connections in the genome will be
+                randomly picked from the interval `[0, max_hidden_connections]`.
+
+        Returns:
+            The randomly generated genome.
         """
         new_genome = Genome(genome_id=id_handler.next_genome_id(),
                             num_inputs=num_inputs,
@@ -633,7 +686,7 @@ class Genome:
         return new_genome
 
     def save(self, abs_path: str) -> None:
-        """ Saves the genome in the given absolute path.
+        """ Saves the genome to the given absolute path.
 
         This method uses :py:mod:`pickle` to save the genome.
 
@@ -822,7 +875,7 @@ def mate_genomes(gen1: Genome,
                  gen2: Genome,
                  new_genome_id: int) -> Genome:
     """ Mates two genomes to produce a new genome (offspring).
-    todo
+
     Sexual reproduction. Follows the idea described in the original paper of
     the NEAT algorithm:
 
@@ -838,9 +891,10 @@ def mate_genomes(gen1: Genome,
     Args:
         gen1 (Genome): The first genome.
         gen2 (Genome): The second genome.
+        new_genome_id (int): An unique identifier of the new genome.
 
     Returns:
-        A new genome, the offspring of the two genomes passed as argument.
+        A new genome (the offspring of the two genomes passed as argument).
     """
     # aligning matching genes
     genes = align_connections(gen1.connections, gen2.connections)

@@ -1,42 +1,79 @@
-"""
-TODO
+# MIT License
+#
+# Copyright (c) 2020 Gabriel Nogueira (Talendar)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# ==============================================================================
+
+""" Implements the :class:`.Species` class.
 """
 
+from typing import Optional, List
 import numpy as np
+from nevopy.neat.genome import Genome
 
 
 class Species:
-    """ Species
-    TODO
+    """ Represents a species within NEAT's evolutionary environment.
+
+    Args:
+        species_id (int): Unique identifier of the species.
+        generation (int): Current generation. The generation in which the
+            species is born.
+
+    Attributes:
+        representative (Optional[Genome]): Genome used to represent the species.
+        members (List[Genome]): List with the genomes that belong to the
+            species.
+        last_improvement (int): Generation in which the species last showed
+            improvement of its fitness. The species fitness in a given
+            generation is equal to the fitness of the species most fit genome on
+            that generation.
+        best_fitness (Optional[float]): The last calculated fitness of the
+            species most fit genome.
+        fitness_history (List[float]): List with the previous fitness of the
+            species past most fit genomes.
     """
 
-    def __init__(self, species_id, generation):
-        """
-
-        :param species_id:
-        :param generation:
-        """
+    def __init__(self, species_id: int, generation: int) -> None:
         self._id = species_id
-        self.representative = None
-        self.members = []
+        self.representative = None  # type: Optional[Genome]
+        self.members = []           # type: List[Genome]
 
         self._creation_gen = generation
         self.last_improvement = generation
-        self.best_fitness = None
-        self.fitness_history = []
+        self.best_fitness = None   # type: Optional[float]
+        self.fitness_history = []  # type: List[float]
 
     @property
-    def id(self):
+    def id(self) -> int:
+        """ Unique identifier of the species. """
         return self._id
 
-    def random_representative(self):
+    def random_representative(self) -> None:
         """ Randomly chooses a new representative for the species. """
         self.representative = np.random.choice(self.members)
 
-    def avg_fitness(self):
-        """ Returns average fitness of the species. """
-        return np.mean([g.fitness for g in self.members])
+    def avg_fitness(self) -> float:
+        """ Returns the average fitness of the species genomes. """
+        return float(np.mean([g.fitness for g in self.members]))
 
-    def fittest(self):
+    def fittest(self) -> Genome:
         """ Returns the fittest member of the species. """
         return self.members[int(np.argmax([g.fitness for g in self.members]))]

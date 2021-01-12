@@ -26,7 +26,7 @@ TODO
 """
 
 from __future__ import annotations
-from typing import Optional, Callable
+from typing import Optional, List, Sequence
 
 import pickle
 from pathlib import Path
@@ -39,22 +39,44 @@ from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy import utils
 from nevopy.processing.pool_processing import (ProcessingScheduler,
-                                               PoolProcessingScheduler)
+                                               PoolProcessingScheduler,
+                                               ItemProcessingCallback)
 
 
 class Population:
-    """
+    """ Population of individuals (genomes) to be evolved by the NEAT algorithm.
+
     TODO
+    TODO: difference between population and community
+
+    Args:
+        size (int): Number of genomes in the population (constant value).
+        num_inputs (int): Number of input nodes in each genome.
+        num_outputs (int): Number of output nodes in each genome.
+        config (Config): The settings of the evolutionary process. If `None` the
+            default settings will be used.
+        processing_scheduler (Optional[ProcessingScheduler]): Processing
+            scheduler to be used to compute the fitness of the population's
+            genomes. If `None`, the default scheduler will be used
+            :class:`.PoolProcessingScheduler`.
+
+    Attributes:
+        config (Config): The settings of the evolutionary process.
+        genomes (List[Genome]): List with the population's genomes.
+        species (List[Species]): List with the currently alive species in the
+            population.
     """
 
+    #: Default processing scheduler used by instances of this class.
     _DEFAULT_SCHEDULER = PoolProcessingScheduler
 
     def __init__(self,
-                 size,
-                 num_inputs,
-                 num_outputs,
-                 config=None,
-                 processing_scheduler=None) -> None:
+                 size: int,
+                 num_inputs: int,
+                 num_outputs: int,
+                 config: Optional[Config] = None,
+                 processing_scheduler: Optional[ProcessingScheduler] = None,
+    ) -> None:
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
@@ -66,14 +88,15 @@ class Population:
         self.config = config if config is not None else Config()
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
-        self._rank_prob_dist = None
-        self._invalid_genomes_replaced = None
+
+        self._rank_prob_dist = None            # type: Optional[np.array]
+        self._invalid_genomes_replaced = None  # type: Optional[int]
         self._mass_extinction_counter = 0
 
-        self.__max_hidden_nodes = None
-        self.__max_hidden_connections = None
+        self.__max_hidden_nodes = None         # type: Optional[int]
+        self.__max_hidden_connections = None   # type: Optional[int]
 
-        self._past_best_fitness = None
+        self._past_best_fitness = None         # type: Optional[float]
         self._last_improvement = 0
 
         # creating initial genomes
@@ -90,20 +113,29 @@ class Population:
         for m in new_sp.members:
             m.species_id = new_sp.id
         new_sp.random_representative()
-        self._species = {new_sp.id: new_sp}
+        self.species = {new_sp.id: new_sp}
 
-    def fittest(self):
-        """ TODO """
+    def fittest(self) -> Genome:
+        """ Returns the most fit genome in the population. """
         return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
 
-    def evolve(self, generations, fitness_function):
-        """
+    def evolve(self,
+               generations: int,
+               fitness_function: ItemProcessingCallback[Genome, float],
+    ) -> None:
+        """ Evolves the population of genomes using the NEAT algorithm.
 
-        TODO: remove genomes without enabled connections to the output nodes?
+        Todo:
+            | > Callbacks.
 
-        :param generations:
-        :param fitness_function:
-        :return:
+        Args:
+            generations (int): Number of generations for the algorithm to run. A
+                generation is completed when all the population's genomes have
+                been processed and reproduction and speciation has occurred.
+            fitness_function (ItemProcessingCallback[Genome, float]): Fitness
+                function to be used to evaluate the fitness of individual
+                genomes. It must receive a genome as input and produce a float
+                (the genome's fitness) as output.
         """
         # caching the rank-selection probability distribution
         self._calc_prob_dist()
@@ -120,7 +152,7 @@ class Population:
 
             print(f"[{100*(generation_num + 1) / generations :.2f}%] "
                   f"Generation {generation_num+1} of {generations}.\n"
-                  f"Number of species: {len(self._species)}")
+                  f"Number of species: {len(self.species)}")
 
             # calculating fitness
             print("Calculating fitness... ", end="")
@@ -130,7 +162,7 @@ class Population:
             # assigning fitness and adjusted fitness
             for genome, fitness in zip(self.genomes, fitness_results):
                 genome.fitness = fitness
-                sp = self._species[genome.species_id]
+                sp = self.species[genome.species_id]
                 genome.adj_fitness = genome.fitness / len(sp.members)
             best = self.fittest()
             print("done!")
@@ -200,17 +232,30 @@ class Population:
             print(f"done!")
             print("\n" + "#" * 30 + "\n")
 
-    def _generate_offspring(self,
-                            species: Species,
-                            rank_prob_dist: np.array) -> Genome:
-        """ TODO
+    def generate_offspring(self,
+                           species: Species,
+                           rank_prob_dist: Sequence) -> Genome:
+        """ Generates a new genome from one or more genomes of the species.
+
+        The offspring can be generated either by mating two randomly chosen
+        genomes (sexual reproduction) or by cloning a single genome (asexual
+        reproduction / binary fission). After the newly born genome is created,
+        it has a chance of mutating. The possible mutations are:
+
+            | . Enabling a disabled connection;
+            | . Changing the weights of one or more connections;
+            | . Creating a new connection between two random nodes;
+            | . Creating a new random hidden node.
 
         Args:
-            species:
-            rank_prob_dist:
+            species (Species): Species from which the offspring will be
+                generated.
+            rank_prob_dist (Sequence): Sequence (usually a numpy array)
+                containing the chances of each of the species genomes being the
+                first parent of the newborn genome.
 
         Returns:
-
+            A newly generated genome.
         """
         g1 = np.random.choice(species.members, p=rank_prob_dist)
         baby_id = self._id_handler.next_genome_id()
@@ -218,7 +263,7 @@ class Population:
         # mating / cross-over
         if utils.chance(self.config.mating_chance):
             # interspecific
-            if (len(self._species) > 1
+            if (len(self.species) > 1
                     and utils.chance(self.config.interspecies_mating_chance)):
                 g2 = np.random.choice([g for g in self.genomes
                                        if g.species_id != species.id])
@@ -266,9 +311,10 @@ class Population:
             max_hidden_nodes=self.__max_hidden_nodes,
             max_hidden_connections=self.__max_hidden_connections)
 
-    def _calc_prob_dist(self):
+    def _calc_prob_dist(self) -> None:
         """
-        TODO
+        Calculates the probability distribution that associates, to each genome
+        in a species, the probability of reproducing.
         """
         alpha = self.config.rank_prob_dist_coefficient
         self._rank_prob_dist = np.zeros(len(self.genomes))
@@ -280,15 +326,30 @@ class Population:
                 break
             self._rank_prob_dist[i] = p
 
-    def reproduction(self):
-        """
+    def reproduction(self) -> None:
+        """ Handles the reproduction of the population's genomes
 
-        :return:
+        This method implements the reproduction mechanism described in the
+        original paper of the NEAT algorithm :cite:`stanley:ec02`.
+
+        First, the most fit genome of each species with more than a pre-defined
+        number of individuals is selected to be passed unchanged to the next
+        generation. This is called `elitism`. Next, the least fit genomes of
+        each species are discarded. After that, each species is assigned a
+        number specifying the number of genomes it will generate for the next
+        generation. This number is calculated based on the proportion between
+        the total fitness of the population and the adjusted fitness of the
+        species (roulette wheel selection). Finally, the reproduction of
+        individuals of the same species (and, on rare occasions, between genomes
+        of different species as well) occurs.
+
+        Most of the behaviour described above can be adjusted by changing the
+        settings of the evolutionary process (see :class:`.Config`).
         """
         new_pop = []
 
         # elitism
-        for sp in self._species.values():
+        for sp in self.species.values():
             sp.members.sort(key=lambda genome: genome.fitness,
                             reverse=True)
 
@@ -314,7 +375,7 @@ class Population:
 
         # creating new genomes
         self._invalid_genomes_replaced = 0
-        for sp in self._species.values():
+        for sp in self.species.values():
             # reproduction probabilities (rank-based selection)
             prob = self._rank_prob_dist[:len(sp.members)]
             prob_sum = np.sum(prob)
@@ -324,8 +385,8 @@ class Population:
                 prob = prob / prob_sum
 
             # generating offspring
-            babies = [self._generate_offspring(species=sp,
-                                               rank_prob_dist=prob)
+            babies = [self.generate_offspring(species=sp,
+                                              rank_prob_dist=prob)
                       for _ in range(offspring_count[sp.id])]
             new_pop += babies
 
@@ -340,17 +401,17 @@ class Population:
 
     def _offspring_proportion(self, num_offspring):
         """ Roulette wheel selection. """
-        adj_fitness = {sp.id: sp.avg_fitness() for sp in self._species.values()}
+        adj_fitness = {sp.id: sp.avg_fitness() for sp in self.species.values()}
         total_adj_fitness = np.sum(list(adj_fitness.values()))
 
         offspring_count = {}
         count = num_offspring
-        for sid in self._species:
+        for sid in self.species:
             offspring_count[sid] = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
             count -= offspring_count[sid]
 
         for _ in range(count):
-            sid = np.random.choice(list(self._species.keys()))
+            sid = np.random.choice(list(self.species.keys()))
             offspring_count[sid] += 1
 
         assert np.sum(list(offspring_count.values())) == num_offspring
@@ -369,7 +430,7 @@ class Population:
 
         # checking improvements and resetting members
         removed_sids = []
-        for sp in self._species.values():
+        for sp in self.species.values():
             past_best_fitness = sp.best_fitness
             sp.best_fitness = sp.fittest().fitness
 
@@ -387,7 +448,7 @@ class Population:
 
         # extinction of unfit species
         for sid in removed_sids:
-            self._species.pop(sid)
+            self.species.pop(sid)
 
         # assigning genomes to species
         dist_threshold = self.config.species_distance_threshold
@@ -395,7 +456,7 @@ class Population:
             chosen_species = None
 
             # checking compatibility with existing species
-            for sp in self._species.values():
+            for sp in self.species.values():
                 if genome.distance(sp.representative) <= dist_threshold:
                     chosen_species = sp
                     break
@@ -406,16 +467,16 @@ class Population:
                 chosen_species = Species(species_id=sid,
                                          generation=generation)
                 chosen_species.representative = genome
-                self._species[chosen_species.id] = chosen_species
+                self.species[chosen_species.id] = chosen_species
 
             # adding genome to species
             chosen_species.members.append(genome)
             genome.species_id = chosen_species.id
 
         # deleting empty species and updating representatives
-        for sp in list(self._species.values()):
+        for sp in list(self.species.values()):
             if len(sp.members) == 0:
-                self._species.pop(sp.id)
+                self.species.pop(sp.id)
             else:
                 sp.random_representative()
 
@@ -477,7 +538,7 @@ class Population:
                         else 1)
 
         return (f"Size: {len(self.genomes)}\n"
-                f"Species: {len(self._species)}\n"
+                f"Species: {len(self.species)}\n"
                 f"Invalid genomes (out nodes): {invalid_out}\n"
                 f"No-hidden node genomes: {no_hnode}\n"
                 f"No enabled connection (ignore self connections): {no_cons}")

@@ -11,6 +11,8 @@
 		- Checkpoints callback (pre-built)
 		- Logs callback (pre-built)
 	
+	. Population fitness history (best genome's fitness and avg pop fitness).
+	
 	. History of species (draw a figure showing when species were born and when
 	they were extinct).
 

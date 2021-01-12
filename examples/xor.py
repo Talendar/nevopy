@@ -54,7 +54,7 @@ if __name__ == "__main__":
     for r in range(runs):
         start_time = timer()
         pop = nevopy.neat.population.Population(
-            size=200,
+            size=100,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
             #processing_scheduler=scheduler,
@@ -67,24 +67,24 @@ if __name__ == "__main__":
 
     best = pop.fittest()
     eval_genome(best, log=True)
-    print(best.info())
+    # print(best.info())
     best.visualize()
 
     print("\n" + 20*"=" +
           f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s")
 
-    print("\n\n\nSaving population...")
-    pop.save("./test/test_pop.pkl")
-
-    del pop
-    del best
-
-    pop = nevopy.neat.population.Population.load("./test/test_pop.pkl")
-    print(pop.info())
-    best = pop.fittest()
-    eval_genome(best, log=True)
-    print(best.info())
-    best.visualize()
+    # print("\n\n\nSaving population...")
+    # pop.save("./test/test_pop.pkl")
+    #
+    # del pop
+    # del best
+    #
+    # pop = nevopy.neat.population.Population.load("./test/test_pop.pkl")
+    # print(pop.info())
+    # best = pop.fittest()
+    # eval_genome(best, log=True)
+    # print(best.info())
+    # best.visualize()
 
 

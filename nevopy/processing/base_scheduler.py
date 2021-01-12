@@ -35,16 +35,17 @@ from typing import Iterable, TypeVar, Optional
 from typing_extensions import Protocol
 
 #: `TypeVar` indicating an item to be scheduled for processing.
-T = TypeVar("T")
+T = TypeVar("T", contravariant=True)
 
 #: `TypeVar` indicating the return value of processing of an item.
-R = TypeVar("R")
+R = TypeVar("R", covariant=True)
 
 
-class ItemProcessingCallback(Protocol):
+class ItemProcessingCallback(Protocol[T, R]):
     """
     Defines an interface for a callback used by a processing scheduler to
-    process an individual item.
+    process an individual item. The type `T` is the item's type and the type `R`
+    is the type of the result of processing the item.
     """
 
     def __call__(self, item: T) -> R:

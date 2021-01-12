@@ -33,9 +33,11 @@ extensions = [
 	"sphinx.ext.autodoc",
 	"sphinx_autodoc_typehints",
 	"sphinxcontrib.bibtex",
+	"sphinx.ext.todo",
 ]
 
 bibtex_bibfiles = ['z_references.bib']
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

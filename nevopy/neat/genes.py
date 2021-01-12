@@ -25,7 +25,7 @@
 """
 
 from __future__ import annotations
-from typing import Union, Callable, Tuple, List, Optional
+from typing import Callable, Tuple, List, Optional
 from enum import Enum
 
 
@@ -38,19 +38,13 @@ class NodeGene:
     of the network.
 
     Args:
-        node_id (int/None): An int specifying the node's ID or None, in which
-            case a temporary ID will be generated. todo: fix
-        node_type (NodeGene.Type): the node's type.
+        node_id (int): The node's identifier / innovation number.
+        node_type (NodeGene.Type): The node's type.
         activation_func (Callable[[float], float]): Activation function to be
             used by the node. It should receive a float as input and return a
             float (the resulting activation) as output.
         initial_activation (float): initial value of the node's activation (used
             when processing recurrent connections between nodes).
-        parent_connection_nodes (None/tuple): Should be None for non-hidden
-            nodes. For hidden nodes (:attr:`~NodeGene.Type.HIDDEN`), this should
-            be a tuple containing the nodes that form the connection where the
-            node originated (a hidden node is created by breaking a connection
-            between two existing nodes).
         debug_info (None/str): Used for debugging purposes. Should be ignored
             most of the time. Todo: remove.
 
@@ -68,7 +62,7 @@ class NodeGene:
                  node_type: NodeGene.Type,
                  activation_func: Callable[[float], float],
                  initial_activation: float,
-                 debug_info: Union[None, str] = None) -> None:
+                 debug_info: Optional[str] = None) -> None:
         assert node_id is not None
         self._id = node_id
         self._type = node_type
@@ -76,7 +70,7 @@ class NodeGene:
         self._activation = initial_activation
         self._function = activation_func
         self.in_connections = []   # type: List[ConnectionGene]
-        self.out_connections = []  # type: List[ConnectionGene]  # todo: remove
+        self.out_connections = []  # type: List[ConnectionGene]
         self.debug_info = debug_info
 
     class Type(Enum):
@@ -86,18 +80,12 @@ class NodeGene:
     @property
     def id(self) -> int:
         """ Innovation ID of the gene.
-        todo: fix
 
         This ID is used to mate genomes and to calculate their difference.
 
         "The innovation numbers are historical markers that identify the
         original historical ancestor of each gene. New genes are assigned new
         increasingly higher numbers." - :cite:`stanley:ec02`
-
-        Returns:
-            If the node's ID has already been set: an int with the definitive ID
-            of the node. Otherwise: a string containing a temporary hexadecimal
-            unique ID for the node.
         """
         return self._id
 
@@ -131,8 +119,7 @@ class NodeGene:
 
         The copied node shares the same values for all the attributes of the
         source node, except for the connections. The copied node is created
-        without any connections. It has the same parent nodes as the source node
-        (the same reference to the same objects).
+        without any connections.
 
         Returns:
             A copy of this node without its connections.
@@ -158,18 +145,10 @@ class ConnectionGene:
     (neurons) of a neural network (phenotype of a genome).
 
     Args:
-        cid (Union[int, None]): The innovation number of this connection. As
-            described in the original NEAT paper :cite:`stanley:ec02`, this
-            serves as a historical marker for the gene, helping to identify
-            homologous genes. If None is passed as argument, the connection is
-            created without an ID. In cases where it's necessary to create a
-            bunch of connections for different genomes, delaying the assignment
-            of an ID to the gene is useful, because, once all connections have
-            been created, it's easier to assign similar IDs to homologous
-            connections in different genomes. Unlike a hidden :class:`~NodeGene`,
-            a temporary ID isn't required here (the identification of
-            connections without IDs can be done through the nodes that compose
-            it). todo: fix
+        cid (int): The innovation number of the connection. As described in the
+            original NEAT paper :cite:`stanley:ec02`, this serves as a
+            historical marker for the gene, helping to identify homologous
+            genes.
         from_node (NodeGene): Node from where the connection is originated. The
             source node of the connection.
         to_node (NodeGene): Node to where the connection is headed. The
@@ -206,20 +185,18 @@ class ConnectionGene:
     @property
     def id(self) -> int:
         """ Innovation number of the connection gene.
-        #todo: fix
 
          As described in the original NEAT paper :cite:`stanley:ec02`, this
          value serves as a historical marker for the gene, helping to identify
          homologous genes. Although must of the identification is based on the
-         nodes that form the connection, this ID is still helpful to make some
-         comparisons faster. If it's `None`, then an ID has yet to be assigned
-         to the gene.
+         nodes that form the connection, this ID is helpful to increase the
+         speed of certain comparisons.
         """
         return self._id
 
     @property
     def from_node(self) -> NodeGene:
-        """ Node from where the connection is originated (source node). """
+        """ Node where the connection is originated (source node). """
         return self._from_node
 
     @property
@@ -227,44 +204,19 @@ class ConnectionGene:
         """ Node to where the connection is headed (destination node). """
         return self._to_node
 
-    def self_connecting(self):
+    def self_connecting(self) -> bool:
         """
-        TODO
-        Returns:
-
+        Returns `True` if the connection is connecting a node to itself and
+        `False` otherwise.
         """
         return self._from_node == self._to_node
-
-
-# def connection_exists(src_node: NodeGene, dest_node: NodeGene) -> bool:
-#     """ Checks if the connection `src_node->dest_node` exists.
-#
-#     A connection `A->B` between the nodes `A` and `B` exists if `A->B` is in
-#     node `A's` :attr:`~NodeGene.out_connections` or `A->B` is in node `B's`
-#     :attr:`~NodeGene.in_connections`.
-#
-#     Args:
-#         src_node (NodeGene): The node from where the connection leaves (source
-#             node).
-#         dest_node (NodeGene): The node to where the connection is headed
-#             (destination node).
-#
-#     Returns:
-#         True if the connection `src_node->dest_node` exists and False otherwise.
-#     """
-#     for dest_cin, src_cout in zip(dest_node.in_connections,
-#                                   src_node.out_connections):
-#         if (dest_cin.from_node.id == src_node.id
-#                 or src_cout.to_node.id == dest_node.id):
-#             return True
-#     return False
 
 
 def align_connections(
         con_list1: List[ConnectionGene],
         con_list2: List[ConnectionGene],
         print_alignment: bool = False
-) -> Tuple[List[Union[ConnectionGene, None]], List[Union[ConnectionGene, None]]]:
+) -> Tuple[List[Optional[ConnectionGene]], List[Optional[ConnectionGene]]]:
     """ Aligns the matching connection genes of the given lists.
 
     In the context of NEAT :cite:`stanley:ec02`, aligning homologous connections
