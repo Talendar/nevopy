@@ -25,7 +25,7 @@
 """
 
 from __future__ import annotations
-from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set
+from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set, Union
 from abc import ABCMeta, abstractmethod
 import numpy as np
 

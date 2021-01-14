@@ -28,38 +28,21 @@ responsible for managing the computation of the fitness of a population in
 `nevopy's` algorithms. Schedulers allow the implementation of the computation
 methods (like the use of serial or parallel processing) to be separated from the
 implementation of the neuroevolutionary algorithms.
+
+Attributes:
+    TProcItem (TypeVar): :py:class:`TypeVar` indicating an item to be scheduled
+        for processing by a :class:`ProcessingScheduler`. Alias for
+        TypeVar("TProcItem").
+    TProcResult (TypeVar): :py:class:`TypeVar` indicating the result of
+        processing a :attr:`TProcItem`. Alias for TypeVar("TProcResult").
 """
 
 from abc import ABC, abstractmethod
-from typing import Iterable, TypeVar, Optional
-from typing_extensions import Protocol
-
-#: `TypeVar` indicating an item to be scheduled for processing.
-T = TypeVar("T", contravariant=True)
-
-#: `TypeVar` indicating the return value of processing of an item.
-R = TypeVar("R", covariant=True)
+from typing import Iterable, Sequence, TypeVar, Optional, Callable
 
 
-class ItemProcessingCallback(Protocol[T, R]):
-    """
-    Defines an interface for a callback used by a processing scheduler to
-    process an individual item. The type `T` is the item's type and the type `R`
-    is the type of the result of processing the item.
-    """
-
-    def __call__(self, item: T) -> R:
-        """ Defines the expected signature of the callback.
-
-        Args:
-            item (T): An item to be processed. In the context of neuroevolution,
-                it's usually an individual whose fitness we want to compute.
-
-        Returns:
-            An expected result. In the context of neuroevolution, it's usually
-            the fitness of the individual.
-        """
-        raise NotImplementedError()
+TProcItem = TypeVar("TProcItem")
+TProcResult = TypeVar("TProcResult")
 
 
 class ProcessingScheduler(ABC):
@@ -80,31 +63,36 @@ class ProcessingScheduler(ABC):
 
     @abstractmethod
     def run(self,
-            items: Iterable[T],
-            func: Optional[ItemProcessingCallback],
-    ) -> Iterable[R]:
+            items: Iterable[TProcItem],
+            func: Optional[Callable[[TProcItem], TProcResult]],
+    ) -> Sequence[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
         processing of a batch of items.
 
         Args:
-            items (Iterable[T]): Iterable containing the items to be processed.
-            func (Optional[ItemProcessingCallback]): Callable (usually a
-                function) that takes one item `T` as input and returns a result
-                `R`. Generally, `T` is an individual in the population and `R`
-                is the individual's fitness. Since some scenarios requires the
-                fitness of the population's individuals to be calculated
-                together, at once, this parameter is not always used. If
-                additional arguments must be passed to the callable you want to
-                use, it's possible to use Python's :mod:`functools.partial` or
-                to just wrap it with a function.
+            items (Iterable[TProcItem]): Iterable containing the items to be
+                processed.
+            func (Optional[Callable[[TProcItem], TProcResult]]): Callable
+                (usually a function) that takes one item :attr:`TProcItem` as
+                input and returns a result :attr:`TProcResult` as output.
+                Generally, :attr:`TProcItem` is an individual in the population
+                and :attr:`TProcResult` is the individual's fitness. Since some
+                scenarios requires the fitness of the population's individuals
+                to be calculated together, at once, the use of this parameter is
+                not mandatory (this decision is a implementation particularity
+                of each sub-classed scheduler). If additional arguments must be
+                passed to the callable you want to use, it's possible to use
+                Python's :mod:`functools.partial`  or to just wrap it with a
+                simple function.
 
         Returns:
-            An iterable containing the results of the processing of each item.
-            In some situations, it might be required for the order of the
-            results to match the order of the items passed as input. In others,
-            it's possible to map each item to its result. These decisions are
-            implementation particularities of each scheduler.
+            A :py:class:`Sequence` (usually a list) containing the results of
+            the processing of each item. It is guaranteed that the ordering of
+            the items in the returned list follows the order in which the items
+            are yielded by the iterable passed as argument. This means that if
+            the argument  passed to `items` is a :py:class:`Sequence`, the order
+            of the results will match the order of the sequence.
         """
         raise NotImplementedError()

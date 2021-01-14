@@ -29,8 +29,9 @@ with `pickle`.
 """
 
 import multiprocessing
-from nevopy.processing.base_scheduler import *
-from typing import List
+from nevopy.processing.base_scheduler import (ProcessingScheduler,
+                                              TProcItem, TProcResult)
+from typing import List, Optional, Iterable, Callable
 
 
 class PoolProcessingScheduler(ProcessingScheduler):
@@ -73,9 +74,9 @@ class PoolProcessingScheduler(ProcessingScheduler):
         self._pool = multiprocessing.Pool(processes=num_processes)
 
     def run(self,
-            items: Iterable[T],
-            func: ItemProcessingCallback,
-    ) -> List[R]:
+            items: Iterable[TProcItem],
+            func: Callable[[TProcItem], TProcResult],
+    ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
@@ -86,25 +87,32 @@ class PoolProcessingScheduler(ProcessingScheduler):
             Make sure that both `items` and `func` are serializable with pickle.
 
         Args:
-            items (Iterable[T]): Iterable containing the items to be processed.
-            func (Optional[ItemProcessingCallback]): Callable (usually a
-                function) that takes one item `T` as input and returns a result
-                `R`. Generally, `T` is an individual in the population and `R`
-                is the individual's fitness.
+            items (Iterable[TProcItem]): Iterable containing the items to be
+                processed.
+            func (Callable[[TProcItem], TProcResult]): Callable (usually a
+                function) that takes one item :attr:`.TProcItem` as input and
+                returns a result :attr:`.TProcResult` as output. Generally,
+                :attr:`.TProcItem` is an individual in the population and
+                :attr:`.TProcResult` is the individual's fitness.
 
         Returns:
-            A list containing the results of the processing of each item, in the
-            order they are processed. This means that if the argument passed to
-            `items` is a `Sequence`, the order of the results will match the
-            order of the sequence.
+            A list containing the results of the processing of each item. It is
+            guaranteed that the ordering of the items in the returned list
+            follows the order in which the items are yielded by the iterable
+            passed as argument. This means that if the argument  passed to
+            `items` is a :py:class:`Sequence`, the order of the results will
+            match the order of the sequence.
         """
         return self._pool.map(func, items, chunksize=self._chunksize)
 
     def close(self):
+        """ Calls the equivalent method on the scheduler's pool object. """
         self._pool.close()
 
     def join(self):
+        """ Calls the equivalent method on the scheduler's pool object. """
         self._pool.join()
 
     def terminate(self):
+        """ Calls the equivalent method on the scheduler's pool object. """
         self._pool.terminate()

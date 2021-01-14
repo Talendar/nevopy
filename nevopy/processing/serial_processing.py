@@ -25,8 +25,8 @@
 """
 
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
-                                              ItemProcessingCallback, T, R)
-from typing import List, Iterable
+                                              TProcItem, TProcResult)
+from typing import List, Iterable, Callable
 
 
 class SerialProcessingScheduler(ProcessingScheduler):
@@ -38,24 +38,29 @@ class SerialProcessingScheduler(ProcessingScheduler):
     """
 
     def run(self,
-            items: Iterable[T],
-            func: ItemProcessingCallback
-    ) -> List[R]:
+            items: Iterable[TProcItem],
+            func: Callable[[TProcItem], TProcResult],
+    ) -> List[TProcResult]:
         """ Sequentially processes the input items.
 
         Args:
-            items (Iterable[T]): Iterable containing the items to be processed.
-            func (ItemProcessingCallback): Callable (usually a function) that
-                takes one item `T` as input and returns a result `R`. Generally,
-                `T` is an individual in the population and `R` is the
-                individual's fitness. If additional arguments must be passed to
-                the callable you want to use, it's possible to use Python's
-                :mod:`functools.partial` or to just wrap it with a function.
+            items (Iterable[TProcItem]): Iterable containing the items to be
+                processed.
+            func (Callable[[TProcItem], TProcResult]): Callable (usually a
+                function) that takes one item :attr:`.TProcItem` as input and
+                returns a result :attr:`.TProcResult` as output. Generally,
+                :attr:`.TProcItem` is an individual in the population and
+                :attr:`.TProcResult` is the individual's fitness. If additional
+                arguments must be passed to the callable you want to use, it's
+                possible to use Python's :mod:`functools.partial` or to just
+                wrap it with a simple function.
 
         Returns:
-            A list containing the results of the processing of each item, in the
-            order they are processed. This means that if the argument passed to
-            `items` is a `Sequence`, the order of the results will match the
-            order of the sequence.
+            A list containing the results of the processing of each item. It is
+            guaranteed that the ordering of the items in the returned list
+            follows the order in which the items are yielded by the iterable
+            passed as argument. This means that if the argument  passed to
+            `items` is a :py:class:`Sequence`, the order of the results will
+            match the order of the sequence.
         """
         return [func(item) for item in items]

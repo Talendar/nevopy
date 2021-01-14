@@ -29,21 +29,23 @@ population/community of genomes.
 """
 
 from __future__ import annotations
-from typing import Optional, List, Sequence, Dict, Iterable, Callable
+from typing import Optional, List, Sequence, Dict, Callable
 
 import pickle
 from pathlib import Path
-
 import numpy as np
+
 from nevopy.neat.genome import Genome, mate_genomes
 from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
+from nevopy.neat.callbacks import (Callback, CompleteStdOutLogger,
+                                   SimpleStdOutLogger, History)
+
 from nevopy import utils
-from nevopy.processing.pool_processing import (ProcessingScheduler,
-                                               PoolProcessingScheduler,
-                                               ItemProcessingCallback)
+from nevopy.processing.base_scheduler import ProcessingScheduler
+from nevopy.processing.pool_processing import PoolProcessingScheduler
 
 
 class Population:
@@ -160,22 +162,47 @@ class Population:
 
     def evolve(self,
                generations: int,
-               fitness_function: Callable[[Genome], float],  # ItemProcessingCallback[Genome, float] todo
-    ) -> None:
+               fitness_function: Callable[[Genome], float],
+               callbacks: Optional[List[Callback]] = None,
+               verbose: int = 2) -> History:
         """ Evolves the population of genomes using the NEAT algorithm.
-
-        Todo:
-            | > Callbacks.
 
         Args:
             generations (int): Number of generations for the algorithm to run. A
                 generation is completed when all the population's genomes have
                 been processed and reproduction and speciation has occurred.
-            fitness_function (ItemProcessingCallback[Genome, float]): Fitness
-                function to be used to evaluate the fitness of individual
-                genomes. It must receive a genome as input and produce a float
-                (the genome's fitness) as output.
+            fitness_function (Callable[[Genome], float]): Fitness function to be
+                used to evaluate the fitness of individual genomes. It must
+                receive a genome as input and produce a float (the genome's
+                fitness) as output.
+            callbacks (Optional[List[Callback]]): List with instances of
+                :class:`.Callback` that will be called during the evolutionary
+                session. By default, a :class:`.History` callback is always
+                included in the list. A :class:`.CompleteStdOutLogger` or a
+                :class:`.SimpleStdOutLogger` might also be included, depending
+                on the value passed to the `verbose` param.
+            verbose (int): Verbose level (logging on stdout). Options: 0 (no
+                verbose), 1 (light verbose) and 2 (heavy verbose).
+
+        Returns:
+            A :class:`.History` object containing useful information recorded
+            during the evolutionary process.
         """
+        # preparing callbacks
+        if callbacks is None:
+            callbacks = []
+
+        history_callback = History()
+        callbacks.append(history_callback)
+
+        if verbose >= 2:
+            callbacks.append(CompleteStdOutLogger())
+        elif verbose == 1:
+            callbacks.append(SimpleStdOutLogger())
+
+        for cb in callbacks:
+            cb.population = self
+
         # caching the rank-selection probability distribution
         self._calc_prob_dist()
 
@@ -185,20 +212,15 @@ class Population:
 
         # evolving
         for generation_num in range(generations):
-            # resetting genomes
-            # for genome in self.genomes:
-            #     genome.reset_activations()
-
-            print(f"[{100*(generation_num + 1) / generations :.2f}%] "
-                  f"Generation {generation_num+1} of {generations}.\n"
-                  f"Number of species: {len(self.species)}")
+            # callback: on_generation_start
+            for cb in callbacks:
+                cb.on_generation_start(generation_num, generations)
 
             # calculating fitness
-            print("Calculating fitness... ", end="")
             fitness_results = self._scheduler.run(
                 items=self.genomes,
                 func=fitness_function
-            )  # type: Iterable[float]
+            )  # type: Sequence[float]
 
             # assigning fitness and adjusted fitness
             for genome, fitness in zip(self.genomes, fitness_results):
@@ -206,12 +228,6 @@ class Population:
                 sp = self.species[genome.species_id]
                 genome.adj_fitness = genome.fitness / len(sp.members)
             best = self.fittest()
-            print("done!")
-
-            # info
-            print(f"Best fitness: {best.fitness}")
-            print("Avg. population fitness: "
-                  f"{np.mean([g.fitness for g in self.genomes])}")
 
             # counting max number of hidden nodes in one genome
             self.__max_hidden_nodes = np.max([len(g.hidden_nodes)
@@ -226,6 +242,11 @@ class Population:
                 for g in self.genomes
             ])
 
+            # callback: on_fitness_calculated
+            for cb in callbacks:
+                cb.on_fitness_calculated(best, self.__max_hidden_nodes,
+                                         self.__max_hidden_connections)
+
             # checking improvements
             improv_diff = best.fitness - self._past_best_fitness
             improv_min_pc = self.config.maex_improvement_threshold_pc
@@ -236,13 +257,19 @@ class Population:
                 self._mass_extinction_counter += 1
             self.config.update_mass_extinction(self._mass_extinction_counter)
 
+            # callback: on_mass_extinction_counter_updated
+            for cb in callbacks:
+                cb.on_mass_extinction_counter_updated(
+                    self._mass_extinction_counter)
+
             # checking mass extinction
-            print(f"Mass extinction counter: {self._mass_extinction_counter}/"
-                  f"{self.config.mass_extinction_threshold}")
             if (self._mass_extinction_counter
                     >= self.config.mass_extinction_threshold):
+                # callback: on_mass_extinction_start
+                for cb in callbacks:
+                    cb.on_mass_extinction_start()
+
                 # mass extinction
-                print("Mass extinction in progress... ", end="")
                 self._mass_extinction_counter = 0
                 self.genomes = [best]
                 for _ in range(self._size - 1):
@@ -255,23 +282,26 @@ class Population:
                         max_hidden_connections=self.__max_hidden_connections,
                     ))
                 assert len(self.genomes) == self._size
-                print(" done!")
             else:
+                # callback: on_reproduction_start
+                for cb in callbacks:
+                    cb.on_reproduction_start()
+
                 # reproduction
-                print(f"New node mutation chance: "
-                      f"{self.config.new_node_mutation_chance*100 : .2f}%")
-                print(f"New connection mutation chance: "
-                      f"{self.config.new_connection_mutation_chance*100 : .2f}%")
-                print("Reproduction... ", end="")
                 self.reproduction()
-                print("done!\nInvalid genomes replaced: "
-                      f"{self._invalid_genomes_replaced}")
+
+            # callback: on_speciation_start
+            for cb in callbacks:
+                cb.on_speciation_start(self._invalid_genomes_replaced)
 
             # speciation
-            print("Speciation... ", end="")
             self.speciation(generation=generation_num)
-            print(f"done!")
-            print("\n" + "#" * 30 + "\n")
+
+            # callback: on_generation_end
+            for cb in callbacks:
+                cb.on_generation_end(generation_num, generations)
+
+        return history_callback
 
     def generate_offspring(self,
                            species: Species,

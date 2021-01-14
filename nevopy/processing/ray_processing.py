@@ -29,8 +29,8 @@ implement parallel processing, either on a single machine or on a cluster.
 
 import ray
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
-                                              ItemProcessingCallback, T, R)
-from typing import List, Optional, Iterable
+                                              TProcItem, TProcResult)
+from typing import List, Optional, Iterable, Callable
 
 
 class RayProcessingScheduler(ProcessingScheduler):
@@ -82,30 +82,34 @@ class RayProcessingScheduler(ProcessingScheduler):
         ray.init(address=address, num_cpus=num_cpus, **kwargs)
 
     def run(self,
-            items: Iterable[T],
-            func: ItemProcessingCallback,
-    ) -> List[R]:
+            items: Iterable[TProcItem],
+            func: Callable[[TProcItem], TProcResult],
+    ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
         parallel processing of a batch of items using `ray`.
 
         Args:
-            items (Iterable[T]): Iterable containing the items to be processed.
-            func (Optional[ItemProcessingCallback]): Callable (usually a
-                function) that takes one item `T` as input and returns a result
-                `R`. Generally, `T` is an individual in the population and `R`
-                is the individual's fitness. If additional arguments must be
-                passed to the callable you want to use, it's possible to use
-                Python's :mod:`functools.partial` or to just wrap it with a
-                function. The function don't need to be annotated with
-                `ray.remote`, this is handled for you.
+            items (Iterable[TProcItem]): Iterable containing the items to be
+                processed.
+            func (Callable[[TProcItem], TProcResult]): Callable (usually a
+                function) that takes one item :attr:`.TProcItem` as input and
+                returns a result :attr:`.TProcResult` as output. Generally,
+                :attr:`.TProcItem` is an individual in the population and
+                :attr:`.TProcResult` is the individual's fitness. If additional
+                arguments must be passed to the callable you want to use, it's
+                possible to use Python's :mod:`functools.partial` or to just
+                wrap it with a simple function. The callable doesn't need to be
+                annotated with `ray.remote`, this is handled for you.
 
         Returns:
-            A list containing the results of the processing of each item, in the
-            order they are processed. This means that if the argument passed to
-            `items` is a `Sequence`, the order of the results will match the
-            order of the sequence.
+            A list containing the results of the processing of each item. It is
+            guaranteed that the ordering of the items in the returned list
+            follows the order in which the items are yielded by the iterable
+            passed as argument. This means that if the argument  passed to
+            `items` is a :py:class:`Sequence`, the order of the results will
+            match the order of the sequence.
         """
         func_id = ray.put(func)
         return ray.get([_func_wrapper.remote(item, func_id)
@@ -113,6 +117,7 @@ class RayProcessingScheduler(ProcessingScheduler):
 
 
 @ray.remote
-def _func_wrapper(item: T, func: ItemProcessingCallback) -> R:
+def _func_wrapper(item: TProcItem,
+                  func: Callable[[TProcItem], TProcResult]) -> TProcResult:
     """ Wrapper function to be used by `ray`. """
     return func(item)

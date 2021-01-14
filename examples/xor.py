@@ -50,19 +50,18 @@ def eval_genome(genome: nevopy.neat.genome.Genome,
 if __name__ == "__main__":
     runs = 1
     total_time = 0
-    # scheduler = nevopy.processing.ray_processing.RayProcessingScheduler()
+    pop = history = None
 
-    pop = None
     for r in range(runs):
         start_time = timer()
         pop = nevopy.neat.population.Population(
             size=100,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
-            #processing_scheduler=scheduler,
         )
-        pop.evolve(generations=100,
-                   fitness_function=eval_genome)
+        history = pop.evolve(generations=100,
+                             fitness_function=eval_genome,
+                             verbose=2)
 
         deltaT = timer() - start_time
         total_time += deltaT
@@ -75,6 +74,7 @@ if __name__ == "__main__":
     print("\n" + 20*"=" +
           f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s")
+    print(history.best_fitness)
 
     # print("\n\n\nSaving population...")
     # pop.save("./test/test_pop.pkl")
