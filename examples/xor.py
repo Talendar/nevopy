@@ -73,8 +73,9 @@ if __name__ == "__main__":
 
     print("\n" + 20*"=" +
           f"\nTotal time: {total_time}s"
-          f"\nAvg. time: {total_time / runs}s")
-    print(history.best_fitness)
+          f"\nAvg. time: {total_time / runs}s\n")
+
+    history.visualize()
 
     # print("\n\n\nSaving population...")
     # pop.save("./test/test_pop.pkl")
@@ -88,5 +89,3 @@ if __name__ == "__main__":
     # eval_genome(best, log=True)
     # print(best.info())
     # best.visualize()
-
-

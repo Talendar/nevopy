@@ -47,8 +47,6 @@ class Species:
             that generation.
         best_fitness (Optional[float]): The last calculated fitness of the
             species most fit genome.
-        fitness_history (List[float]): List with the previous fitness of the
-            species past most fit genomes.
     """
 
     def __init__(self, species_id: int, generation: int) -> None:
@@ -59,7 +57,6 @@ class Species:
         self._creation_gen = generation
         self.last_improvement = generation
         self.best_fitness = None   # type: Optional[float]
-        self.fitness_history = []  # type: List[float]
 
     @property
     def id(self) -> int:

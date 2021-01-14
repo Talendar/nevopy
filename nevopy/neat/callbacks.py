@@ -48,10 +48,12 @@ Example:
                    callbacks=[MyCallback()])
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict, Union, Tuple
 import nevopy.neat as neat
 
 import numpy as np
+import matplotlib.pyplot as plt
+
 from columnar import columnar
 from click import style
 
@@ -282,7 +284,7 @@ class CompleteStdOutLogger(Callback):
         self._past_avg_fitness = avg_fit
 
     def on_mass_extinction_counter_updated(self, mass_ext_counter: int) -> None:
-        ct = mass_ext_counter
+        ct = mass_ext_counter  # type: Union[int, str]
         ct_max = self.population.config.mass_extinction_threshold
 
         if self.colors:
@@ -354,8 +356,53 @@ class SimpleStdOutLogger(Callback):
 class History(Callback):
     """ Callback that records events during the evolutionary process.
 
-    TODO
+    Attributes:
+        best_fitness (List[float]): List with the fitness of the best genome
+            of each generation.
+        avg_pop_fitness (List[float]): List with the average fitness of the
+            population in each generation.
+        max_hidden_nodes (List[int]): The maximum number of hidden nodes present
+            in a genome in the population in each generation.
+        max_hidden_connections (List[int]): The maximum number of hidden
+            connections (connections linked to at least one hidden node) in a
+            genome in the population in each generation.
+        species_info (Dict[int, Dict]): Contains information about all the
+            species that emerged during the evolution. It's a dictionary that
+            maps a species ID (an int) to another dictionary containing the
+            following keys: "born" (generation in which the species was born);
+            "extinct" (generation in which the species was extinct or `None` if
+            it wasn't extinct); "size" (list with the number of genomes in the
+            species in each generation); "best_fitness" (list with the fitness
+            of the best genome in the species in each generation); "avg_fitness"
+            (list with the average fitness of the species in each generation).
+        num_species (List[int]): List with the number of species alive in each
+            generation.
+        extinction_counter (List[int]): List with the value of the extinction
+            counter in each generation.
+        extinction_events (List[int]): List with the generations in which an
+            extinction event occurred.
+        invalid_genomes_replaced (List[int]): List with the number of invalid
+            genomes replaced in each generation.
+        new_node_chance (List[float]): List with the chance of a new hidden node
+            mutation in each generation.
+        new_connection_chance (List[float]): List with the chance of a new
+            hidden connection mutation in each generation.
+        weight_mutation_chance (List[float]): List with the chance of a weight
+            mutation in each generation.
+        enable_connection_chance (List[float]): List with the chance of a enable
+            connection mutation in each generation.
+        weight_perturbation_chance (List[float]): List with the chance of a
+            weight perturbation mutation in each generation.
+        weight_reset_chance (List[float]): List with the chance of a weight
+            reset mutation in each generation.
     """
+
+    PLOT_ATTRS = ("best_fitness", "avg_pop_fitness", "num_species",
+                  "max_hidden_nodes", "max_hidden_connections",
+                  "extinction_counter", "new_node_chance",
+                  "new_connection_chance", "invalid_genomes_replaced",
+                  "weight_mutation_chance", "enable_connection_chance",
+                  "weight_perturbation_chance", "weight_reset_chance")
 
     def __init__(self):
         super().__init__()
@@ -367,7 +414,9 @@ class History(Callback):
         self.max_hidden_nodes = []            # type: List[int]
         self.max_hidden_connections = []      # type: List[int]
 
-        self.species = []                     # todo
+        self.species_info = {}                # type: Dict[int, Dict]
+        self.num_species = []                 # type: List[int]
+
         self.extinction_counter = []          # type: List[int]
         self.extinction_events = []           # type: List[int]
         self.invalid_genomes_replaced = []    # type: List[int]
@@ -384,16 +433,29 @@ class History(Callback):
                             total_generations: int) -> None:
         self._current_generation = current_generation
 
+        # adding pioneer species
+        if len(self.species_info) == 0:
+            for sid, sp in self.population.species.items():
+                self._new_species_info(sid, current_generation, len(sp.members))
+
     def on_fitness_calculated(self,
                               best_genome: neat.genome.Genome,
                               max_hidden_nodes: int,
                               max_hidden_connections: int) -> None:
+        # recording best and avg fitnesses
         self.best_fitness.append(best_genome.fitness)
         self.avg_pop_fitness.append(float(
             np.mean([g.fitness for g in self.population.genomes])
         ))
+
+        # recording max num of hidden nodes and connections
         self.max_hidden_nodes.append(max_hidden_nodes)
         self.max_hidden_connections.append(max_hidden_connections)
+
+        # updating species fitness
+        for sid, sp in self.population.species.items():
+            self.species_info[sid]["best_fitness"].append(sp.fittest().fitness)
+            self.species_info[sid]["avg_fitness"].append(sp.avg_fitness())
 
     def on_mass_extinction_counter_updated(self,
                                            mass_ext_counter: int) -> None:
@@ -403,6 +465,7 @@ class History(Callback):
         self.extinction_events.append(self._current_generation)
 
     def on_reproduction_start(self) -> None:
+        # recording new mutation chances
         cfg = self.population.config
         self.new_node_chance.append(cfg.new_node_mutation_chance)
         self.new_connection_chance.append(cfg.new_connection_mutation_chance)
@@ -418,12 +481,61 @@ class History(Callback):
     def on_generation_end(self,
                           current_generation: int,
                           total_generations: int) -> None:
-        pass
+        # num species
+        self.num_species.append(len(self.population.species))
 
-    def visualize(self):
+        # checking extinct species and updating species size
+        for sid, info in self.species_info.items():
+            if sid not in self.population.species:
+                if info["extinct"] is None:
+                    info["extinct"] = current_generation
+                    info["size"].append(0)
+            else:
+                info["size"].append(len(self.population.species[sid].members))
+
+        # adding new species
+        for sid, sp in self.population.species.items():
+            if sid not in self.species_info:
+                self._new_species_info(sid, current_generation, len(sp.members))
+
+    def _new_species_info(self, sid, gen, size):
+        assert sid not in self.species_info
+        self.species_info[sid] = {"born": gen, "extinct": None, "size": [size],
+                                  "best_fitness": [], "avg_fitness": []}
+
+    def visualize(self,
+                  attrs: Union[Tuple[str, ...], str] = ("best_fitness",
+                                                        "avg_pop_fitness"),
+                  log_scale: bool = True) -> None:
+        """ Simple utility method for plotting the recorded information.
+
+        This method is a simple wrapper around `matplotlib`. It isn't suited for
+        advanced plotting.
+
+        Attributes:
+            attrs (Union[Tuple[str, ...], str]): Tuple with the names of the
+                attributes to be plotted. If "all", all plottable attributes are
+                plotted.
+            log_scale (bool): Whether or not to use a logarithmic scale on the
+                y-axis.
         """
-        TODO
+        generations = range(len(self.best_fitness))
+        if type(attrs) is str and attrs == "all":
+            attrs = History.PLOT_ATTRS
+
+        plt.yscale("log" if log_scale else "linear")
+        for key in attrs:
+            data = self.__dict__[key]
+            plt.plot(generations, data, label=key)
+
+        plt.legend()
+        plt.show()
+
+    def visualize_species(self) -> None:
+        """ TODO
+
         """
+        raise NotImplementedError
 
 
 class PopulationCheckpoint(Callback):

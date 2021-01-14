@@ -25,7 +25,7 @@
 """
 
 from __future__ import annotations
-from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set, Union
+from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
@@ -88,3 +88,10 @@ def align_lists(lists: Iterable[List[T]],
     for l in lists:
         result.append([n if n in l else placeholder for n in values])
     return result
+
+
+def min_max_norm(values: Iterable) -> np.array:
+    """ Applies min-max normalization to the given values. """
+    a = np.array(values)
+    a_min, a_max = np.min(a), np.max(a)
+    return (a - a_min) / (a_max - a_min)
