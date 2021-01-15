@@ -24,7 +24,6 @@
 """ Implements the nodes (neurons) and edges (connections) of a genome.
 """
 
-from __future__ import annotations
 from typing import Callable, Tuple, List, Optional
 from enum import Enum
 
@@ -59,7 +58,7 @@ class NodeGene:
 
     def __init__(self,
                  node_id: int,
-                 node_type: NodeGene.Type,
+                 node_type: "NodeGene.Type",
                  activation_func: Callable[[float], float],
                  initial_activation: float,
                  debug_info: Optional[str] = None) -> None:
@@ -90,7 +89,7 @@ class NodeGene:
         return self._id
 
     @property
-    def type(self) -> NodeGene.Type:
+    def type(self) -> "NodeGene.Type":
         """ Type of the node (input, bias, hidden or output). """
         return self._type
 
@@ -114,7 +113,7 @@ class NodeGene:
         """
         self._activation = self._function(x)
 
-    def shallow_copy(self, debug_info: str = None) -> NodeGene:
+    def shallow_copy(self, debug_info: str = None) -> "NodeGene":
         """ Makes and returns a shallow/simple copy of this node.
 
         The copied node shares the same values for all the attributes of the

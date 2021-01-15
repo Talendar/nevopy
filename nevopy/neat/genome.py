@@ -28,7 +28,6 @@ phenotype). In this implementation, there is no distinction between a genome and
 the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
-from __future__ import annotations
 from typing import Optional, Sequence, Dict, Set
 
 import pickle
@@ -169,7 +168,7 @@ class Genome:
         for n in self.nodes():
             n.reset_activation()
 
-    def distance(self, other: Genome) -> float:
+    def distance(self, other: "Genome") -> float:
         """ Calculates the distance between two genomes.
 
         The shorter the distance between two genomes, the greater the similarity
@@ -430,7 +429,7 @@ class Genome:
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self, new_genome_id: int) -> Genome:
+    def shallow_copy(self, new_genome_id: int) -> "Genome":
         """ Makes a simple/shallow copy of the genome.
 
         Args:
@@ -447,7 +446,7 @@ class Genome:
                             initial_connections=False)
         return new_genome
 
-    def deep_copy(self, new_genome_id: int) -> Genome:
+    def deep_copy(self, new_genome_id: int) -> "Genome":
         """ Makes an exact/deep copy (except for the ID) of the genome.
 
         All the nodes and connections of the parent genome are copied to the new
@@ -645,7 +644,7 @@ class Genome:
                       config: Config,
                       id_handler: IdHandler,
                       max_hidden_nodes: int,
-                      max_hidden_connections: int) -> Genome:
+                      max_hidden_connections: int) -> "Genome":
         """ Creates a new random genome.
 
         Args:
@@ -705,7 +704,7 @@ class Genome:
             pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
-    def load(abs_path: str) -> Genome:
+    def load(abs_path: str) -> "Genome":
         """ Loads the genome from the given absolute path.
 
         This method uses :py:mod:`pickle` to load the genome.

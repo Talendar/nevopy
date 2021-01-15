@@ -49,7 +49,7 @@ Example:
 """
 
 from typing import Optional, List, Dict, Union, Tuple
-import nevopy.neat as neat
+from nevopy import neat
 
 import numpy as np
 import matplotlib.pyplot as plt

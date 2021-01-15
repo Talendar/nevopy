@@ -28,7 +28,6 @@ implements the :class:`.Population` class, which handles the evolution of a
 population/community of genomes.
 """
 
-from __future__ import annotations
 from typing import Optional, List, Sequence, Dict, Callable
 
 import pickle
@@ -617,7 +616,7 @@ class Population:
 
     @staticmethod
     def load(abs_path: str,
-             scheduler: Optional[ProcessingScheduler] = None) -> Population:
+             scheduler: Optional[ProcessingScheduler] = None) -> "Population":
         """ Loads the population from the given absolute path.
 
         This method uses :py:mod:`pickle` to load the genome.

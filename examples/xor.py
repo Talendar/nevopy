@@ -3,7 +3,7 @@ NEvoPY
 todo
 """
 
-import nevopy.neat
+import nevopy
 from timeit import default_timer as timer
 import random
 
