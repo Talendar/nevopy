@@ -800,6 +800,14 @@ class Genome:
                 `False` (in which case the function wouldn't be doing anything
                 but wasting computation).
         """
+        try:
+            import pygraphviz
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                "Couldn't find the package `pygraphviz`! To draw the genome's "
+                "neural network, this package is required. To install it, "
+                "however, you need to first install `Graphviz` on your system")
+
         if not show and not save_to:
             raise RuntimeError("Both \"show\" and \"save_to\" parameters are "
                                "set to False!")
