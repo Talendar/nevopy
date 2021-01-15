@@ -800,13 +800,19 @@ class Genome:
                 `False` (in which case the function wouldn't be doing anything
                 but wasting computation).
         """
-        try:
-            import pygraphviz
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(
-                "Couldn't find the package `pygraphviz`! To draw the genome's "
-                "neural network, this package is required. To install it, "
-                "however, you need to first install `Graphviz` on your system")
+        # try:
+        #     import pygraphviz
+        # except ModuleNotFoundError:
+        #     raise ModuleNotFoundError(
+        #         "Couldn't find the package `pygraphviz`! To draw the genome's "
+        #         "neural network, this package is required. To install it, "
+        #         "however, you first need to install the dev version of "
+        #         "`Graphviz` (https://graphviz.org/download/) on your system. "
+        #         "On Ubuntu, you can do that by executing the following command:"
+        #         "\n\t~$ sudo apt-get install -y graphviz-dev\n"
+        #         "After installing `Graphviz`, just use pip to install "
+        #         "`pygraphviz` and you're all set:\n"
+        #         "\t~$ pip install pygraphviz")
 
         if not show and not save_to:
             raise RuntimeError("Both \"show\" and \"save_to\" parameters are "

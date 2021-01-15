@@ -46,8 +46,11 @@ REQUIRED_PACKAGES = [
     "mypy ~= 0.790",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
-    "pygraphviz ~= 1.6",  # todo: this requires graphviz to be installed
-    "ray ~= 1.1.0",
+    "ray ~= 1.1.0",  # ToDo: should this be included by default?
+    # "pygraphviz ~= 1.6",
+    # This package requires `Graphviz` to be installed in the user's system.
+    # ToDo: is there a way to automatically install this, so the user doesn't
+    #  have to install it manually?
 ]
 
 # Packages which are only needed for testing code.
@@ -70,8 +73,6 @@ setuptools.setup(
     url="https://github.com/Talendar/nevopy",
     download_url=None,  # todo: link to releases
     # Contained modules and scripts:
-    setup_requires=['setuptools_scm'],
-    include_package_data=True,
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
     tests_require=REQUIRED_PACKAGES + TEST_PACKAGES,
