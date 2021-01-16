@@ -46,11 +46,9 @@ REQUIRED_PACKAGES = [
     "mypy ~= 0.790",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
-    "ray ~= 1.1.0",  # ToDo: should this be included by default?
-    # "pygraphviz ~= 1.6",
-    # This package requires `Graphviz` to be installed in the user's system.
-    # ToDo: is there a way to automatically install this, so the user doesn't
-    #  have to install it manually?
+
+    # "ray ~= 1.1.0",
+    # ToDo: should this be included by default?
 ]
 
 # Packages which are only needed for testing code.

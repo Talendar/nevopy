@@ -28,7 +28,7 @@ phenotype). In this implementation, there is no distinction between a genome and
 the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
-from typing import Optional, Sequence, Dict, Set
+from typing import Optional, Sequence, Dict, Set, Any
 
 import pickle
 from pathlib import Path
@@ -44,7 +44,6 @@ from nevopy.neat.id_handler import IdHandler
 
 import matplotlib.pyplot as plt
 import networkx as nx
-from networkx.drawing.nx_agraph import graphviz_layout
 
 
 class Genome:
@@ -732,12 +731,92 @@ class Genome:
                    f"[{c.from_node.id}->{c.to_node.id}] {c.weight}\n"
         return txt
 
+    def columns_graph_layout(self,
+                             width: int,
+                             height: int,
+                             node_size: int,
+                             pad_width_pc: float = 0.025,
+                             ideal_h_nodes_per_col: int = 4,
+    ) -> Dict[int, Tuple[int, int]]:
+        """ TODO
+
+        Args:
+            width:
+            height:
+            node_size:
+            pad_width_pc:
+            ideal_h_nodes_per_col:
+
+        Returns:
+
+        """
+        # adjusting limits
+        plt.xlim(0, width)
+        plt.ylim(0, height)
+
+        # getting real node diameter
+        dpi = plt.gcf().dpi
+        node_size = (node_size ** 0.5) / dpi
+
+        # padding
+        origin = width * pad_width_pc
+        width, height = width - 2*origin, height - 2*origin
+        pos = {}
+
+        # procedure for inserting nodes into columns
+        def insert_nodes_col(x, nodes):
+            """ Inserts the nodes in a column (specified by x). """
+            if len(nodes) == 1:
+                pos[nodes[0].id] = (x, origin + height/2)
+                return
+
+            next_y = origin
+            space_y = height / len(nodes)
+            for n in nodes:
+                pos[n.id] = (x, next_y + space_y/2)
+                next_y += space_y
+
+        # input and bias nodes
+        insert_nodes_col(
+            x=origin,
+            nodes=self._input_nodes + ([] if self._bias_node is None
+                                       else [self._bias_node]),
+        )
+
+        # output nodes
+        insert_nodes_col(x=origin + width,
+                         nodes=self._output_nodes)
+
+        # hidden nodes
+        max_num_h_cols = int((width - 4*node_size) / (2*node_size))
+        h_nodes_per_col = ideal_h_nodes_per_col
+        num_cols = np.ceil(len(self.hidden_nodes) / h_nodes_per_col)
+        while num_cols > max_num_h_cols:
+            h_nodes_per_col += 1
+            num_cols = np.ceil(len(self.hidden_nodes) / h_nodes_per_col)
+
+        if num_cols == 1:
+            insert_nodes_col(x=width / 2, nodes=self.hidden_nodes)
+        else:
+            next_x = origin + 2*node_size
+            space_x = (width - 4*node_size) / num_cols
+            h_nodes = np.array(self.hidden_nodes)
+            for i, node_list in enumerate(np.array_split(h_nodes, num_cols)):
+                insert_nodes_col(x=next_x + space_x/2,
+                                 nodes=node_list)
+                next_x += space_x
+
+        return pos
+
     def visualize(self,
+                  layout_name: str = "columns",
+                  layout_kwargs: Optional[Dict[str, Any]] = None,
                   show: bool = True,
                   block_thread: bool = True,
                   save_to: Optional[str] = None,
                   save_transparent: bool = False,
                   figsize: Tuple[int, int] = (10, 6),
+                  node_size: int = 300,
                   pad: int = 1,
                   legends: bool = True,
                   nodes_ids: bool = True,
@@ -750,7 +829,7 @@ class Genome:
                   input_color: str = "deepskyblue",
                   output_color: str = "mediumseagreen",
                   hidden_color: str = "silver",
-                  bias_color: str = "khaki") -> None:
+                  bias_color: str = "khaki", ) -> None:
         """ Plots the neural network (phenotype) encoded by the genome.
 
         The network is drawn as a graph, with nodes and edges. An edge's color
@@ -763,6 +842,8 @@ class Genome:
         https://matplotlib.org/3.1.0/gallery/color/named_colors.html).
 
         Args:
+            layout_name (str): TODO
+            layout_kwargs (Optional[Dict[str, Any]]): TODO
             show (bool): Whether to show the generated image or not. If True, a
                 window will be created by `matplotlib` to show the image.
             block_thread (bool): Whether to block the execution's thread while
@@ -775,6 +856,7 @@ class Genome:
             save_transparent: Whether the saved image should have a transparent
                 background or not.
             figsize (Tuple[int, int]): Size of the matplotlib figure.
+            node_size (int): Size of the nodes. Default is 300.
             pad (int): The image's padding (distance between the figure of the
                 network and the image's border).
             legends (bool): If `True`, a box with legends describing the nodes
@@ -800,28 +882,19 @@ class Genome:
                 `False` (in which case the function wouldn't be doing anything
                 but wasting computation).
         """
-        # try:
-        #     import pygraphviz
-        # except ModuleNotFoundError:
-        #     raise ModuleNotFoundError(
-        #         "Couldn't find the package `pygraphviz`! To draw the genome's "
-        #         "neural network, this package is required. To install it, "
-        #         "however, you first need to install the dev version of "
-        #         "`Graphviz` (https://graphviz.org/download/) on your system. "
-        #         "On Ubuntu, you can do that by executing the following command:"
-        #         "\n\t~$ sudo apt-get install -y graphviz-dev\n"
-        #         "After installing `Graphviz`, just use pip to install "
-        #         "`pygraphviz` and you're all set:\n"
-        #         "\t~$ pip install pygraphviz")
-
+        # validating args
         if not show and not save_to:
             raise RuntimeError("Both \"show\" and \"save_to\" parameters are "
                                "set to False!")
 
+        # config and start
         plt.rcParams['axes.facecolor'] = background_color
         G = nx.MultiDiGraph()
         G.add_nodes_from([n.id for n in self.nodes()])
         plt.figure(figsize=figsize)
+
+        if layout_kwargs is None:
+            layout_kwargs = {}
 
         # connections
         edges_labels = {}
@@ -830,20 +903,58 @@ class Genome:
                 G.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
                 edges_labels[(c.from_node.id, c.to_node.id)] = c.id
 
+        # selecting layout
+        if layout_name == "graphviz":
+            try:
+                import pygraphviz
+                from networkx.drawing.nx_agraph import graphviz_layout
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "Couldn't find the package `pygraphviz`! To draw the "
+                    "genome's neural network, this package is required. To "
+                    "install it, however, you first need to install the dev "
+                    "version of `Graphviz` (https://graphviz.org/download/) on "
+                    "your system. On Ubuntu, you can do that by executing the "
+                    "following command:\n"
+                    "\t~$ sudo apt-get install -y graphviz-dev\n"
+                    "After installing `Graphviz`, just use pip to install "
+                    "`pygraphviz` and you're all set:\n"
+                    "\t~$ pip install pygraphviz")
+
+            if "prog" not in layout_kwargs:
+                layout_kwargs["prog"] = "dot"
+            if "args" not in layout_kwargs:
+                layout_kwargs["args"] = "-Grankdir=LR"
+            pos = graphviz_layout(G, **layout_kwargs)
+
+        elif layout_name == "columns":
+            pos = self.columns_graph_layout(*figsize, node_size,
+                                            **layout_kwargs)
+        else:
+            layout_dict = {
+                "spring": nx.spring_layout,
+                # todo: add more
+            }
+            pos = layout_dict[layout_name](G, **layout_kwargs)
+
         # plotting
-        pos = graphviz_layout(G, prog='dot', args="-Grankdir=LR")
         nx.draw_networkx_nodes(G, pos=pos,
                                nodelist=[n.id for n in self._input_nodes],
+                               node_size=[node_size] * len(self._input_nodes),
                                node_color=input_color, label='Input nodes')
         nx.draw_networkx_nodes(G, pos=pos,
                                nodelist=[n.id for n in self._output_nodes],
+                               node_size=[node_size] * len(self._output_nodes),
                                node_color=output_color, label='Output nodes')
         nx.draw_networkx_nodes(G, pos=pos,
                                nodelist=[n.id for n in self.hidden_nodes],
+                               node_size=[node_size] * len(self.hidden_nodes),
                                node_color=hidden_color, label='Hidden nodes')
 
         if self._bias_node is not None:
-            nx.draw_networkx_nodes(G, pos=pos, nodelist=[self._bias_node.id],
+            nx.draw_networkx_nodes(G, pos=pos,
+                                   nodelist=[self._bias_node.id],
+                                   node_size=[node_size],
                                    node_color=bias_color, label='Bias node')
 
         if G.number_of_edges() > 0:

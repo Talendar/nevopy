@@ -55,7 +55,7 @@ if __name__ == "__main__":
     for r in range(runs):
         start_time = timer()
         pop = nevopy.neat.population.Population(
-            size=100,
+            size=150,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
         )
