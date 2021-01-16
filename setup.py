@@ -42,13 +42,11 @@ short_description = "An open source neuroevolution framework for Python."
 # that is expected to be compatible with the specified version.
 REQUIRED_PACKAGES = [
     "Columnar ~= 1.3.1",
-    "matplotlib ~= 3.3.3",
+    "matplotlib ~= 3.3.3",  # ToDo: Google Colab uses matplotlib 3.2.2
     "mypy ~= 0.790",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
-
-    # "ray ~= 1.1.0",
-    # ToDo: should this be included by default?
+    "ray ~= 1.1.0",  # ToDo: should ray be included by default?
 ]
 
 # Packages which are only needed for testing code.
