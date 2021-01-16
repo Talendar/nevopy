@@ -67,6 +67,7 @@ if __name__ == "__main__":
         total_time += deltaT
 
     best = pop.fittest()
+    print()
     eval_genome(best, log=True)
     # print(best.info())
     best.visualize()

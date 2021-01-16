@@ -732,23 +732,37 @@ class Genome:
         return txt
 
     def columns_graph_layout(self,
-                             width: int,
-                             height: int,
+                             width: float,
+                             height: float,
                              node_size: int,
                              pad_width_pc: float = 0.025,
                              ideal_h_nodes_per_col: int = 4,
-    ) -> Dict[int, Tuple[int, int]]:
-        """ TODO
+    ) -> Dict[int, Tuple[float, float]]:
+        """ Positions the network's nodes in columns.
+
+        The input nodes are placed in the left-most column and the output nodes
+        are placed in the right-most columns. The hidden nodes are placed in
+        columns located between those two columns. For big networks, try using a
+        smaller node size for better quality.
 
         Args:
-            width:
-            height:
-            node_size:
-            pad_width_pc:
-            ideal_h_nodes_per_col:
+            width (float): Width of the `matplotlib` figure, in inches (default
+                unit).
+            height (float): Height of the `matplotlib` figure, in inches
+                (default unit).
+            node_size (int): Size of the drawn nodes, in `points**2` (the area
+                of each node). See the parameter ``s`` of
+                `matplotlib.axes.Axes.scatter <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+                for more information.
+            pad_width_pc (float): Percentage of the figure's width to be
+                reserved for padding in each of the figure's border.
+            ideal_h_nodes_per_col (int): Preferred number of hidden nodes per
+                column (the algorithm will try to draw columns with this amount
+                of hidden nodes when possible).
 
         Returns:
-
+            Dictionary mapping the ID of each node to a tuple containing its
+            position in the figure.
         """
         # adjusting limits
         plt.xlim(0, width)
@@ -837,13 +851,30 @@ class Genome:
         drawn with more intense / stronger colors. Edges connecting a node to
         itself aren't be drawn.
 
+        This method uses `NetworkX <https://github.com/networkx/networkx>`_ to
+        handle the drawings. It positions the network's nodes according to a
+        layout, whose name you can specify in the parameter ``layout_name``. The
+        currently available layouts are:
+
+        * All the standard `NetworkX's` layouts available in this
+          `link <https://networkx.org/documentation/latest/reference/drawing.html#module-networkx.drawing.layout>`_;
+        * The `graphviz` layout; it's really good, but to use it you must
+          have `Graphviz-Dev` and `pygraphviz` installed on your machine;
+        * The `columns` layout (used by default), implemented exclusively for
+          `NEvoPY`; it positions the nodes in columns (see
+          :meth:`.Genome.columns_graph_layout`, specially the parameter
+          ``ideal_h_nodes_per_col``).
+
         For the colors parameters, it's possible to pass a string with the color
         HEX value or a string with the color's name (names available here:
         https://matplotlib.org/3.1.0/gallery/color/named_colors.html).
 
         Args:
-            layout_name (str): TODO
-            layout_kwargs (Optional[Dict[str, Any]]): TODO
+            layout_name (str): The name of the layout to be used to position the
+                network's nodes.
+            layout_kwargs (Optional[Dict[str, Any]]): Keyed arguments to be
+                passed to the layout. Check each layout documentation for more
+                information about the accepted arguments.
             show (bool): Whether to show the generated image or not. If True, a
                 window will be created by `matplotlib` to show the image.
             block_thread (bool): Whether to block the execution's thread while
@@ -856,7 +887,10 @@ class Genome:
             save_transparent: Whether the saved image should have a transparent
                 background or not.
             figsize (Tuple[int, int]): Size of the matplotlib figure.
-            node_size (int): Size of the nodes. Default is 300.
+            node_size (int): Size of the drawn nodes, in `points**2` (the area
+                of each node). Default size is 300. See the parameter ``s`` of
+                `matplotlib.axes.Axes.scatter <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+                for more information.
             pad (int): The image's padding (distance between the figure of the
                 network and the image's border).
             legends (bool): If `True`, a box with legends describing the nodes
@@ -910,7 +944,7 @@ class Genome:
                 from networkx.drawing.nx_agraph import graphviz_layout
             except ModuleNotFoundError:
                 raise ModuleNotFoundError(
-                    "Couldn't find the package `pygraphviz`! To draw the "
+                    "Couldn't find the package `pygraphviz`!\nTo draw the "
                     "genome's neural network, this package is required. To "
                     "install it, however, you first need to install the dev "
                     "version of `Graphviz` (https://graphviz.org/download/) on "

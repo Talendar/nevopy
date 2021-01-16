@@ -26,7 +26,10 @@
 
 from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set
 from abc import ABCMeta, abstractmethod
+
 import numpy as np
+import click
+import os
 
 
 #: `TypeVar` indicating an undefined type
@@ -94,3 +97,40 @@ def min_max_norm(values: Iterable) -> np.array:
     a = np.array(values)
     a_min, a_max = np.min(a), np.max(a)
     return (a - a_min) / (a_max - a_min)
+
+
+def is_jupyter_notebook() -> bool:
+    """ Checks whether the program is running on a jupyter notebook.
+
+    Warning:
+        This function is not guaranteed to work! It simply checks if
+        :py:`IPython.get_ipython` returns `None`.
+
+    Returns:
+        `True` if the program is running on a jupyter notebook and `False`
+        otherwise.
+    """
+    try:
+        # noinspection PyUnresolvedReferences
+        from IPython import get_ipython
+        if get_ipython() is None:
+            return False
+    except ModuleNotFoundError:
+        return False
+    return True
+
+
+def clear_output() -> None:
+    """ Clears the output.
+
+    Should work on Windows and Linux terminals and on Jupyter notebooks. On
+    PyCharm, it simply prints a bunch of new lines.
+    """
+    if "PYCHARM_HOSTED" in os.environ:
+        print("\n" * 15)
+    elif is_jupyter_notebook():
+        # noinspection PyUnresolvedReferences
+        from IPython.display import clear_output
+        clear_output(wait=True)
+    else:
+        click.clear()

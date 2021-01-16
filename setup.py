@@ -29,6 +29,7 @@ large-scale distributed computing. It's been originally developed by Gabriel
 Guedes Nogueira (Talendar).
 """
 
+from typing import List
 import setuptools
 
 # Todo: FOLLOW SEMANTIC VERSIONING
@@ -52,7 +53,7 @@ REQUIRED_PACKAGES = [
 # Packages which are only needed for testing code.
 TEST_PACKAGES = [
 
-]
+]  # type: List[str]
 
 # Loading the "long description" from the projects README file.
 with open("README.md", "r", encoding="utf-8") as fh:

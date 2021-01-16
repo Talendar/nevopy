@@ -48,14 +48,16 @@ Example:
                    callbacks=[MyCallback()])
 """
 
-from typing import Optional, List, Dict, Union, Tuple
+from typing import Optional, List, Dict, Union, Tuple, Callable
 from nevopy import neat
+from nevopy import utils
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 from columnar import columnar
 from click import style
+from timeit import default_timer as timer
 
 
 class Callback:
@@ -175,9 +177,13 @@ class CompleteStdOutLogger(Callback):
     __TAB_HEADER = ["NAME", "CURRENT", "PAST", "INCREASE", "INCREASE (%)"]
     _TAB_ARGS = dict(no_borders=False, justify="c", min_column_width=14)
 
-    def __init__(self, precision=2, colors=True):
+    def __init__(self,
+                 precision: int = 2,
+                 colors: bool = True,
+                 output_cleaner: Optional[Callable] = utils.clear_output):
         super().__init__()
         self.p = precision
+        self.clear_output = output_cleaner
         self.colors = colors
         self._past_num_species = 0
         self._past_best_fitness = 0.0
@@ -186,7 +192,9 @@ class CompleteStdOutLogger(Callback):
         self._past_max_hidden_connections = 0
         self._past_new_node_mutation = 0.0
         self._past_new_con_mutation = 0.0
+        self.__msg_cache = ""
         self.__table = None  # type: Optional[List[List[str]]]
+        self._timer = 0.0
 
     @staticmethod
     def __inc_txt_color(txt, past, current):
@@ -198,6 +206,7 @@ class CompleteStdOutLogger(Callback):
     def on_generation_start(self,
                             current_generation: int,
                             total_generations: int) -> None:
+        self._timer = timer()
         g_cur, g_tot = current_generation, total_generations
         sp_cur = len(self.population.species)
         sp_inc = f"{sp_cur - self._past_num_species:+0d}"
@@ -209,9 +218,11 @@ class CompleteStdOutLogger(Callback):
         print("\n"
               f"[{(g_cur + 1) / g_tot:.2%}] "
               f"Generation {g_cur + 1} of {g_tot}.\n"
-              f"Number of species: {sp_cur} ({sp_inc})")
-        print(f"Calculating fitness "
+              f". Number of species: {sp_cur} ({sp_inc})")
+        print(f". Calculating fitness "
               f"(last: {self._past_best_fitness:.{self.p}E})... ", end="")
+
+        self.__msg_cache += f". Number of species: {sp_cur} ({sp_inc})\n"
         self._past_num_species = sp_cur
 
     def on_fitness_calculated(self,
@@ -220,12 +231,12 @@ class CompleteStdOutLogger(Callback):
                               max_hidden_connections: int) -> None:
         # best fitness
         b_fit = best_genome.fitness
-        b_fit_inc = b_fit - self._past_best_fitness
-        b_fit_pc = (float("inf") if self._past_best_fitness == 0
-                    else b_fit_inc/self._past_best_fitness)
+        b_fit_inc_float = b_fit - self._past_best_fitness
+        b_fit_pc_float = (float("inf") if self._past_best_fitness == 0
+                          else b_fit_inc_float/self._past_best_fitness)
 
-        b_fit_inc = f"{b_fit_inc:+0.{self.p}E}"
-        b_fit_pc = f"{b_fit_pc:+0.{self.p}%}"
+        b_fit_inc = f"{b_fit_inc_float:+0.{self.p}E}"
+        b_fit_pc = f"{b_fit_pc_float:+0.{self.p}%}"
 
         # max hidden nodes
         mh_nodes = max_hidden_nodes
@@ -237,12 +248,12 @@ class CompleteStdOutLogger(Callback):
 
         # avg pop fitness
         avg_fit = np.mean([g.fitness for g in self.population.genomes])
-        avg_fit_inc = avg_fit - self._past_avg_fitness
-        avg_fit_pc = (float("inf") if self._past_avg_fitness == 0
-                      else avg_fit_inc / self._past_avg_fitness)
+        avg_fit_inc_float = avg_fit - self._past_avg_fitness
+        avg_fit_pc_float = (float("inf") if self._past_avg_fitness == 0
+                            else avg_fit_inc_float / self._past_avg_fitness)
 
-        avg_fit_inc = f"{avg_fit_inc:+0.{self.p}E}"
-        avg_fit_pc = f"{avg_fit_pc:+0.{self.p}%}"
+        avg_fit_inc = f"{avg_fit_inc_float:+0.{self.p}E}"
+        avg_fit_pc = f"{avg_fit_pc_float:+0.{self.p}%}"
 
         # colors
         if self.colors:
@@ -292,15 +303,17 @@ class CompleteStdOutLogger(Callback):
             ct = style(str(ct), fg=("green" if pc < 0.33
                                     else "yellow" if pc < 0.66
                                     else "red"), bold=(pc >= 0.66))
-        print(f"Mass extinction counter: {ct} / {ct_max}\n")
+        print(f". Mass extinction counter: {ct} / {ct_max}")
+        self.__msg_cache += f". Mass extinction counter: {ct} / {ct_max}\n"
 
     def on_mass_extinction_start(self) -> None:
-        print(columnar(self.__table, CompleteStdOutLogger.__TAB_HEADER,
-                       **CompleteStdOutLogger._TAB_ARGS), end="")
-        msg = "Mass extinction in progress..."
-        print(f"\n"
-              f"{msg if not self.colors else style(msg, fg='red', bold=True)}",
+        msg = ". Mass extinction in progress... "
+        print(f"{msg if not self.colors else style(msg, fg='red', bold=True)}",
               end="")
+
+        msg = '. Mass extinction occurred!'
+        c = f"{msg if not self.colors else style(msg, fg='red', bold=True)}\n"
+        self.__msg_cache += ". " + c
 
     def on_reproduction_start(self) -> None:
         # new node mutation chance
@@ -328,9 +341,7 @@ class CompleteStdOutLogger(Callback):
         ]
 
         # print
-        print(columnar(self.__table, CompleteStdOutLogger.__TAB_HEADER,
-                       **CompleteStdOutLogger._TAB_ARGS))
-        print("Reproduction... ", end="")
+        print(". Reproduction... ", end="")
 
         # update cache
         self._past_new_node_mutation = cur_node
@@ -338,13 +349,26 @@ class CompleteStdOutLogger(Callback):
 
     def on_speciation_start(self, invalid_genomes_replaced: int) -> None:
         print("done!\n"
-              f"Invalid genomes replaced: {invalid_genomes_replaced}\n"
-              "Speciation... ", end="")
+              f". Invalid genomes replaced: {invalid_genomes_replaced}\n"
+              ". Speciation... ", end="")
+        self.__msg_cache += (". Invalid genomes replaced: "
+                             f"{invalid_genomes_replaced}")
 
     def on_generation_end(self, current_generation: int,
                           total_generations: int) -> None:
         print("done!\n")
+        if self.clear_output is not None:
+            self.clear_output()
+
+        print(f">> GENERATION {current_generation + 1} SUMMARY:")
+        if self.clear_output is not None:
+            print("\n" + self.__msg_cache)
+
+        print(f". Processing time: {timer() - self._timer : .4f}s\n")
+        print(columnar(self.__table, CompleteStdOutLogger.__TAB_HEADER,
+                       **CompleteStdOutLogger._TAB_ARGS))
         print("#" * CompleteStdOutLogger._SEP_SIZE)
+        self.__msg_cache = ""
 
 
 class SimpleStdOutLogger(Callback):
@@ -506,6 +530,7 @@ class History(Callback):
     def visualize(self,
                   attrs: Union[Tuple[str, ...], str] = ("best_fitness",
                                                         "avg_pop_fitness"),
+                  figsize=(10, 6),
                   log_scale: bool = True) -> None:
         """ Simple utility method for plotting the recorded information.
 
@@ -523,6 +548,7 @@ class History(Callback):
         if type(attrs) is str and attrs == "all":
             attrs = History.PLOT_ATTRS
 
+        plt.figure(figsize=figsize)
         plt.yscale("log" if log_scale else "linear")
         for key in attrs:
             data = self.__dict__[key]
