@@ -361,20 +361,20 @@ class Config:
                  # reproduction
                  weak_genomes_removal_pc=0.75,
                  weight_mutation_chance=(0.7, 0.9),
-                 new_node_mutation_chance=(0.02, 0.25),
-                 new_connection_mutation_chance=(0.02, 0.25),
-                 enable_connection_mutation_chance=(0.02, 0.25),
+                 new_node_mutation_chance=(0.03, 0.25),
+                 new_connection_mutation_chance=(0.03, 0.25),
+                 enable_connection_mutation_chance=(0.03, 0.25),
                  disable_inherited_connection_chance=0.75,
                  mating_chance=0.75,
                  interspecies_mating_chance=0.05,
-                 rank_prob_dist_coefficient=1.7,
+                 rank_prob_dist_coefficient=1.75,
                  # weight mutation specifics
                  weight_perturbation_pc=(0.1, 0.4),
                  weight_reset_chance=(0.1, 0.3),
                  new_weight_interval=(-2, 2),
                  # mass extinction
-                 mass_extinction_threshold=75,
-                 maex_improvement_threshold_pc=0.05,
+                 mass_extinction_threshold=25,
+                 maex_improvement_threshold_pc=0.02,
                  # infanticide
                  infanticide_output_nodes=True,
                  infanticide_input_nodes=True,

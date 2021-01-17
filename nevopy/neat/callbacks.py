@@ -234,6 +234,7 @@ class CompleteStdOutLogger(Callback):
         b_fit_inc_float = b_fit - self._past_best_fitness
         b_fit_pc_float = (float("inf") if self._past_best_fitness == 0
                           else b_fit_inc_float/self._past_best_fitness)
+        b_fit_pc_float = abs(b_fit_pc_float) * (1, -1)[b_fit_inc_float < 0]
 
         b_fit_inc = f"{b_fit_inc_float:+0.{self.p}E}"
         b_fit_pc = f"{b_fit_pc_float:+0.{self.p}%}"
@@ -251,16 +252,17 @@ class CompleteStdOutLogger(Callback):
         avg_fit_inc_float = avg_fit - self._past_avg_fitness
         avg_fit_pc_float = (float("inf") if self._past_avg_fitness == 0
                             else avg_fit_inc_float / self._past_avg_fitness)
+        avg_fit_pc_float = abs(avg_fit_pc_float) * (1, -1)[avg_fit_inc_float < 0]
 
         avg_fit_inc = f"{avg_fit_inc_float:+0.{self.p}E}"
         avg_fit_pc = f"{avg_fit_pc_float:+0.{self.p}%}"
 
         # colors
         if self.colors:
-            b_fit_inc = self.__inc_txt_color(b_fit_inc, self._past_best_fitness,
-                                             b_fit)
-            b_fit_pc = self.__inc_txt_color(b_fit_pc, self._past_best_fitness,
-                                            b_fit)
+            b_fit_inc = self.__inc_txt_color(b_fit_inc,
+                                             self._past_best_fitness, b_fit)
+            b_fit_pc = self.__inc_txt_color(b_fit_pc,
+                                            self._past_best_fitness, b_fit)
             mh_nodes_inc = self.__inc_txt_color(mh_nodes_inc,
                                                 self._past_max_hidden_nodes,
                                                 mh_nodes)

@@ -802,23 +802,24 @@ class Genome:
                          nodes=self._output_nodes)
 
         # hidden nodes
-        max_num_h_cols = int((width - 4*node_size) / (2*node_size))
-        h_nodes_per_col = ideal_h_nodes_per_col
-        num_cols = np.ceil(len(self.hidden_nodes) / h_nodes_per_col)
-        while num_cols > max_num_h_cols:
-            h_nodes_per_col += 1
-            num_cols = np.ceil(len(self.hidden_nodes) / h_nodes_per_col)
+        if self.hidden_nodes:
+            max_num_h_cols = int((width - 4*node_size) / (2*node_size))
+            h_nodes_per_col = ideal_h_nodes_per_col
+            num_cols = max(1, np.ceil(len(self.hidden_nodes) / h_nodes_per_col))
+            while num_cols > max_num_h_cols:
+                h_nodes_per_col += 1
+                num_cols = np.ceil(len(self.hidden_nodes) / h_nodes_per_col)
 
-        if num_cols == 1:
-            insert_nodes_col(x=width / 2, nodes=self.hidden_nodes)
-        else:
-            next_x = origin + 2*node_size
-            space_x = (width - 4*node_size) / num_cols
-            h_nodes = np.array(self.hidden_nodes)
-            for i, node_list in enumerate(np.array_split(h_nodes, num_cols)):
-                insert_nodes_col(x=next_x + space_x/2,
-                                 nodes=node_list)
-                next_x += space_x
+            if num_cols == 1:
+                insert_nodes_col(x=width / 2, nodes=self.hidden_nodes)
+            else:
+                next_x = origin + 2*node_size
+                space_x = (width - 4*node_size) / num_cols
+                h_nodes = np.array(self.hidden_nodes)
+                for i, node_list in enumerate(np.array_split(h_nodes, num_cols)):
+                    insert_nodes_col(x=next_x + space_x/2,
+                                     nodes=node_list)
+                    next_x += space_x
 
         return pos
 

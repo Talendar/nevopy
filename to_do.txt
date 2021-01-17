@@ -1,3 +1,14 @@
+=================================== GENERAL ====================================
+
+>>> Bugs:
+	
+
+
+>>> Implementation:
+	
+	. Networked processing scheduler.
+
+
 ==================================== NEAT ======================================
 
 >>> Bugs:
@@ -6,12 +17,19 @@
 
 >>> Implementation:
 
-	. Allow callers to pass callbacks to "Population.evolve()".
-		- General callback interface
-		- Checkpoints callback (pre-built)
-		- Logs callback (pre-built)
+	. CompleteStdOutLogger callback: print "all time" best genome's fitness and 
+	generation.
 	
-	. Population fitness history (best genome's fitness and avg pop fitness).
+	. StopEvolution callback: stops the evolutionary process when a certain 
+	criteria is met.
+	
+	. Add `networkx` layouts to `Genome.visualize()`.
+	
+	. Parallel computing inside the fitness function (useful when the fitness
+	is the average of the agent's performance over a number of sessions);
+	perhaps one process for each separate session?
+	
+	. Utils: fitness function for gym environments.
 	
 	. History of species (draw a figure showing when species were born and when
 	they were extinct).
