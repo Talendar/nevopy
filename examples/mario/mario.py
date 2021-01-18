@@ -13,27 +13,28 @@ import numpy as np
 
 
 #################################### CONFIG ####################################
-GENERATIONS = 10
-POP_SIZE = 50
-RENDER_FPS = 60
+GENERATIONS = 500
+POP_SIZE = 100
+RENDER_FPS = 70
 MAX_STEPS = float("inf")
 MAX_IDLE_STEPS = 64
 DELTA_X_IDLE_THRESHOLD = 5
 LIVES = 1
 CONFIG = neat.config.Config(
-    new_node_mutation_chance=(0.07, 0.35),
-    new_connection_mutation_chance=(0.07, 0.35),
-    enable_connection_mutation_chance=(0.07, 0.35),
+    new_node_mutation_chance=(0.07, 0.5),
+    new_connection_mutation_chance=(0.07, 0.5),
+    enable_connection_mutation_chance=(0.07, 0.5),
 
     disable_inherited_connection_chance=0.75,
     mating_chance=0.75,
 
     weight_mutation_chance=(0.7, 0.9),
-    weight_perturbation_pc=(0.1, 0.4),
-    weight_reset_chance=(0.1, 0.3),
+    weight_perturbation_pc=(0.1, 0.5),
+    weight_reset_chance=(0.1, 0.32),
 
-    mass_extinction_threshold=30,
+    mass_extinction_threshold=32,
     maex_improvement_threshold_pc=0.05,
+    species_distance_threshold=1.2,
 
     infanticide_output_nodes=False,
     infanticide_input_nodes=False,
@@ -190,6 +191,7 @@ if __name__ == "__main__":
                 try:
                     pop = neat.population.Population.load(file_pathname)
                     best = pop.fittest()
+                    print("Population loaded!")
                 except:
                     print("Error while loading the file!")
             # visualize best
