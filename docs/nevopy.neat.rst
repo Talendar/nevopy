@@ -20,6 +20,14 @@ nevopy.neat.config module
    :undoc-members:
    :show-inheritance:
 
+nevopy.neat.conv\_genome module
+-------------------------------
+
+.. automodule:: nevopy.neat.conv_genome
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 nevopy.neat.genes module
 ------------------------
 

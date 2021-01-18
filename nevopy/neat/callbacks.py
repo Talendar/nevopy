@@ -38,10 +38,10 @@ Example:
         class MyCallback(Callback):
             def on_generation_start(self,
                                     current_generation,
-                                    total_generations):
+                                    max_generations):
                 print("This is printed at the start of every generation!")
                 print(f"Starting generation {current_generation} of "
-                      f"{total_generations}.")
+                      f"{max_generations}.")
 
         pop.evolve(generations=100,
                    fitness_function=my_func,
@@ -77,14 +77,14 @@ class Callback:
 
     def on_generation_start(self,
                             current_generation: int,
-                            total_generations: int) -> None:
+                            max_generations: int) -> None:
         """ Called at the beginning of each new generation.
 
         Subclasses should override this method for any actions to run.
 
         Args:
             current_generation (int): Number of the current generation.
-            total_generations (int): Total number of generations.
+            max_generations (int): Maximum number of generations.
         """
 
     def on_fitness_calculated(self,
@@ -150,14 +150,24 @@ class Callback:
 
     def on_generation_end(self,
                           current_generation: int,
-                          total_generations: int) -> None:
+                          max_generations: int) -> None:
         """ Called at the end of each generation.
 
         Subclasses should override this method for any actions to run.
 
         Args:
             current_generation (int): Number of the current generation.
-            total_generations (int): Total number of generations.
+            max_generations (int): Maximum number of generations.
+        """
+
+    def on_evolution_end(self, total_generations: int) -> None:
+        """ Called when the evolutionary process ends.
+
+        Args:
+            total_generations (int): Total number of generations processed
+                during the evolutionary process. Might not be the maximum number
+                of generations specified by the user, if some sort of early
+                stopping occurs.
         """
 
 
@@ -205,9 +215,9 @@ class CompleteStdOutLogger(Callback):
 
     def on_generation_start(self,
                             current_generation: int,
-                            total_generations: int) -> None:
+                            max_generations: int) -> None:
         self._timer = timer()
-        g_cur, g_tot = current_generation, total_generations
+        g_cur, g_tot = current_generation, max_generations
         sp_cur = len(self.population.species)
         sp_inc = f"{sp_cur - self._past_num_species:+0d}"
 
@@ -356,8 +366,9 @@ class CompleteStdOutLogger(Callback):
         self.__msg_cache += (". Invalid genomes replaced: "
                              f"{invalid_genomes_replaced}")
 
-    def on_generation_end(self, current_generation: int,
-                          total_generations: int) -> None:
+    def on_generation_end(self,
+                          current_generation: int,
+                          max_generations: int) -> None:
         print("done!\n")
         if self.clear_output is not None:
             self.clear_output()
@@ -371,6 +382,9 @@ class CompleteStdOutLogger(Callback):
                        **CompleteStdOutLogger._TAB_ARGS))
         print("#" * CompleteStdOutLogger._SEP_SIZE)
         self.__msg_cache = ""
+
+    def on_evolution_end(self, total_generations: int) -> None:
+        print(f"Evolution ended after {total_generations + 1} generations.")
 
 
 class SimpleStdOutLogger(Callback):
@@ -456,7 +470,7 @@ class History(Callback):
 
     def on_generation_start(self,
                             current_generation: int,
-                            total_generations: int) -> None:
+                            max_generations: int) -> None:
         self._current_generation = current_generation
 
         # adding pioneer species
@@ -506,7 +520,7 @@ class History(Callback):
 
     def on_generation_end(self,
                           current_generation: int,
-                          total_generations: int) -> None:
+                          max_generations: int) -> None:
         # num species
         self.num_species.append(len(self.population.species))
 
@@ -564,6 +578,56 @@ class History(Callback):
 
         """
         raise NotImplementedError
+
+
+class FitnessEarlyStopping(Callback):
+    """ Stops the evolution if a given fitness value is achieved.
+
+    This callback is used to halt the evolutionary process when a certain
+    fitness value is achieved by the population's best genome for a given number
+    of consecutive generations.
+
+    Args:
+        fitness_threshold (float): Fitness to be achieved for the evolution to
+            stop.
+        min_consecutive_generations (int): Number of consecutive generations
+            with a fitness equal or higher than ``fitness_threshold`` for the
+            early stopping occur.
+
+    Attributes:
+        fitness_threshold (float): Fitness to be achieved for the evolution to
+            stop.
+        min_consecutive_generations (int): Number of consecutive generations
+            with a fitness equal or higher than ``fitness_threshold`` for the
+            early stopping to occur.
+        stopped_generation (Optional[int]): Generation in which the early
+            stopping occurred. `None` if the early stopping never occurred.
+    """
+
+    def __init__(self,
+                 fitness_threshold: float,
+                 min_consecutive_generations: int) -> None:
+        super().__init__()
+        self.fitness_threshold = fitness_threshold
+        self.min_consecutive_generations = min_consecutive_generations
+        self.stopped_generation = None  # type: Optional[int]
+        self._consec_gens = 0
+
+    def on_fitness_calculated(self,
+                              best_genome: neat.genome.Genome,
+                              max_hidden_nodes: int,
+                              max_hidden_connections: int) -> None:
+        if best_genome.fitness >= self.fitness_threshold:
+            self._consec_gens += 1
+        else:
+            self._consec_gens = 0
+
+    def on_generation_end(self,
+                          current_generation: int,
+                          max_generations: int) -> None:
+        if self._consec_gens >= self.min_consecutive_generations:
+            self.population.stop_evolving = True
+            self.stopped_generation = current_generation
 
 
 class PopulationCheckpoint(Callback):

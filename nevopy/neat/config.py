@@ -77,10 +77,10 @@ class Config:
         enable_connection_mutation_chance (Tuple[float, float]): Tuple
             containing, respectively, the minimum and maximum chance of enabling
             a disabled connection in a newly born genome.
-        disable_inherited_connection_chance (bool): During a sexual reproduction
-            between two genomes, this constant specifies the chance of a
-            connection in the newly born genome being disabled if it's disabled
-            on at least one of the parent genomes.
+        disable_inherited_connection_chance (float): During a sexual
+            reproduction between two genomes, this constant specifies the chance
+            of a connection in the newly born genome being disabled if it's
+            disabled on at least one of the parent genomes.
         mating_chance (float): Chance of a genome reproducing sexually, i.e.,
             by mating / crossing-over with another genome. Decreasing this value
             increases the chance of a genome reproducing asexually, through
@@ -224,10 +224,10 @@ class Config:
         enable_connection_mutation_chance (Tuple[float, float]): Tuple
             containing, respectively, the minimum and maximum chance of enabling
             a disabled connection in a newly born genome.
-        disable_inherited_connection_chance (bool): During a sexual reproduction
-            between two genomes, this constant specifies the chance of a
-            connection in the newly born genome being disabled if it's disabled
-            on at least one of the parent genomes.
+        disable_inherited_connection_chance (float): During a sexual
+            reproduction between two genomes, this constant specifies the chance
+            of a connection in the newly born genome being disabled if it's
+            disabled on at least one of the parent genomes.
         mating_chance (float): Chance of a genome reproducing sexually, i.e.,
             by mating / crossing-over with another genome. Decreasing this value
             increases the chance of a genome reproducing asexually, through
@@ -361,9 +361,9 @@ class Config:
                  # reproduction
                  weak_genomes_removal_pc=0.75,
                  weight_mutation_chance=(0.7, 0.9),
-                 new_node_mutation_chance=(0.03, 0.25),
-                 new_connection_mutation_chance=(0.03, 0.25),
-                 enable_connection_mutation_chance=(0.03, 0.25),
+                 new_node_mutation_chance=(0.03, 0.3),
+                 new_connection_mutation_chance=(0.03, 0.3),
+                 enable_connection_mutation_chance=(0.03, 0.3),
                  disable_inherited_connection_chance=0.75,
                  mating_chance=0.75,
                  interspecies_mating_chance=0.05,
@@ -373,8 +373,8 @@ class Config:
                  weight_reset_chance=(0.1, 0.3),
                  new_weight_interval=(-2, 2),
                  # mass extinction
-                 mass_extinction_threshold=25,
-                 maex_improvement_threshold_pc=0.02,
+                 mass_extinction_threshold=40,
+                 maex_improvement_threshold_pc=0.03,
                  # infanticide
                  infanticide_output_nodes=True,
                  infanticide_input_nodes=True,

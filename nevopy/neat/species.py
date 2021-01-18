@@ -38,7 +38,8 @@ class Species:
             species is born.
 
     Attributes:
-        representative (Optional[Genome]): Genome used to represent the species.
+        representative (Optional[Genome]): Genome used to represent the
+            species.
         members (List[Genome]): List with the genomes that belong to the
             species.
         last_improvement (int): Generation in which the species last showed

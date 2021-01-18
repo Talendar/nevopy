@@ -12,6 +12,14 @@ nevopy.processing.base\_scheduler module
    :undoc-members:
    :show-inheritance:
 
+nevopy.processing.networked\_scheduler module
+---------------------------------------------
+
+.. automodule:: nevopy.processing.networked_scheduler
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 nevopy.processing.pool\_processing module
 -----------------------------------------
 

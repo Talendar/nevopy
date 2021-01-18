@@ -1,7 +1,6 @@
 import gym
 from nevopy import neat
-import time
-import numpy as np
+from nevopy import utils
 
 env_name = 'LunarLander-v2'
 
@@ -12,47 +11,49 @@ num_inputs = 8
 num_outputs = 4
 
 
-def evaluate(genome, eps=num_episodes, visualize=False):
-    env = gym.make(env_name)
-    total_reward = 0
-    for _ in range(eps):
-        obs = env.reset()
-        if genome is not None:
-            genome.reset_activations()
-
-        while True:
-            if visualize:
-                env.render()
-                time.sleep(1 / render_fps)
-
-            if genome is not None:
-                action = np.argmax(genome.process(obs))
-            else:
-                action = env.action_space.sample()
-
-            obs, reward, done, _ = env.step(action)
-            total_reward += reward
-
-            if done:
-                break
-    env.close()
-    return total_reward / eps
+def make_env():
+    return gym.make(env_name)
 
 
 if __name__ == "__main__":
+    evaluate = utils.GymEnvFitness(make_env=make_env,
+                                   num_episodes=num_episodes,
+                                   render_fps=render_fps)
     pop = neat.population.Population(size=50,
                                      num_inputs=num_inputs,
                                      num_outputs=num_outputs)
-    history = pop.evolve(generations=32, fitness_function=evaluate)
+    history = pop.evolve(generations=50,
+                         fitness_function=evaluate,
+                         callbacks=[
+                             neat.callbacks.FitnessEarlyStopping(
+                                 fitness_threshold=200,
+                                 min_consecutive_generations=3,
+                             )
+                         ])
     best = pop.fittest()
 
     print("\nEvaluation (100 episodes):")
     print(f". Random agent score (100 eps): {evaluate(None, eps=100)}")
     print(f". Evolved agent: {evaluate(best, eps=100)}")
 
-    print("\nVisualization:")
-    print(f"1) Random agent: {evaluate(None, eps=1, visualize=True)}")
-    print(f"2) Evolved agent: {evaluate(best, eps=1, visualize=True)}")
+    while True:
+        try:
+            key = int(input("\nEvolution complete!\n"
+                            "   [0] Visualize random agent\n"
+                            "   [1] Visualize evolved agent\n"
+                            "   [2] Exit\n"
+                            "Choose an option: "))
+            if key == 0:
+                print(f"\nRandom agent: {evaluate(None, eps=1, visualize=True)}")
+            elif key == 1:
+                print(f"\nEvolved agent: {evaluate(best, eps=1, visualize=True)}")
+            elif key == 2:
+                break
+            else:
+                raise ValueError()
+        except ValueError:
+            print("\nInvalid key!")
 
+    print()
     best.visualize()
     history.visualize(log_scale=False)

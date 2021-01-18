@@ -46,6 +46,11 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
+#: `TypeVar` that indicates the type of an instance of :class:`.Genome` or
+#:  one of its subclasses.
+# Genome = TypeVar("Genome", bound="Genome", covariant=True)
+
+
 class Genome:
     """ Linear representation of a neural network's connectivity.
 
@@ -63,6 +68,13 @@ class Genome:
         The encoded networks are Graph Neural Networks (GNNs), connectionist
         models that capture the dependence of graphs via message passing between
         the nodes of graphs.
+
+    Note:
+        When declaring a subclass of this class, you should always override the
+        methods :meth:`.shallow_copy()` and :meth:`deep_copy()`, so that they
+        return an instance of your subclass and not of :class:`.Genome`. It's
+        recommended (although optional) to also override the methods
+        :meth:`.distance()` and :meth:`.mate()`.
 
     Args:
         genome_id (int): Unique identifier of the genome.
@@ -191,7 +203,8 @@ class Genome:
             :label: distance
 
         Args:
-            other (Genome): The other genome.
+            other (Genome): The other genome (an instance of :class:`.Genome` or
+                one of its subclasses).
 
         Returns:
             The distance between the genomes.
@@ -563,7 +576,8 @@ class Genome:
         """
         if len(X) != len(self._input_nodes):
             raise RuntimeError("The input size must match the number of input "
-                               "nodes in the network!")
+                               "nodes in the network! Expected input of length "
+                               f"{len(self._input_nodes)} but got {len(X)}.")
 
         # preparing input nodes
         for n, x in zip(self._input_nodes, X):
@@ -637,8 +651,9 @@ class Genome:
                 return False
         return True
 
-    @staticmethod
-    def random_genome(num_inputs: int,
+    @classmethod
+    def random_genome(cls,
+                      num_inputs: int,
                       num_outputs: int,
                       config: Config,
                       id_handler: IdHandler,
@@ -663,10 +678,10 @@ class Genome:
         Returns:
             The randomly generated genome.
         """
-        new_genome = Genome(genome_id=id_handler.next_genome_id(),
-                            num_inputs=num_inputs,
-                            num_outputs=num_outputs,
-                            config=config)
+        new_genome = cls(genome_id=id_handler.next_genome_id(),
+                         num_inputs=num_inputs,
+                         num_outputs=num_outputs,
+                         config=config)
 
         # adding hidden nodes
         max_hnodes = max_hidden_nodes + config.random_genome_bonus_nodes
@@ -683,6 +698,96 @@ class Genome:
 
         return new_genome
 
+    def mate(self, other: "Genome", new_genome_id: int) -> "Genome":
+        """ Mates two genomes to produce a new genome (offspring).
+
+        Sexual reproduction. Follows the idea described in the original paper of
+        the NEAT algorithm:
+
+        "When crossing over, the genes in both genomes with the same innovation
+        numbers are lined up. These genes are called matching genes. (...).
+        Matching genes are inherited randomly, whereas disjoint genes (those
+        that do not match in the middle) and excess genes (those that do not
+        match in the end) are inherited from the more fit parent. (...) [If the
+        parents fitness are equal] the disjoint and excess genes are also
+        inherited randomly. (...) there’s a preset chance that an inherited gene
+        is disabled if it is disabled in either parent." - :cite:`stanley:ec02`
+
+        Args:
+            other (Genome): The second genome (an instance of :class:`.Genome`
+                or one of its subclasses).
+            new_genome_id (int): An unique identifier of the new genome.
+
+        Returns:
+            A new genome (the offspring born from the sexual reproduction
+            between the current genome and the genome passed as argument.
+        """
+        # aligning matching genes
+        genes = align_connections(self.connections, other.connections)
+
+        # new genome
+        new_gen = self.shallow_copy(new_genome_id)
+        copied_nodes = {n.id: n for n in new_gen.nodes()}
+
+        # mate (choose new genome's connections)
+        chosen_connections = []
+        for c1, c2 in zip(*genes):
+            if c1 is None and self.adj_fitness > other.adj_fitness:
+                # case 1: the gene is missing on self and self is dominant
+                # (higher fitness); action: ignore the gene
+                continue
+
+            if c2 is None and other.adj_fitness > self.adj_fitness:
+                # case 2: the gene is missing on other and other is dominant
+                # (higher fitness); action: ignore the gene
+                continue
+
+            # case 3: the gene is missing either on self or on other and their
+            # fitness are equal; action: random choice
+
+            # case 4: the gene is present both on self and on other; action:
+            # random choice
+
+            c = np.random.choice((c1, c2))
+            if c is not None:
+                # if the gene is disabled in either parent, it has a chance to
+                # also be disabled in the new genome
+                enabled = True
+                if ((c1 is not None and not c1.enabled)
+                        or (c2 is not None and not c2.enabled)):
+                    enabled = not utils.chance(
+                        self.config.disable_inherited_connection_chance)
+                chosen_connections.append((c, enabled))
+
+                # adding the hidden nodes of the connection (if needed)
+                for node in (c.from_node, c.to_node):
+                    if (node.type == NodeGene.Type.HIDDEN
+                            and node.id not in copied_nodes):
+                        new_node = node.shallow_copy(
+                            debug_info="[mate_genomes]")
+                        new_gen.hidden_nodes.append(new_node)
+                        copied_nodes[node.id] = new_node
+
+        # adding inherited connections
+        for c, enabled in chosen_connections:
+            src_node = copied_nodes[c.from_node.id]
+            dest_node = copied_nodes[c.to_node.id]
+            try:
+                new_gen.add_connection(cid=c.id,
+                                       src_node=src_node, dest_node=dest_node,
+                                       enabled=enabled, weight=c.weight,
+                                       debug_info="[mate_genomes]")
+            except ConnectionExistsError:
+                # if this exception is raised, it means that the connection was
+                # already inherited from the other parent; this is possible
+                # because, in some cases, a connection between the same two
+                # nodes appears in different generations and are assigned,
+                # because of that, different IDs.
+                pass
+                # __debug_mating(genes, c, self, other, new_gen)
+                # raise ConnectionExistsError()
+        return new_gen
+
     def save(self, abs_path: str) -> None:
         """ Saves the genome to the given absolute path.
 
@@ -696,14 +801,13 @@ class Genome:
         p = Path(abs_path)
         if not p.suffixes:
             p = Path(str(abs_path) + ".pkl")
-            print(p)
         p.parent.mkdir(parents=True, exist_ok=True)
 
         with open(str(p), "wb") as out_file:
             pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
 
-    @staticmethod
-    def load(abs_path: str) -> "Genome":
+    @classmethod
+    def load(cls, abs_path: str) -> "Genome":
         """ Loads the genome from the given absolute path.
 
         This method uses :py:mod:`pickle` to load the genome.
@@ -966,11 +1070,8 @@ class Genome:
             pos = self.columns_graph_layout(*figsize, node_size,
                                             **layout_kwargs)
         else:
-            layout_dict = {
-                "spring": nx.spring_layout,
-                # todo: add more
-            }
-            pos = layout_dict[layout_name](G, **layout_kwargs)
+            nx_layout_func = getattr(nx, layout_name)
+            pos = nx_layout_func(G, **layout_kwargs)
 
         # plotting
         nx.draw_networkx_nodes(G, pos=pos,
@@ -1028,97 +1129,6 @@ class Genome:
 
         if show:
             plt.show(block=block_thread)
-
-
-def mate_genomes(gen1: Genome,
-                 gen2: Genome,
-                 new_genome_id: int) -> Genome:
-    """ Mates two genomes to produce a new genome (offspring).
-
-    Sexual reproduction. Follows the idea described in the original paper of
-    the NEAT algorithm:
-
-    "When crossing over, the genes in both genomes with the same innovation
-    numbers are lined up. These genes are called matching genes. (...). Matching
-    genes are inherited randomly, whereas disjoint genes (those that do not
-    match in the middle) and excess genes (those that do not match in the end)
-    are inherited from the more fit parent. (...) [If the parents fitness are
-    equal] the disjoint and excess genes are also inherited randomly. (...)
-    there’s a preset chance that an inherited gene is disabled if it is disabled
-    in either parent." - :cite:`stanley:ec02`
-
-    Args:
-        gen1 (Genome): The first genome.
-        gen2 (Genome): The second genome.
-        new_genome_id (int): An unique identifier of the new genome.
-
-    Returns:
-        A new genome (the offspring of the two genomes passed as argument).
-    """
-    # aligning matching genes
-    genes = align_connections(gen1.connections, gen2.connections)
-
-    # new genome
-    new_gen = gen1.shallow_copy(new_genome_id)
-    copied_nodes = {n.id: n for n in new_gen.nodes()}
-
-    # mate (choose new genome's connections)
-    chosen_connections = []
-    for c1, c2 in zip(*genes):
-        if c1 is None and gen1.adj_fitness > gen2.adj_fitness:
-            # case 1: the gene is missing on gen1 and gen1 is dominant (higher
-            # fitness); action: ignore the gene
-            continue
-
-        if c2 is None and gen2.adj_fitness > gen1.adj_fitness:
-            # case 2: the gene is missing on gen2 and gen2 is dominant (higher
-            # fitness); action: ignore the gene
-            continue
-
-        # case 3: the gene is missing either on gen1 or on gen2 and their
-        # fitness are equal; action: random choice
-
-        # case 4: the gene is present both on gen1 and on gen2; action:
-        # random choice
-
-        c = np.random.choice((c1, c2))
-        if c is not None:
-            # if the gene is disabled in either parent, it has a chance to also
-            # be disabled in the new genome
-            enabled = True
-            if ((c1 is not None and not c1.enabled)
-                    or (c2 is not None and not c2.enabled)):
-                enabled = not utils.chance(
-                    gen1.config.disable_inherited_connection_chance)
-            chosen_connections.append((c, enabled))
-
-            # adding the hidden nodes of the connection (if needed)
-            for node in (c.from_node, c.to_node):
-                if (node.type == NodeGene.Type.HIDDEN
-                        and node.id not in copied_nodes):
-                    new_node = node.shallow_copy(debug_info="[mate_genomes]")
-                    new_gen.hidden_nodes.append(new_node)
-                    copied_nodes[node.id] = new_node
-
-    # adding inherited connections
-    for c, enabled in chosen_connections:
-        src_node = copied_nodes[c.from_node.id]
-        dest_node = copied_nodes[c.to_node.id]
-        try:
-            new_gen.add_connection(cid=c.id,
-                                   src_node=src_node, dest_node=dest_node,
-                                   enabled=enabled, weight=c.weight,
-                                   debug_info="[mate_genomes]")
-        except ConnectionExistsError:
-            # if this exception is raised, it means that the connection was
-            # already inherited from the other parent; this is possible because,
-            # in some cases, a connection between the same two nodes appears
-            # in different generations and are assigned, because of that,
-            # different IDs.
-            pass
-            # __debug_mating(genes, c, gen1, gen2, new_gen)
-            # raise ConnectionExistsError()
-    return new_gen
 
 
 def __debug_mating(genes, c, gen1, gen2, new_gen):

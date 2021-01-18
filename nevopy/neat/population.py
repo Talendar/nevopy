@@ -28,13 +28,14 @@ implements the :class:`.Population` class, which handles the evolution of a
 population/community of genomes.
 """
 
+import typing
 from typing import Optional, List, Sequence, Dict, Callable
 
 import pickle
 from pathlib import Path
 import numpy as np
 
-from nevopy.neat.genome import Genome, mate_genomes
+from nevopy.neat.genome import Genome
 from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
@@ -93,6 +94,9 @@ class Population:
         size (int): Number of genomes in the population (constant value).
         num_inputs (int): Number of input nodes in each genome.
         num_outputs (int): Number of output nodes in each genome.
+        genome_type (typing.Type[Genome]): Type of the genome to be evolved.
+            Accepts :class:`.neat.genome.Genome` (default) or a subclass of
+            :class:`.neat.genome.Genome`.
         config (Config): The settings of the evolutionary process. If `None` the
             default settings will be used.
         processing_scheduler (Optional[ProcessingScheduler]): Processing
@@ -102,9 +106,12 @@ class Population:
 
     Attributes:
         config (Config): The settings of the evolutionary process.
-        genomes (List[Genome]): List with the population's genomes.
+        genomes (Sequence[Genome]): List with the population's genomes.
         species (List[Species]): List with the currently alive species in the
             population.
+        stop_evolving (bool): At the start of every generation,
+            :meth:`.evolve()` checks if this variable is set to `True`. If it
+            is, the evolutionary process is stopped. Useful for callbacks.
     """
 
     #: Default processing scheduler used by instances of this class.
@@ -114,12 +121,15 @@ class Population:
                  size: int,
                  num_inputs: int,
                  num_outputs: int,
+                 genome_type: typing.Type[Genome] = Genome,
                  config: Optional[Config] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
-    ) -> None:
+                 ) -> None:
         self._size = size
         self._num_inputs = num_inputs
         self._num_outputs = num_outputs
+        self._Genome = genome_type
+        self.stop_evolving = False
 
         self._scheduler = (processing_scheduler
                            if processing_scheduler is not None
@@ -140,11 +150,14 @@ class Population:
         self._last_improvement = 0
 
         # creating initial genomes
-        self.genomes = [Genome(genome_id=self._id_handler.next_genome_id(),
-                               num_inputs=num_inputs,
-                               num_outputs=num_outputs,
-                               config=self.config)
-                        for _ in range(size)]
+        self.genomes = [
+            self._Genome(
+                genome_id=self._id_handler.next_genome_id(),
+                num_inputs=num_inputs,
+                num_outputs=num_outputs,
+                config=self.config)
+            for _ in range(size)
+        ]
 
         # creating pioneer species
         new_sp = Species(species_id=self._id_handler.next_species_id(),
@@ -170,8 +183,8 @@ class Population:
             generations (int): Number of generations for the algorithm to run. A
                 generation is completed when all the population's genomes have
                 been processed and reproduction and speciation has occurred.
-            fitness_function (Callable[[Genome], float]): Fitness function to be
-                used to evaluate the fitness of individual genomes. It must
+            fitness_function (Callable[[Genome], float]): Fitness function to
+                be used to evaluate the fitness of individual genomes. It must
                 receive a genome as input and produce a float (the genome's
                 fitness) as output.
             callbacks (Optional[List[Callback]]): List with instances of
@@ -210,6 +223,8 @@ class Population:
         self._past_best_fitness = float("-inf")
 
         # evolving
+        self.stop_evolving = False
+        generation_num = 0
         for generation_num in range(generations):
             # callback: on_generation_start
             for cb in callbacks:
@@ -272,7 +287,7 @@ class Population:
                 self._mass_extinction_counter = 0
                 self.genomes = [best]
                 for _ in range(self._size - 1):
-                    self.genomes.append(Genome.random_genome(
+                    self.genomes.append(self._Genome.random_genome(
                         num_inputs=self._num_inputs,
                         num_outputs=self._num_outputs,
                         id_handler=self._id_handler,
@@ -299,6 +314,14 @@ class Population:
             # callback: on_generation_end
             for cb in callbacks:
                 cb.on_generation_end(generation_num, generations)
+
+            # early stopping
+            if self.stop_evolving:
+                break
+
+        # callback: on_evolution_end
+        for cb in callbacks:
+            cb.on_evolution_end(generation_num)
 
         return history_callback
 
@@ -340,7 +363,7 @@ class Population:
             # intraspecific
             else:
                 g2 = np.random.choice(species.members)
-            baby = mate_genomes(g1, g2, baby_id)
+            baby = g1.mate(g2, baby_id)
         # binary_fission
         else:
             baby = g1.deep_copy(baby_id)
@@ -373,7 +396,7 @@ class Population:
 
         # invalid genome: replacing with a new random genome
         self._invalid_genomes_replaced += 1
-        return Genome.random_genome(
+        return self._Genome.random_genome(
             num_inputs=self._num_inputs,
             num_outputs=self._num_outputs,
             id_handler=self._id_handler,
@@ -604,7 +627,6 @@ class Population:
         p = Path(abs_path)
         if not p.suffixes:
             p = Path(str(abs_path) + ".pkl")
-            print(p)
         p.parent.mkdir(parents=True, exist_ok=True)
 
         scheduler_cache = self._scheduler

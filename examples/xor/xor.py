@@ -3,10 +3,9 @@ NEvoPY
 todo
 """
 
-import nevopy
+from nevopy import neat
 from timeit import default_timer as timer
 import random
-
 
 # =============== MAKING XOR DATA ==================
 num_variables = 2
@@ -27,7 +26,7 @@ for num in range(2 ** num_variables):
 # ===================================================
 
 
-def eval_genome(genome: nevopy.neat.genome.Genome,
+def eval_genome(genome: neat.genome.Genome,
                 shuffle=True,
                 log=False) -> float:
     idx = list(range(len(xor_inputs)))
@@ -54,14 +53,20 @@ if __name__ == "__main__":
 
     for r in range(runs):
         start_time = timer()
-        pop = nevopy.neat.population.Population(
+        pop = neat.population.Population(
             size=150,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
         )
         history = pop.evolve(generations=100,
                              fitness_function=eval_genome,
-                             verbose=2)
+                             verbose=2,
+                             callbacks=[
+                                 neat.callbacks.FitnessEarlyStopping(
+                                     fitness_threshold=1e3,
+                                     min_consecutive_generations=3,
+                                 )
+                             ])
 
         deltaT = timer() - start_time
         total_time += deltaT

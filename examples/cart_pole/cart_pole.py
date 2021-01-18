@@ -1,53 +1,59 @@
 import gym
 from nevopy import neat
-import time
+from nevopy import utils
 
 env_name = 'CartPole-v1'
+
 num_episodes = 5
 render_fps = 80
 
-
-def evaluate(genome, visualize=False):
-    env = gym.make(env_name)
-    total_reward = 0
-    sess = num_episodes if not visualize else 1
-    for _ in range(sess):
-        obs = env.reset()
-        genome.reset_activations()
-        while True:
-            if visualize:
-                env.render()
-                time.sleep(1 / render_fps)
-            action = round(genome.process(obs)[0])
-            obs, reward, done, _ = env.step(action)
-            total_reward += reward
-            if done:
-                break
-    env.close()
-    return total_reward / sess
+num_inputs = 4
+num_outputs = 2
 
 
-def random_agent():
-    env = gym.make(env_name)
-    env.reset()
-    total_reward = 0
-    while True:
-        env.render()
-        time.sleep(1 / render_fps)
-        action = env.action_space.sample()
-        _, reward, done, _ = env.step(action)
-        total_reward += reward
-        if done:
-            break
-    env.close()
-    return total_reward
+def make_env():
+    return gym.make(env_name)
 
 
 if __name__ == "__main__":
-    pop = neat.population.Population(size=50,
-                                     num_inputs=4,
-                                     num_outputs=1)
-    pop.evolve(generations=10, fitness_function=evaluate)
+    evaluate = utils.GymEnvFitness(make_env=make_env,
+                                   num_episodes=num_episodes,
+                                   render_fps=render_fps)
+    pop = neat.population.Population(size=100,
+                                     num_inputs=num_inputs,
+                                     num_outputs=num_outputs)
+    history = pop.evolve(generations=50,
+                         fitness_function=evaluate,
+                         callbacks=[
+                             neat.callbacks.FitnessEarlyStopping(
+                                 fitness_threshold=500,
+                                 min_consecutive_generations=3,
+                             )
+                         ])
     best = pop.fittest()
-    print(f"\nRandom agent: {random_agent()}")
-    print(f"Evolved agent: {evaluate(best, visualize=True)}")
+
+    print("\nEvaluation (100 episodes):")
+    print(f". Random agent score (100 eps): {evaluate(None, eps=100)}")
+    print(f". Evolved agent: {evaluate(best, eps=100)}")
+
+    while True:
+        try:
+            key = int(input("\nEvolution complete!\n"
+                            "   [0] Visualize random agent\n"
+                            "   [1] Visualize evolved agent\n"
+                            "   [2] Exit\n"
+                            "Choose an option: "))
+            if key == 0:
+                print(f"\nRandom agent: {evaluate(None, eps=1, visualize=True)}")
+            elif key == 1:
+                print(f"\nEvolved agent: {evaluate(best, eps=1, visualize=True)}")
+            elif key == 2:
+                break
+            else:
+                raise ValueError()
+        except ValueError:
+            print("\nInvalid key!")
+
+    print()
+    best.visualize()
+    history.visualize(log_scale=False)
