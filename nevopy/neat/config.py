@@ -373,7 +373,7 @@ class Config:
                  weight_reset_chance=(0.1, 0.3),
                  new_weight_interval=(-2, 2),
                  # mass extinction
-                 mass_extinction_threshold=40,
+                 mass_extinction_threshold=50,
                  maex_improvement_threshold_pc=0.03,
                  # infanticide
                  infanticide_output_nodes=True,

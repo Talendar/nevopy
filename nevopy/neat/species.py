@@ -26,7 +26,7 @@
 
 from typing import Optional, List
 import numpy as np
-from nevopy.neat.genome import Genome
+from nevopy.neat.genome import NeatGenome
 
 
 class Species:
@@ -38,7 +38,7 @@ class Species:
             species is born.
 
     Attributes:
-        representative (Optional[Genome]): Genome used to represent the
+        representative (Optional[NeatGenome]): Genome used to represent the
             species.
         members (List[Genome]): List with the genomes that belong to the
             species.
@@ -52,8 +52,8 @@ class Species:
 
     def __init__(self, species_id: int, generation: int) -> None:
         self._id = species_id
-        self.representative = None  # type: Optional[Genome]
-        self.members = []           # type: List[Genome]
+        self.representative = None  # type: Optional[NeatGenome]
+        self.members = []           # type: List[NeatGenome]
 
         self._creation_gen = generation
         self.last_improvement = generation
@@ -72,6 +72,6 @@ class Species:
         """ Returns the average fitness of the species genomes. """
         return float(np.mean([g.fitness for g in self.members]))
 
-    def fittest(self) -> Genome:
+    def fittest(self) -> NeatGenome:
         """ Returns the fittest member of the species. """
         return self.members[int(np.argmax([g.fitness for g in self.members]))]

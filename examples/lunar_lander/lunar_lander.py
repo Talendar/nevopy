@@ -33,7 +33,7 @@ if __name__ == "__main__":
     best = pop.fittest()
 
     print("\nEvaluation (100 episodes):")
-    print(f". Random agent score (100 eps): {evaluate(None, eps=100)}")
+    print(f". Random agent score: {evaluate(None, eps=100)}")
     print(f". Evolved agent: {evaluate(best, eps=100)}")
 
     while True:

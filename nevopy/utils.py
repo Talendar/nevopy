@@ -199,7 +199,7 @@ class GymEnvFitness:
         Todo:
             Currently, this only supports agents that implements the methods
             ``process`` and ``reset_activations`` from the class
-            :class:`nevopy.neat.genome.Genome`. Perhaps implement a common agent
+            :class:`nevopy.neat.genome.NeatGenome`. Perhaps implement a common agent
             interface for all `NEvoPY's` submodules?
 
         Args:

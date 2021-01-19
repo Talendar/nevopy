@@ -31,8 +31,8 @@ from enum import Enum
 class NodeGene:
     """ A gene that represents/encodes a neuron (node) in a neural network.
 
-    A :class:`~NodeGene` is the portion of a :class:`.Genome` that encodes a
-    neuron (node) of the neural network encoded by the :class:`.Genome`. It has
+    A :class:`~NodeGene` is the portion of a :class:`.NeatGenome` that encodes a
+    neuron (node) of the neural network encoded by the :class:`.NeatGenome`. It has
     an activation function, which is applied to inputs received from other nodes
     of the network.
 

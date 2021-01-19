@@ -88,7 +88,7 @@ class Callback:
         """
 
     def on_fitness_calculated(self,
-                              best_genome: neat.genome.Genome,
+                              best_genome: neat.genome.NeatGenome,
                               max_hidden_nodes: int,
                               max_hidden_connections: int) -> None:
         """ Called right after the fitness of the population's genomes and the
@@ -98,7 +98,7 @@ class Callback:
         Subclasses should override this method for any actions to run.
 
         Args:
-            best_genome (Genome): The most fit genome of the generation.
+            best_genome (NeatGenome): The most fit genome of the generation.
             max_hidden_nodes (int): Maximum number of hidden nodes found in a
                 genome in the population.
             max_hidden_connections (int): Maximum number of hidden connections
@@ -236,7 +236,7 @@ class CompleteStdOutLogger(Callback):
         self._past_num_species = sp_cur
 
     def on_fitness_calculated(self,
-                              best_genome: neat.genome.Genome,
+                              best_genome: neat.genome.NeatGenome,
                               max_hidden_nodes: int,
                               max_hidden_connections: int) -> None:
         # best fitness
@@ -479,7 +479,7 @@ class History(Callback):
                 self._new_species_info(sid, current_generation, len(sp.members))
 
     def on_fitness_calculated(self,
-                              best_genome: neat.genome.Genome,
+                              best_genome: neat.genome.NeatGenome,
                               max_hidden_nodes: int,
                               max_hidden_connections: int) -> None:
         # recording best and avg fitnesses
@@ -614,7 +614,7 @@ class FitnessEarlyStopping(Callback):
         self._consec_gens = 0
 
     def on_fitness_calculated(self,
-                              best_genome: neat.genome.Genome,
+                              best_genome: neat.genome.NeatGenome,
                               max_hidden_nodes: int,
                               max_hidden_connections: int) -> None:
         if best_genome.fitness >= self.fitness_threshold:

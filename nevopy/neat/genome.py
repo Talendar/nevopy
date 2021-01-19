@@ -38,6 +38,9 @@ np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 import nevopy.activations as activations
 import nevopy.utils as utils
+from nevopy.base_genome import (BaseGenome, IncompatibleGenomesError,
+                                InvalidInputError)
+
 from nevopy.neat.genes import *
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
@@ -46,12 +49,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 
 
-#: `TypeVar` that indicates the type of an instance of :class:`.Genome` or
-#:  one of its subclasses.
-# Genome = TypeVar("Genome", bound="Genome", covariant=True)
-
-
-class Genome:
+class NeatGenome(BaseGenome):
     """ Linear representation of a neural network's connectivity.
 
     In the context of NEAT, a genome is a collection of genes that encode a
@@ -72,12 +70,11 @@ class Genome:
     Note:
         When declaring a subclass of this class, you should always override the
         methods :meth:`.shallow_copy()` and :meth:`deep_copy()`, so that they
-        return an instance of your subclass and not of :class:`.Genome`. It's
-        recommended (although optional) to also override the methods
+        return an instance of your subclass and not of :class:`.NeatGenome`.
+        It's recommended (although optional) to also override the methods
         :meth:`.distance()` and :meth:`.mate()`.
 
     Args:
-        genome_id (int): Unique identifier of the genome.
         num_inputs (int): Number of input nodes in the network.
         num_outputs (int): Number of output nodes in the network.
         config (Config): Settings of the current evolution session.
@@ -100,13 +97,12 @@ class Genome:
     """
 
     def __init__(self,
-                 genome_id: int,
                  num_inputs: int,
                  num_outputs: int,
                  config: Config,
                  initial_connections: bool = True) -> None:
+        super().__init__()
         self.config = config
-        self._id = genome_id
         self.species_id = None        # type: Optional[int]
         self._activated_nodes = None  # type: Optional[Dict[int, bool]]
 
@@ -164,11 +160,6 @@ class Genome:
                                         in_node, out_node,
                                         debug_info="__init__ genome")
 
-    @property
-    def id(self) -> int:
-        """ Unique identifier of the genome. """
-        return self._id
-
     def reset_activations(self) -> None:
         """ Resets cached activations of the genome's nodes.
 
@@ -179,7 +170,11 @@ class Genome:
         for n in self.nodes():
             n.reset_activation()
 
-    def distance(self, other: "Genome") -> float:
+    def reset(self) -> None:
+        """ Wrapper for :meth:`.reset_activations`. """
+        self.reset_activations()
+
+    def distance(self, other: "NeatGenome") -> float:
         """ Calculates the distance between two genomes.
 
         The shorter the distance between two genomes, the greater the similarity
@@ -203,8 +198,8 @@ class Genome:
             :label: distance
 
         Args:
-            other (Genome): The other genome (an instance of :class:`.Genome` or
-                one of its subclasses).
+            other (NeatGenome): The other genome (an instance of
+                :class:`.NeatGenome` or one of its subclasses).
 
         Returns:
             The distance between the genomes.
@@ -441,36 +436,29 @@ class Genome:
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self, new_genome_id: int) -> "Genome":
+    def shallow_copy(self) -> "NeatGenome":
         """ Makes a simple/shallow copy of the genome.
-
-        Args:
-            new_genome_id (int): Unique identifier of the new genome.
 
         Returns:
             A copy of the genome without any of its connections (including the
             ones between input and output nodes) and hidden nodes.
         """
-        new_genome = Genome(genome_id=new_genome_id,
-                            num_inputs=len(self._input_nodes),
-                            num_outputs=len(self._output_nodes),
-                            config=self.config,
-                            initial_connections=False)
+        new_genome = NeatGenome(num_inputs=len(self._input_nodes),
+                                num_outputs=len(self._output_nodes),
+                                config=self.config,
+                                initial_connections=False)
         return new_genome
 
-    def deep_copy(self, new_genome_id: int) -> "Genome":
-        """ Makes an exact/deep copy (except for the ID) of the genome.
+    def deep_copy(self) -> "NeatGenome":
+        """ Makes an exact/deep copy of the genome.
 
         All the nodes and connections of the parent genome are copied to the new
         genome.
 
-        Args:
-            new_genome_id (int): Unique identifier of the new genome.
-
         Returns:
-            An exact/deep copy (except for the ID) of the genome.
+            An exact/deep copy of the genome.
         """
-        new_genome = self.shallow_copy(new_genome_id)
+        new_genome = self.shallow_copy()
         copied_nodes = {n.id: n for n in new_genome.nodes()}
 
         # creating required nodes
@@ -545,7 +533,7 @@ class Genome:
             n.activate(zsum)
         return n.activation
 
-    def process(self, X: Sequence[float]) -> np.array:
+    def process(self, X: Sequence[float]) -> np.ndarray:
         """ Feeds the given input to the neural network.
 
         In this implementation, there is no distinction between a genome and
@@ -553,7 +541,7 @@ class Genome:
         (its phenotype) in order to process the given input. The encoded network
         is a Graph Neural Networks (GNN).
 
-         Note:
+        Note:
             The processing is done recursively, starting from the output nodes
             (top-down approach). Because of that, nodes not connected to at
             least one of the network's output nodes won't be processed.
@@ -571,13 +559,15 @@ class Genome:
             output node of the network.
 
         Raises:
-            RuntimeError: If the number of elements in `X` doesn't match the
-                number of input nodes in the network.
+            InvalidInputError: If the number of elements in `X` doesn't match
+                the number of input nodes in the network.
         """
         if len(X) != len(self._input_nodes):
-            raise RuntimeError("The input size must match the number of input "
-                               "nodes in the network! Expected input of length "
-                               f"{len(self._input_nodes)} but got {len(X)}.")
+            raise InvalidInputError(
+                "The input size must match the number of input nodes in the "
+                f"network! Expected input of length {len(self._input_nodes)} "
+                f"but got {len(X)}."
+            )
 
         # preparing input nodes
         for n, x in zip(self._input_nodes, X):
@@ -658,7 +648,7 @@ class Genome:
                       config: Config,
                       id_handler: IdHandler,
                       max_hidden_nodes: int,
-                      max_hidden_connections: int) -> "Genome":
+                      max_hidden_connections: int) -> "NeatGenome":
         """ Creates a new random genome.
 
         Args:
@@ -678,8 +668,7 @@ class Genome:
         Returns:
             The randomly generated genome.
         """
-        new_genome = cls(genome_id=id_handler.next_genome_id(),
-                         num_inputs=num_inputs,
+        new_genome = cls(num_inputs=num_inputs,
                          num_outputs=num_outputs,
                          config=config)
 
@@ -698,7 +687,7 @@ class Genome:
 
         return new_genome
 
-    def mate(self, other: "Genome", new_genome_id: int) -> "Genome":
+    def mate(self, other: "NeatGenome") -> "NeatGenome":
         """ Mates two genomes to produce a new genome (offspring).
 
         Sexual reproduction. Follows the idea described in the original paper of
@@ -714,19 +703,30 @@ class Genome:
         is disabled if it is disabled in either parent." - :cite:`stanley:ec02`
 
         Args:
-            other (Genome): The second genome (an instance of :class:`.Genome`
-                or one of its subclasses).
-            new_genome_id (int): An unique identifier of the new genome.
+            other (NeatGenome): The second genome. Currently,
+                :class:`.NeatGenome` is only compatible for mating with
+                instances of :class:`.NeatGenome` or of one of its subclasses.
 
         Returns:
             A new genome (the offspring born from the sexual reproduction
             between the current genome and the genome passed as argument.
+
+        Raises:
+            IncompatibleGenomesError: If the genome passed as argument to
+                ``other`` is incompatible with the current genome (`self`).
         """
+        if not issubclass(type(other), NeatGenome):
+            raise IncompatibleGenomesError(
+                "Instances of `NeatGenome` are currently only compatible for "
+                "sexual reproduction with instances of `NeatGenome or one of "
+                "its subclasses!"
+            )
+
         # aligning matching genes
         genes = align_connections(self.connections, other.connections)
 
         # new genome
-        new_gen = self.shallow_copy(new_genome_id)
+        new_gen = self.shallow_copy()
         copied_nodes = {n.id: n for n in new_gen.nodes()}
 
         # mate (choose new genome's connections)
@@ -807,7 +807,7 @@ class Genome:
             pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
 
     @classmethod
-    def load(cls, abs_path: str) -> "Genome":
+    def load(cls, abs_path: str) -> "NeatGenome":
         """ Loads the genome from the given absolute path.
 
         This method uses :py:mod:`pickle` to load the genome.
@@ -967,7 +967,7 @@ class Genome:
           have `Graphviz-Dev` and `pygraphviz` installed on your machine;
         * The `columns` layout (used by default), implemented exclusively for
           `NEvoPY`; it positions the nodes in columns (see
-          :meth:`.Genome.columns_graph_layout`, specially the parameter
+          :meth:`.NeatGenome.columns_graph_layout`, specially the parameter
           ``ideal_h_nodes_per_col``).
 
         For the colors parameters, it's possible to pass a string with the color
@@ -1180,13 +1180,5 @@ class ConnectionToBiasNodeError(Exception):
     """
     Exception that indicates that an attempt has been made to create a
     connection containing a bias node as destination.
-    """
-    pass
-
-
-class GenomeIdException(Exception):
-    """
-    Indicates that an attempt has been made to assign an ID to a genome that
-    already has an ID.
     """
     pass

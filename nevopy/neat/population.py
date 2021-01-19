@@ -35,7 +35,7 @@ import pickle
 from pathlib import Path
 import numpy as np
 
-from nevopy.neat.genome import Genome
+from nevopy.neat.genome import NeatGenome
 from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import Config
 from nevopy.neat.id_handler import IdHandler
@@ -94,7 +94,7 @@ class Population:
         size (int): Number of genomes in the population (constant value).
         num_inputs (int): Number of input nodes in each genome.
         num_outputs (int): Number of output nodes in each genome.
-        genome_type (typing.Type[Genome]): Type of the genome to be evolved.
+        genome_type (typing.Type[NeatGenome]): Type of the genome to be evolved.
             Accepts :class:`.neat.genome.Genome` (default) or a subclass of
             :class:`.neat.genome.Genome`.
         config (Config): The settings of the evolutionary process. If `None` the
@@ -121,7 +121,7 @@ class Population:
                  size: int,
                  num_inputs: int,
                  num_outputs: int,
-                 genome_type: typing.Type[Genome] = Genome,
+                 genome_type: typing.Type[NeatGenome] = NeatGenome,
                  config: Optional[Config] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
                  ) -> None:
@@ -139,7 +139,7 @@ class Population:
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
 
-        self._rank_prob_dist = None            # type: Optional[np.array]
+        self._rank_prob_dist = None            # type: Optional[np.ndarray]
         self._invalid_genomes_replaced = None  # type: Optional[int]
         self._mass_extinction_counter = 0
 
@@ -151,11 +151,9 @@ class Population:
 
         # creating initial genomes
         self.genomes = [
-            self._Genome(
-                genome_id=self._id_handler.next_genome_id(),
-                num_inputs=num_inputs,
-                num_outputs=num_outputs,
-                config=self.config)
+            self._Genome(num_inputs=num_inputs,
+                         num_outputs=num_outputs,
+                         config=self.config)
             for _ in range(size)
         ]
 
@@ -168,13 +166,13 @@ class Population:
         new_sp.random_representative()
         self.species = {new_sp.id: new_sp}
 
-    def fittest(self) -> Genome:
+    def fittest(self) -> NeatGenome:
         """ Returns the most fit genome in the population. """
         return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
 
     def evolve(self,
                generations: int,
-               fitness_function: Callable[[Genome], float],
+               fitness_function: Callable[[NeatGenome], float],
                callbacks: Optional[List[Callback]] = None,
                verbose: int = 2) -> History:
         """ Evolves the population of genomes using the NEAT algorithm.
@@ -183,7 +181,7 @@ class Population:
             generations (int): Number of generations for the algorithm to run. A
                 generation is completed when all the population's genomes have
                 been processed and reproduction and speciation has occurred.
-            fitness_function (Callable[[Genome], float]): Fitness function to
+            fitness_function (Callable[[NeatGenome], float]): Fitness function to
                 be used to evaluate the fitness of individual genomes. It must
                 receive a genome as input and produce a float (the genome's
                 fitness) as output.
@@ -327,7 +325,7 @@ class Population:
 
     def generate_offspring(self,
                            species: Species,
-                           rank_prob_dist: Sequence) -> Genome:
+                           rank_prob_dist: Sequence) -> NeatGenome:
         """ Generates a new genome from one or more genomes of the species.
 
         The offspring can be generated either by mating two randomly chosen
@@ -351,7 +349,6 @@ class Population:
             A newly generated genome.
         """
         g1 = np.random.choice(species.members, p=rank_prob_dist)
-        baby_id = self._id_handler.next_genome_id()
 
         # mating / cross-over
         if utils.chance(self.config.mating_chance):
@@ -363,10 +360,10 @@ class Population:
             # intraspecific
             else:
                 g2 = np.random.choice(species.members)
-            baby = g1.mate(g2, baby_id)
+            baby = g1.mate(g2)
         # binary_fission
         else:
-            baby = g1.deep_copy(baby_id)
+            baby = g1.deep_copy()
 
         # enable connection mutation
         if utils.chance(self.config.enable_connection_mutation_chance):
@@ -539,7 +536,7 @@ class Population:
 
         The distance (compatibility) between a pair of genomes is calculated
         based on to the number of excess and disjoint genes between them. See
-        :meth:`.Genome.distance()` for more information.
+        :meth:`.NeatGenome.distance()` for more information.
 
         About the speciation process:
 

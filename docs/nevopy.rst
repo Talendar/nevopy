@@ -7,6 +7,7 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
+   nevopy.fixed_topology
    nevopy.neat
    nevopy.processing
 
@@ -17,6 +18,14 @@ nevopy.activations module
 -------------------------
 
 .. automodule:: nevopy.activations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+nevopy.base\_genome module
+--------------------------
+
+.. automodule:: nevopy.base_genome
    :members:
    :undoc-members:
    :show-inheritance:

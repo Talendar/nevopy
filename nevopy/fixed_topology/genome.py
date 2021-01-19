@@ -25,19 +25,51 @@
 TODO
 """
 
-from typing import cast, Sequence
-import numpy as np
-from nevopy import neat
-from nevopy.neat.genome import NeatGenome
+from typing import Any, List
+from nevopy.base_genome import BaseGenome, IncompatibleGenomesError
+from nevopy.fixed_topology.layers import BaseLayer
 
 
-class StaticConvNeatGenome(neat.genome.NeatGenome):
-    """ Fixed topology convolutional genome.
-
-    The main difference between this genome and :class:`.neat.genome.NeatGenome`
-    is that before feeding the input to the regular NEAT graph neural network,
-    it pre-processes the input with a convolutional neural network (CNN). The
-    CNN can be evolved by having its weights mutated, but its topology is fixed.
-
+class FixedTopologyGenome(BaseGenome):
+    """
     TODO
     """
+
+    def __init__(self):
+        super().__init__()
+        self.layers = []  # type: List[BaseLayer]
+
+    def process(self, X: Any) -> Any:
+        pass
+
+    def reset(self) -> None:
+        """ This method doesn't do anything.
+
+        In this implementation, the default fixed-topology networks do not need
+        to reset any of its internal states before the start of a new
+        generation.
+        """
+        pass
+
+    def mutate_weights(self) -> None:
+        """ Randomly mutates the weights of the genome's connections.
+
+        TODO
+        """
+
+    def deep_copy(self) -> "FixedTopologyGenome":
+        """ TODO
+
+        Returns:
+
+        """
+
+    def mate(self, other: "FixedTopologyGenome") -> "FixedTopologyGenome":
+        """ TODO
+
+        Args:
+            other:
+
+        Returns:
+
+        """

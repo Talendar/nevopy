@@ -69,7 +69,6 @@ class IdHandler:
                  has_bias: bool) -> None:
         self._node_counter = num_inputs + num_outputs + 1 if has_bias else 0
         self._connection_counter = num_inputs * num_outputs
-        self._genome_counter = 0
         self._species_counter = 0
         self._new_connections_ids = {}  # type: Dict[int, Dict[int, int]]
         self._new_nodes_ids = {}        # type: Dict[int, Dict[int, int]]
@@ -83,12 +82,6 @@ class IdHandler:
         self._new_connections_ids = {}
         self._new_nodes_ids = {}
         self.reset_counter = 0
-
-    def next_genome_id(self) -> int:
-        """ Returns a new unique ID for a genome. """
-        gid = self._genome_counter
-        self._genome_counter += 1
-        return gid
 
     def next_species_id(self):
         """ Returns a new unique ID for a species. """
