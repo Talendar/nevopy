@@ -52,7 +52,7 @@ class IdHandler:
     :cite:`stanley:ec02`
 
     In `NEvoPY`, it's possible to configure the rate at which innovation numbers
-    are reset (see :attr:`.Config.reset_innovations_period`).
+    are reset (see :attr:`.NeatConfig.reset_innovations_period`).
 
     Warning:
         This class isn't compatible with parallel processing.

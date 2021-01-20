@@ -21,7 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" This module implements the :class:`Config` class, used to handle the
+""" This module implements the :class:`NeatConfig` class, used to handle the
 settings of the NEAT algorithm.
 """
 
@@ -29,12 +29,12 @@ import nevopy
 from typing import Optional, Tuple, Dict
 
 
-class Config:
+class NeatConfig:
     """ Stores the settings of the NEAT algorithm.
 
-    The configurations can be ignored (default values will be used), set in the
-    arguments of this class constructor or written in a file (pathname passed
-    as an argument).
+    Individual configurations can be ignored (default values will be used), set
+    in the arguments of this class constructor or written in a file (pathname
+    passed as an argument).
 
     Some parameters/attributes related to mutation chances expects a tuple with
     two floats, indicating the minimum and the maximum chance of the mutation
@@ -43,10 +43,6 @@ class Config:
     generations in which the population has shown no improvement increases). If
     you want a fixed mutation chance, just place the same value on both
     positions of the tuple.
-
-    Todo:
-        | > Implement loading settings from a config file.
-        | > Specify the config file organization in the docs.
 
     Args:
         file_pathname (Optional[str]): The pathname of a file from where the
@@ -157,9 +153,9 @@ class Config:
             in it will be a random number picked from the interval
             `[0, h_max + h_bonus]`.
         random_genome_bonus_connections (int): The same as
-            :attr:`.Config.random_genome_max_bonus_hnodes`, except it refers to
-            the number of connections involving hidden nodes in the new randomly
-            generated genome.
+            :attr:`.NeatConfig.random_genome_max_bonus_hnodes`, except it refers
+            to the number of connections involving hidden nodes in the new
+            randomly generated genome.
 
         excess_genes_coefficient (float): Used in the formula that calculates
             the distance between two genomes. It's the :math:`c_1` coefficient
@@ -304,9 +300,9 @@ class Config:
             in it will be a random number picked from the interval
             `[0, h_max + h_bonus]`.
         random_genome_bonus_connections (int): The same as
-            :attr:`.Config.random_genome_max_bonus_hnodes`, except it refers to
-            the number of connections involving hidden nodes in the new randomly
-            generated genome.
+            :attr:`.NeatConfig.random_genome_max_bonus_hnodes`, except it refers
+            to the number of connections involving hidden nodes in the new
+            randomly generated genome.
 
         excess_genes_coefficient (float): Used in the formula that calculates
             the distance between two genomes. It's the :math:`c_1` coefficient
@@ -407,7 +403,7 @@ class Config:
         self.update_mass_extinction(0)
 
     def __getattribute__(self, key):
-        if key in Config.__MAEX_KEYS:
+        if key in NeatConfig.__MAEX_KEYS:
             return self._maex_cache[key]
         return super().__getattribute__(key)
 
@@ -419,7 +415,7 @@ class Config:
             maex_counter (int): Current value of the mass extinction counter
                 (generations without improvement).
         """
-        for k in Config.__MAEX_KEYS:
+        for k in NeatConfig.__MAEX_KEYS:
             base_value, max_value = self.__dict__[k]
             unit = (max_value - base_value) / self.mass_extinction_threshold
             self._maex_cache[k] = (base_value + unit * maex_counter)

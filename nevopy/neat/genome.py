@@ -42,7 +42,7 @@ from nevopy.base_genome import (BaseGenome, IncompatibleGenomesError,
                                 InvalidInputError)
 
 from nevopy.neat.genes import *
-from nevopy.neat.config import Config
+from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
 
 import matplotlib.pyplot as plt
@@ -77,12 +77,12 @@ class NeatGenome(BaseGenome):
     Args:
         num_inputs (int): Number of input nodes in the network.
         num_outputs (int): Number of output nodes in the network.
-        config (Config): Settings of the current evolution session.
+        config (NeatConfig): Settings of the current evolution session.
         initial_connections (bool): If True, connections between the input nodes
             and the output nodes of the network will be created.
 
     Attributes:
-        config (Config): Settings of the current evolution session.
+        config (NeatConfig): Settings of the current evolution session.
         species_id (int): Indicates the species to which the genome belongs.
         fitness (float): The last calculated fitness of the genome.
         adj_fitness (float): The last calculated adjusted fitness of the genome.
@@ -99,7 +99,7 @@ class NeatGenome(BaseGenome):
     def __init__(self,
                  num_inputs: int,
                  num_outputs: int,
-                 config: Config,
+                 config: NeatConfig,
                  initial_connections: bool = True) -> None:
         super().__init__()
         self.config = config
@@ -645,7 +645,7 @@ class NeatGenome(BaseGenome):
     def random_genome(cls,
                       num_inputs: int,
                       num_outputs: int,
-                      config: Config,
+                      config: NeatConfig,
                       id_handler: IdHandler,
                       max_hidden_nodes: int,
                       max_hidden_connections: int) -> "NeatGenome":
@@ -654,7 +654,7 @@ class NeatGenome(BaseGenome):
         Args:
             num_inputs (int): Number of input nodes in the new genome.
             num_outputs (int): Number of output nodes in the new genome.
-            config (Config): Settings of the current evolution session.
+            config (NeatConfig): Settings of the current evolution session.
             id_handler (IdHandler): ID handler used to assign IDs to the new
                 genome's hidden nodes and connections.
             max_hidden_nodes (int): Maximum number of hidden nodes the new

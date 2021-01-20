@@ -17,19 +17,11 @@
 
 >>> Implementation:
 
-	. CompleteStdOutLogger callback: print "all time" best genome's fitness and 
-	generation.
-	
-	. StopEvolution callback: stops the evolutionary process when a certain 
-	criteria is met.
-	
-	. Add `networkx` layouts to `Genome.visualize()`.
 	
 	. Parallel computing inside the fitness function (useful when the fitness
 	is the average of the agent's performance over a number of sessions);
 	perhaps one process for each separate session?
 	
-	. Utils: fitness function for gym environments.
 	
 	. History of species (draw a figure showing when species were born and when
 	they were extinct).
@@ -38,5 +30,11 @@
 
 ============================== Fixed-topology NE ===============================
 
-> Implement basic fixed-topology neuroevolution (evolution of weights only).
+>>> Bugs:
+
+>>> Implementation:
+	
+	. Parallel computing on reproduction (specially on weight mutations) (is it
+	really necessary, though? Avg mutation time around 1.3ms for big conv2d 
+	layers).
 

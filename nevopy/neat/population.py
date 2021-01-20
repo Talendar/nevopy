@@ -37,7 +37,7 @@ import numpy as np
 
 from nevopy.neat.genome import NeatGenome
 from nevopy.neat.genes import NodeGene
-from nevopy.neat.config import Config
+from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
 from nevopy.neat.callbacks import (Callback, CompleteStdOutLogger,
@@ -97,7 +97,7 @@ class Population:
         genome_type (typing.Type[NeatGenome]): Type of the genome to be evolved.
             Accepts :class:`.neat.genome.Genome` (default) or a subclass of
             :class:`.neat.genome.Genome`.
-        config (Config): The settings of the evolutionary process. If `None` the
+        config (NeatConfig): The settings of the evolutionary process. If `None` the
             default settings will be used.
         processing_scheduler (Optional[ProcessingScheduler]): Processing
             scheduler to be used to compute the fitness of the population's
@@ -105,7 +105,7 @@ class Population:
             :class:`.PoolProcessingScheduler`.
 
     Attributes:
-        config (Config): The settings of the evolutionary process.
+        config (NeatConfig): The settings of the evolutionary process.
         genomes (Sequence[Genome]): List with the population's genomes.
         species (List[Species]): List with the currently alive species in the
             population.
@@ -122,7 +122,7 @@ class Population:
                  num_inputs: int,
                  num_outputs: int,
                  genome_type: typing.Type[NeatGenome] = NeatGenome,
-                 config: Optional[Config] = None,
+                 config: Optional[NeatConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
                  ) -> None:
         self._size = size
@@ -135,7 +135,7 @@ class Population:
                            if processing_scheduler is not None
                            else Population._DEFAULT_SCHEDULER())
 
-        self.config = config if config is not None else Config()
+        self.config = config if config is not None else NeatConfig()
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
 
@@ -434,7 +434,7 @@ class Population:
         of different species as well) occurs.
 
         Most of the behaviour described above can be adjusted by changing the
-        settings of the evolutionary process (see :class:`.Config`).
+        settings of the evolutionary process (see :class:`.NeatConfig`).
         """
         new_pop = []
 
