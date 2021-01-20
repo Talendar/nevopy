@@ -79,15 +79,37 @@ def test_mutate_weights(layer, input_data, num_tests=100, verbose=False):
         if verbose:
             print(f"Reset bias idx: {test_info['b_reset_idx']}\n")
 
-    return 1000 * deltaT / num_tests
+    if verbose:
+        print("\n" + "#" * 30 + "\n")
+        print(f"Mutation avg time: {1000 * deltaT / num_tests}ms")
+
+
+def test_filter_stacking(conv2d, data, verbose=False):
+    output = conv2d(data)
+    array = conv2d.weights[0].numpy()
+
+    filters = [array[:, :, :, i] for i in range(array.shape[-1])]
+    stacked_filters = np.stack(filters, axis=-1)
+
+    if verbose:
+        print(f"\n>> Filter stacking <<")
+        print(f". Original shape: {array.shape}")
+        print(f". Filter shape: {filters[0].shape}")
+        print(f". Stacked shape: {stacked_filters.shape}\n\n")
+
+    assert array.shape == stacked_filters.shape
+    assert (array == stacked_filters).all()
+
+    for _ in range(100):
+        i = np.random.randint(low=0, high=array.size)
+        if verbose:
+            print(array.flat[i], stacked_filters.flat[i])
+        assert array.flat[i] == stacked_filters.flat[i]
 
 
 if __name__ == "__main__":
-    dT = test_mutate_weights(
-        layer=TFConv2DLayer(filters=512, kernel_size=(3, 3), config=config),
-        input_data=tf.random.uniform(shape=[1, 128, 128, 10]),
-        num_tests=100,
-        verbose=False,
-    )
-    print("\n" + "#"*30 + "\n")
-    print(f"Mutation avg time: {dT}ms")
+    conv2d_layer = TFConv2DLayer(filters=512, kernel_size=(3, 3), config=config)
+    test_data = tf.random.uniform(shape=[1, 128, 128, 3])
+
+    # test_mutate_weights(conv2d_layer, test_data, num_tests=100, verbose=False)
+    test_filter_stacking(conv2d_layer, test_data, verbose=True)

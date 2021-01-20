@@ -300,7 +300,25 @@ class TFConv2DLayer(TensorFlowLayer):
         Returns:
 
         """
-        pass
+        f_array1, f_array2 = self.weights[0].numpy(), other.weights[0].numpy()
+        if f_array1.shape != f_array2.shape:
+            raise IncompatibleLayersError(
+                "The given layer is an incompatible mate (sexual partner)! "
+                f"Expected weight tensor of shape {f_array1.shape} but got "
+                f"weight tensor of shape {f_array2.shape}."
+            )
+
+        filters1 = [f_array1[:, :, :, i] for i in range(f_array1.shape[-1])]
+        filters2 = [f_array2[:, :, :, i] for i in range(f_array2.shape[-1])]
+        f_parents = (filters1, filters2)
+
+        new_filters = []
+        chosen_parents = np.random.choice([0, 1],
+                                          size=len(filters1), p=[.5, .5])
+        for i in chosen_parents:
+            f = f_parents[i]
+            new_filters.append(f.copy())  # todo: test copy
+
 
 
 class IncompatibleLayersError(Exception):
