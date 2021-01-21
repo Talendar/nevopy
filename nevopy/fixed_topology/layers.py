@@ -28,7 +28,7 @@ in the context of neuroevolution.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, Dict, List
+from typing import Any, Tuple, Dict
 
 from nevopy.base_genome import InvalidInputError
 from nevopy.fixed_topology.config import FixedTopologyConfig
@@ -89,11 +89,20 @@ class BaseLayer(ABC):
         return self.process(X)
 
     @abstractmethod
+    def shallow_copy(self) -> "BaseLayer":
+        """ Makes a shallow / simplified copy of the layer.
+
+        Returns:
+            A new layer with the same topology as the current layer, but with
+            newly initialized weights and biases.
+        """
+
+    @abstractmethod
     def deep_copy(self) -> "BaseLayer":
         """ Makes an exact/deep copy of the layer.
 
         Returns:
-            An exact/deep copy of the layer.
+            An exact/deep copy of the layer, including its weights and biases.
         """
 
     @abstractmethod
@@ -190,8 +199,11 @@ class TensorFlowLayer(BaseLayer, ABC):
                                     "shape expected by the layer! "
                                     f"TensorFlow's error message: {str(e)}")
 
-    def deep_copy(self) -> "BaseLayer":
-        new_layer = self.__class__(**self._new_layer_kwargs)
+    def shallow_copy(self) -> "TensorFlowLayer":
+        return self.__class__(config=self.config, **self._new_layer_kwargs)
+
+    def deep_copy(self) -> "TensorFlowLayer":
+        new_layer = self.shallow_copy()
         new_layer.weights = self.weights
         return new_layer
 
@@ -277,7 +289,11 @@ class TFConv2DLayer(TensorFlowLayer):
                  padding: str = "valid",
                  activation="relu",
                  **kwargs: Dict[str, Any]) -> None:
-        super().__init__(**{k: v for k, v in locals().items() if k != "self"})
+        super().__init__(
+            **{k: v for k, v in locals().items()
+               if k != "self" and k != "kwargs" and k != "__class__"},
+            **kwargs,
+        )
         self._tf_layer = tf.keras.layers.Conv2D(filters=filters,
                                                 kernel_size=kernel_size,
                                                 strides=strides,
@@ -300,25 +316,42 @@ class TFConv2DLayer(TensorFlowLayer):
         Returns:
 
         """
+        # retrieving weights and biases as numpy arrays
         f_array1, f_array2 = self.weights[0].numpy(), other.weights[0].numpy()
-        if f_array1.shape != f_array2.shape:
+        b_array1, b_array2 = self.weights[1].numpy(), other.weights[1].numpy()
+
+        # checking compatibility
+        if (f_array1.shape != f_array2.shape
+                or b_array1.shape != b_array2.shape):
             raise IncompatibleLayersError(
-                "The given layer is an incompatible mate (sexual partner)! "
-                f"Expected weight tensor of shape {f_array1.shape} but got "
-                f"weight tensor of shape {f_array2.shape}."
+                "The given layer is not a valid mate (sexual partner)! "
+                f"Weights: expected shape {f_array1.shape}, got shape "
+                f"{f_array2.shape}. Biases: expected shape {b_array1.shape}, "
+                f"got shape {b_array2.shape}."
             )
 
+        # isolating filters
         filters1 = [f_array1[:, :, :, i] for i in range(f_array1.shape[-1])]
         filters2 = [f_array2[:, :, :, i] for i in range(f_array2.shape[-1])]
-        f_parents = (filters1, filters2)
 
-        new_filters = []
+        # selecting filters and biases for the new layer
+        f_parents = (filters1, filters2)
+        b_parents = (b_array1, b_array2)
+
+        new_filters, new_biases = [], []
         chosen_parents = np.random.choice([0, 1],
                                           size=len(filters1), p=[.5, .5])
-        for i in chosen_parents:
-            f = f_parents[i]
-            new_filters.append(f.copy())  # todo: test copy
+        for idx, p in enumerate(chosen_parents):
+            f, b = f_parents[p][idx], b_parents[p][idx]
+            new_filters.append(f)
+            new_biases.append(b)
 
+        # building new layer and changing its weights
+        new_layer = self.shallow_copy()
+        # todo: initialize weights
+        new_layer.weights = (np.stack(new_filters, axis=-1),
+                             np.array(new_biases))
+        return new_layer
 
 
 class IncompatibleLayersError(Exception):

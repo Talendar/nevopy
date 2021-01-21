@@ -25,8 +25,7 @@ config = FixedTopologyConfig(  # weight mutation
                              new_bias_interval=(-2, 2))
 
 
-def test_mutate_weights(layer, input_data, num_tests=100, verbose=False):
-    output = layer(input_data).numpy()
+def test_mutate_weights(layer, num_tests=100, verbose=False):
     deltaT = 0
     for _ in range(num_tests):
         test_info = {}
@@ -84,8 +83,7 @@ def test_mutate_weights(layer, input_data, num_tests=100, verbose=False):
         print(f"Mutation avg time: {1000 * deltaT / num_tests}ms")
 
 
-def test_filter_stacking(conv2d, data, verbose=False):
-    output = conv2d(data)
+def test_filter_stacking(conv2d, verbose=False):
     array = conv2d.weights[0].numpy()
 
     filters = [array[:, :, :, i] for i in range(array.shape[-1])]
@@ -107,9 +105,44 @@ def test_filter_stacking(conv2d, data, verbose=False):
         assert array.flat[i] == stacked_filters.flat[i]
 
 
-if __name__ == "__main__":
-    conv2d_layer = TFConv2DLayer(filters=512, kernel_size=(3, 3), config=config)
-    test_data = tf.random.uniform(shape=[1, 128, 128, 3])
+def test_shallow_copy(layer, data):
+    new_layer = layer.shallow_copy()
+    new_layer(data)
 
-    # test_mutate_weights(conv2d_layer, test_data, num_tests=100, verbose=False)
-    test_filter_stacking(conv2d_layer, test_data, verbose=True)
+    w_new, b_new = (w.numpy() for w in new_layer.weights)
+    w_p, b_p = (w.numpy() for w in layer.weights)
+
+    assert w_new.shape == w_p.shape and b_new.shape == b_p.shape
+    assert not (w_new == w_p).all()
+
+
+def test_mating(layer1, layer2, data, verbose=False):
+    new_layer = layer1.mate(layer2)
+    new_layer(data)
+
+    w_new, b_new = (w.numpy() for w in new_layer.weights)
+    w_p1, b_p1 = (w.numpy() for w in layer1.weights)
+    w_p2, b_p2 = (w.numpy() for w in layer2.weights)
+
+    assert w_new.shape == w_p1.shape == w_p2.shape
+    assert b_new.shape == b_p1.shape == b_p2.shape
+
+    from_p1 = from_p2 = 0
+    print(w_new[0])
+
+
+if __name__ == "__main__":
+    # layers
+    layer1 = TFConv2DLayer(filters=64, kernel_size=(3, 3), config=config)
+    layer2 = TFConv2DLayer(filters=64, kernel_size=(3, 3), config=config)
+
+    # forcing the building of the weight matrices
+    test_data = tf.random.uniform(shape=[1, 128, 128, 3])
+    layer1(test_data)
+    layer2(test_data)
+
+    # tests
+    # test_shallow_copy(layer1, test_data)
+    test_mating(layer1, layer2, test_data)
+    # test_mutate_weights(layer1, num_tests=100, verbose=False)
+    # test_filter_stacking(layer1, verbose=True)
