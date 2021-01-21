@@ -48,14 +48,19 @@ class BaseLayer(ABC):
     Args:
         config (FixedTopologyConfig): Settings being used in the current
             evolutionary session.
+        input_shape (Tuple[int, ...]): Shape of the data that will be processed
+            by the layer.
 
     Attributes:
         config (FixedTopologyConfig): Settings being used in the current
             evolutionary session.
     """
 
-    def __init__(self, config: FixedTopologyConfig):
+    def __init__(self,
+                 config: FixedTopologyConfig,
+                 input_shape: Tuple[int, ...]):
         self.config = config
+        self._input_shape = input_shape
 
     @property
     @abstractmethod
@@ -93,7 +98,7 @@ class BaseLayer(ABC):
         """ Makes a shallow / simplified copy of the layer.
 
         Returns:
-            A new layer with the same topology as the current layer, but with
+            A new layer with the same topology of the current layer, but with
             newly initialized weights and biases.
         """
 
@@ -148,20 +153,32 @@ class TensorFlowLayer(BaseLayer, ABC):
         .. code-block:: python
 
             class MyTFLayer(TensorFlowLayer):
-                def __init__(self, arg1, arg2, **kwargs):
-                    super().__init__(**{k: v for k, v in locals().items()
-                                        if k != "self"})
-                    # ...
+                    def __init__(self, config, input_shape,
+                                 some_arg1, some_arg2, **kwargs):
+                        super().__init__(
+                            **{k: v for k, v in locals().items()
+                               if k != "self" and k != "kwargs" and k != "__class__"},
+                            **kwargs,
+                        )
+                        self._tf_layer = tf.keras.layers.AwesomeLayer(some_arg1,
+                                                                      some_arg2,
+                                                                      **kwargs)
+                        self._tf_layer.build(input_shape=self._input_shape)
 
     Args:
         config (FixedTopologyConfig): Settings being used in the current
             evolutionary session.
+        input_shape (Tuple[int, ...]): Shape of the data that will be processed
+            by the layer.
         **kwargs: Named arguments to be passed to the constructor of a subclass
             of this base class when making a copy of the subclass.
     """
 
-    def __init__(self, config: FixedTopologyConfig, **kwargs):
-        super().__init__(config)
+    def __init__(self,
+                 config: FixedTopologyConfig,
+                 input_shape: Tuple[int, ...],
+                 **kwargs):
+        super().__init__(config, input_shape)
         self._new_layer_kwargs = kwargs
 
     @property
@@ -200,7 +217,9 @@ class TensorFlowLayer(BaseLayer, ABC):
                                     f"TensorFlow's error message: {str(e)}")
 
     def shallow_copy(self) -> "TensorFlowLayer":
-        return self.__class__(config=self.config, **self._new_layer_kwargs)
+        return self.__class__(config=self.config,
+                              input_shape=self._input_shape,
+                              **self._new_layer_kwargs)
 
     def deep_copy(self) -> "TensorFlowLayer":
         new_layer = self.shallow_copy()
@@ -277,6 +296,8 @@ class TFConv2DLayer(TensorFlowLayer):
     Args:
         config (FixedTopologyConfig): Settings being used in the current
             evolutionary session.
+        input_shape (Tuple[int, ...]): Shape of the data that will be processed
+            by the layer.
         **kwargs: Named arguments to be passed to the constructor of the
             TensorFlow layer.
     """
@@ -285,6 +306,7 @@ class TFConv2DLayer(TensorFlowLayer):
                  filters: int,
                  kernel_size: Tuple[int, int],
                  config: FixedTopologyConfig,
+                 input_shape: Tuple[int, ...],
                  strides: Tuple[int, int] = (1, 1),
                  padding: str = "valid",
                  activation="relu",
@@ -296,25 +318,34 @@ class TFConv2DLayer(TensorFlowLayer):
         )
         self._tf_layer = tf.keras.layers.Conv2D(filters=filters,
                                                 kernel_size=kernel_size,
+                                                input_shape=self._input_shape,
                                                 strides=strides,
                                                 padding=padding,
                                                 activation=activation,
                                                 **kwargs)
+        self._tf_layer.build(input_shape=self._input_shape)
 
     @property
     def tf_layer(self) -> tf.keras.layers.Conv2D:
         return self._tf_layer
 
     def mate(self, other: "TFConv2DLayer") -> "TFConv2DLayer":
-        """ TODO
+        """ Mates (sexual reproduction) two TF's 2D-convolutional layers.
 
-        TODO: chance of inheriting a filter from one of the parents
+        Each filter (kernel) and bias of the new layer is inherited, randomly
+        and with an equal chance, from one of the parents.
 
         Args:
-            other:
+            other (TFConv2DLayer): The "sexual partner" of the current layer.
 
         Returns:
+            A new 2D-convolutional layer that inherits information from both
+            parents.
 
+        Raises:
+            IncompatibleLayersError: If the weight and bias matrices of the two
+                given layers are not of the same shape (i.e., the layers are not
+                compatible for mating).
         """
         # retrieving weights and biases as numpy arrays
         f_array1, f_array2 = self.weights[0].numpy(), other.weights[0].numpy()
@@ -324,9 +355,9 @@ class TFConv2DLayer(TensorFlowLayer):
         if (f_array1.shape != f_array2.shape
                 or b_array1.shape != b_array2.shape):
             raise IncompatibleLayersError(
-                "The given layer is not a valid mate (sexual partner)! "
+                "The given layer is not a valid mate (sexual partner)!\n"
                 f"Weights: expected shape {f_array1.shape}, got shape "
-                f"{f_array2.shape}. Biases: expected shape {b_array1.shape}, "
+                f"{f_array2.shape}.\nBiases: expected shape {b_array1.shape}, "
                 f"got shape {b_array2.shape}."
             )
 
@@ -348,10 +379,9 @@ class TFConv2DLayer(TensorFlowLayer):
 
         # building new layer and changing its weights
         new_layer = self.shallow_copy()
-        # todo: initialize weights
         new_layer.weights = (np.stack(new_filters, axis=-1),
                              np.array(new_biases))
-        return new_layer
+        return new_layer  # type: ignore
 
 
 class IncompatibleLayersError(Exception):

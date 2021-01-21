@@ -439,6 +439,9 @@ class NeatGenome(BaseGenome):
     def shallow_copy(self) -> "NeatGenome":
         """ Makes a simple/shallow copy of the genome.
 
+        Todo:
+            Optional random initial connections.
+
         Returns:
             A copy of the genome without any of its connections (including the
             ones between input and output nodes) and hidden nodes.
