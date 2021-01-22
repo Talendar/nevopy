@@ -46,6 +46,11 @@ class FixedTopologyConfig:
     Todo:
         | > Implement loading settings from a config file.
         | > Specify the config file organization in the docs.
+
+    Args:
+        mating_mode (str): How the exchange of genetic material is supposed to
+            happen during a sexual reproduction between two genomes. Options:
+            "exchange_weights" and "exchange_layers".
     """
 
     #: Name of the mutation chance attributes (type: Tuple[float, float])
@@ -72,13 +77,11 @@ class FixedTopologyConfig:
                  # reproduction
                  weak_genomes_removal_pc=0.75,
                  mating_chance=0.75,
+                 mating_mode="exchange_weights",
                  rank_prob_dist_coefficient=1.75,
                  # mass extinction
                  mass_extinction_threshold=50,
-                 maex_improvement_threshold_pc=0.03,
-                 # infanticide
-                 infanticide_output_nodes=True,
-                 infanticide_input_nodes=True) -> None:
+                 maex_improvement_threshold_pc=0.03) -> None:
         values = locals()
         values.pop("self")
         values.pop("file_pathname")

@@ -94,8 +94,8 @@ class BaseLayer(ABC):
         return self.process(X)
 
     @abstractmethod
-    def shallow_copy(self) -> "BaseLayer":
-        """ Makes a shallow / simplified copy of the layer.
+    def random_copy(self) -> "BaseLayer":
+        """ Makes a random copy of the layer.
 
         Returns:
             A new layer with the same topology of the current layer, but with
@@ -180,6 +180,7 @@ class TensorFlowLayer(BaseLayer, ABC):
                  **kwargs):
         super().__init__(config, input_shape)
         self._new_layer_kwargs = kwargs
+        self._shape = None
 
     @property
     @abstractmethod
@@ -216,13 +217,13 @@ class TensorFlowLayer(BaseLayer, ABC):
                                     "shape expected by the layer! "
                                     f"TensorFlow's error message: {str(e)}")
 
-    def shallow_copy(self) -> "TensorFlowLayer":
+    def random_copy(self) -> "TensorFlowLayer":
         return self.__class__(config=self.config,
                               input_shape=self._input_shape,
                               **self._new_layer_kwargs)
 
     def deep_copy(self) -> "TensorFlowLayer":
-        new_layer = self.shallow_copy()
+        new_layer = self.random_copy()
         new_layer.weights = self.weights
         return new_layer
 
@@ -378,7 +379,7 @@ class TFConv2DLayer(TensorFlowLayer):
             new_biases.append(b)
 
         # building new layer and changing its weights
-        new_layer = self.shallow_copy()
+        new_layer = self.random_copy()
         new_layer.weights = (np.stack(new_filters, axis=-1),
                              np.array(new_biases))
         return new_layer  # type: ignore

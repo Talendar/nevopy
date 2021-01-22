@@ -375,14 +375,14 @@ class NeatConfig:
                  infanticide_output_nodes=True,
                  infanticide_input_nodes=True,
                  # random genomes
-                 random_genome_bonus_nodes=1,
-                 random_genome_bonus_connections=1,
+                 random_genome_bonus_nodes=-2,
+                 random_genome_bonus_connections=-2,
                  # genome distance coefficients
                  excess_genes_coefficient=1,
                  disjoint_genes_coefficient=1,
                  weight_difference_coefficient=0.5,
                  # speciation
-                 species_distance_threshold=2,
+                 species_distance_threshold=1.75,
                  species_elitism_threshold=5,
                  species_no_improvement_limit=15,
                  # others

@@ -78,6 +78,7 @@ if __name__ == "__main__":
     best.visualize()
 
     print("\n" + 20*"=" +
+          f"\nReplaced invalid genomes: {sum(history.invalid_genomes_replaced)}"
           f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s\n")
 

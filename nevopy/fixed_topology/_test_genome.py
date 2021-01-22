@@ -21,23 +21,20 @@
 # SOFTWARE.
 # ==============================================================================
 
+""" Tests the implementation in :mod:`.fixed_topology.genome`.
 """
-TODO
-"""
 
-from typing import cast, Sequence
-import numpy as np
-from nevopy import neat
-from nevopy.neat.genome import NeatGenome
+from _test_layers import test_mating_conv2d
 
 
-class StaticConvNeatGenome(neat.genome.NeatGenome):
-    """ Fixed topology convolutional genome.
+if __name__ == "__main__":
+    input_shape = (1, 128, 128, 3)
 
-    The main difference between this genome and :class:`.neat.genome.NeatGenome`
-    is that before feeding the input to the regular NEAT graph neural network,
-    it pre-processes the input with a convolutional neural network (CNN). The
-    CNN can be evolved by having its weights mutated, but its topology is fixed.
+    # genomes
+    layer1 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
+                           config=config, input_shape=input_shape)
+    layer2 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
+                           config=config, input_shape=input_shape)
 
-    TODO
-    """
+    # tests
+    test_mating_conv2d(layer1, layer2, num_tests=100, verbose=False)

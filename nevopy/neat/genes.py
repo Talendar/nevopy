@@ -44,8 +44,6 @@ class NodeGene:
             float (the resulting activation) as output.
         initial_activation (float): initial value of the node's activation (used
             when processing recurrent connections between nodes).
-        debug_info (None/str): Used for debugging purposes. Should be ignored
-            most of the time. Todo: remove.
 
     Attributes:
         in_connections (List[ConnectionGene]): List with the connections
@@ -60,17 +58,15 @@ class NodeGene:
                  node_id: int,
                  node_type: "NodeGene.Type",
                  activation_func: Callable[[float], float],
-                 initial_activation: float,
-                 debug_info: Optional[str] = None) -> None:
+                 initial_activation: float) -> None:
         assert node_id is not None
         self._id = node_id
         self._type = node_type
-        self._initial_activation = initial_activation
+        self.initial_activation = initial_activation
         self._activation = initial_activation
-        self._function = activation_func
+        self.function = activation_func
         self.in_connections = []   # type: List[ConnectionGene]
         self.out_connections = []  # type: List[ConnectionGene]
-        self.debug_info = debug_info
 
     class Type(Enum):
         """ Specifies the possible types of node genes. """
@@ -111,30 +107,31 @@ class NodeGene:
         Returns:
             None. The node's output is updated internally.
         """
-        self._activation = self._function(x)
+        self._activation = self.function(x)
 
-    def shallow_copy(self, debug_info: str = None) -> "NodeGene":
-        """ Makes and returns a shallow/simple copy of this node.
+    def simple_copy(self) -> "NodeGene":
+        """ Makes and returns a simple copy of this node.
+
+        Wraps a call to this class' constructor.
 
         The copied node shares the same values for all the attributes of the
         source node, except for the connections. The copied node is created
         without any connections.
 
         Returns:
-            A copy of this node without its connections.
+            A copy of this node without any connection.
         """
         return NodeGene(node_id=self._id,
                         node_type=self._type,
-                        activation_func=self._function,
-                        initial_activation=self._initial_activation,
-                        debug_info=debug_info)
+                        activation_func=self.function,
+                        initial_activation=self.initial_activation)
 
     def reset_activation(self) -> None:
         """
         Resets the node's activation value (it's cached output) to its initial
         value.
         """
-        self._activation = self._initial_activation
+        self._activation = self.initial_activation
 
 
 class ConnectionGene:
@@ -155,16 +152,12 @@ class ConnectionGene:
         weight (float): The weight of the connection.
         enabled (bool): Whether the initial state of the newly created
             connection should enabled or disabled.
-        debug_info (str): Used for debugging purposes. Should be ignored most
-            of the time. Todo: remove.
 
     Attributes:
         weight (float): The weight of the connection.
         enabled (bool): Whether the connection is enabled or not. A disabled
             connection won't be considered during the computations of the neural
             network.
-        debug_info (str): Used for debugging purposes. Should be ignored most of
-            the time. Todo: remove.
     """
 
     def __init__(self,
@@ -172,14 +165,12 @@ class ConnectionGene:
                  from_node: NodeGene,
                  to_node: NodeGene,
                  weight: float,
-                 enabled: bool = True,
-                 debug_info: str = None) -> None:
+                 enabled: bool = True) -> None:
         self._id = cid
         self._from_node = from_node
         self._to_node = to_node
         self.weight = weight
         self.enabled = enabled
-        self.debug_info = debug_info
 
     @property
     def id(self) -> int:

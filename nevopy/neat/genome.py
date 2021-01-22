@@ -69,7 +69,7 @@ class NeatGenome(BaseGenome):
 
     Note:
         When declaring a subclass of this class, you should always override the
-        methods :meth:`.shallow_copy()` and :meth:`deep_copy()`, so that they
+        methods :meth:`.simple_copy()` and :meth:`deep_copy()`, so that they
         return an instance of your subclass and not of :class:`.NeatGenome`.
         It's recommended (although optional) to also override the methods
         :meth:`.distance()` and :meth:`.mate()`.
@@ -127,8 +127,7 @@ class NeatGenome(BaseGenome):
                 NodeGene(node_id=node_counter,
                          node_type=NodeGene.Type.INPUT,
                          activation_func=activations.linear,
-                         initial_activation=self.config.initial_node_activation,
-                         debug_info="__init__ genome")
+                         initial_activation=self.config.initial_node_activation,)
             )
             node_counter += 1
 
@@ -137,8 +136,7 @@ class NeatGenome(BaseGenome):
             self._bias_node = NodeGene(node_id=node_counter,
                                        node_type=NodeGene.Type.BIAS,
                                        activation_func=activations.linear,
-                                       initial_activation=self.config.bias_value,
-                                       debug_info="__init__ genome")
+                                       initial_activation=self.config.bias_value)
             node_counter += 1
 
         # init output nodes
@@ -147,8 +145,7 @@ class NeatGenome(BaseGenome):
             out_node = NodeGene(node_id=node_counter,
                                 node_type=NodeGene.Type.OUTPUT,
                                 activation_func=self._output_activation,
-                                initial_activation=self.config.initial_node_activation,
-                                debug_info="__init__ genome")
+                                initial_activation=self.config.initial_node_activation)
             self._output_nodes.append(out_node)
             node_counter += 1
 
@@ -156,9 +153,17 @@ class NeatGenome(BaseGenome):
             if initial_connections:
                 for in_node in self._input_nodes:
                     connection_counter += 1
-                    self.add_connection(connection_counter,
-                                        in_node, out_node,
-                                        debug_info="__init__ genome")
+                    self.add_connection(connection_counter, in_node, out_node)
+
+    @property
+    def num_inputs(self):
+        """ Number of input nodes in the genome. """
+        return len(self._input_nodes)
+
+    @property
+    def num_outputs(self):
+        """ Number of output nodes in the genome. """
+        return len(self._output_nodes)
 
     def reset_activations(self) -> None:
         """ Resets cached activations of the genome's nodes.
@@ -254,8 +259,7 @@ class NeatGenome(BaseGenome):
                        src_node: NodeGene,
                        dest_node: NodeGene,
                        enabled: bool = True,
-                       weight: Optional[float] = None,
-                       debug_info: Optional[str] = None) -> None:
+                       weight: Optional[float] = None) -> None:
         """ Adds a new connection gene to the genome.
 
         Args:
@@ -269,8 +273,6 @@ class NeatGenome(BaseGenome):
             weight (Optional[float]): The weight of the connection. If `None`, a
                 random value (within the interval specified in the settings)
                 will be chosen.
-            debug_info (Optional[str]): Used for debugging. Should be ignored
-                most of the time.
 
         Raises:
             ConnectionExistsError: If the connection `src_node->dest_node`
@@ -281,7 +283,7 @@ class NeatGenome(BaseGenome):
         if self.connection_exists(src_node.id, dest_node.id):
             raise ConnectionExistsError(
                 f"Attempt to create an already existing connection "
-                f"({src_node.id}->{dest_node.id}). {debug_info}")
+                f"({src_node.id}->{dest_node.id}).")
         if (dest_node.type == NodeGene.Type.BIAS
                 or dest_node.type == NodeGene.Type.INPUT):
             raise ConnectionToBiasNodeError(
@@ -291,11 +293,10 @@ class NeatGenome(BaseGenome):
 
         weight = (np.random.uniform(*self.config.new_weight_interval)
                   if weight is None else weight)
-
         connection = ConnectionGene(cid=cid,
-                                    from_node=src_node, to_node=dest_node,
-                                    weight=weight,
-                                    debug_info=debug_info)
+                                    from_node=src_node,
+                                    to_node=dest_node,
+                                    weight=weight)
 
         connection.enabled = enabled
         self.connections.append(connection)
@@ -338,9 +339,7 @@ class NeatGenome(BaseGenome):
                     if not self.connection_exists(src_node.id, dest_node.id):
                         cid = id_handler.next_connection_id(src_node.id,
                                                             dest_node.id)
-                        self.add_connection(cid,
-                                            src_node, dest_node,
-                                            debug_info="add_random_connection")
+                        self.add_connection(cid, src_node, dest_node)
                         return src_node, dest_node
         return None
 
@@ -397,8 +396,7 @@ class NeatGenome(BaseGenome):
                 node_id=hid,
                 node_type=NodeGene.Type.HIDDEN,
                 activation_func=self._hidden_activation,
-                initial_activation=self.config.initial_node_activation,
-                debug_info="add_random_hidden_node"
+                initial_activation=self.config.initial_node_activation
             )
             self.hidden_nodes.append(new_node)
 
@@ -406,14 +404,12 @@ class NeatGenome(BaseGenome):
             cid = id_handler.next_connection_id(src_node.id, new_node.id)
             self.add_connection(cid,
                                 src_node, new_node,
-                                weight=1,
-                                debug_info="[add hidden node]")
+                                weight=1)
 
             cid = id_handler.next_connection_id(new_node.id, dest_node.id)
             self.add_connection(cid,
                                 new_node, dest_node,
-                                weight=original_connection.weight,
-                                debug_info="[add hidden node]")
+                                weight=original_connection.weight)
             return new_node
 
         return None
@@ -436,37 +432,30 @@ class NeatGenome(BaseGenome):
                 d = connection.weight * p
                 connection.weight += d
 
-    def shallow_copy(self) -> "NeatGenome":
-        """ Makes a simple/shallow copy of the genome.
+    def simple_copy(self) -> "NeatGenome":
+        """ Makes a simple copy of the genome.
 
-        Todo:
-            Optional random initial connections.
+        Wraps a call to this class' constructor.
 
         Returns:
             A copy of the genome without any of its connections (including the
             ones between input and output nodes) and hidden nodes.
         """
-        new_genome = NeatGenome(num_inputs=len(self._input_nodes),
-                                num_outputs=len(self._output_nodes),
-                                config=self.config,
-                                initial_connections=False)
-        return new_genome
+        return NeatGenome(num_inputs=len(self._input_nodes),
+                          num_outputs=len(self._output_nodes),
+                          config=self.config,
+                          initial_connections=False)
 
-    def deep_copy(self) -> "NeatGenome":
-        """ Makes an exact/deep copy of the genome.
-
-        All the nodes and connections of the parent genome are copied to the new
-        genome.
-
-        Returns:
-            An exact/deep copy of the genome.
+    def __copy_aux(self, random_weights: bool):
+        """ Auxiliary function used for deep copying the genome, with or without
+        random weights.
         """
-        new_genome = self.shallow_copy()
+        new_genome = self.simple_copy()
         copied_nodes = {n.id: n for n in new_genome.nodes()}
 
         # creating required nodes
         for node in self.hidden_nodes:
-            new_node = node.shallow_copy()
+            new_node = node.simple_copy()
             copied_nodes[node.id] = new_node
             new_genome.hidden_nodes.append(new_node)
 
@@ -477,21 +466,36 @@ class NeatGenome(BaseGenome):
                     cid=c.id,
                     src_node=copied_nodes[c.from_node.id],
                     dest_node=copied_nodes[c.to_node.id],
-                    enabled=c.enabled, weight=c.weight,
-                    debug_info="[deep_copy]")
+                    enabled=c.enabled,
+                    weight=c.weight if not random_weights else None)
             except ConnectionExistsError:
                 cons = [f"[{con.id}] {con.from_node.id}->{con.to_node.id} "
                         f"({con.enabled})" for con in self.connections]
-                db_info = "\t" + "\n\t".join([con.debug_info
-                                              for con in self.connections
-                                              if con.id == c.id])
                 raise ConnectionExistsError(
                     "Connection exists error when duplicating parent.\n"
-                    f"c.debug info: {c.debug_info}\n"
-                    f"duplicates debug info: \n{db_info}\n"
                     f"Source node's connections: {cons}")
 
         return new_genome
+
+    def random_copy(self) -> "NeatGenome":
+        """ Makes a deep copy of the genome, but with random weights.
+
+        Returns:
+            A deep copy of the genome with the same topology of the original
+            genome, but random connections weights.
+        """
+        return self.__copy_aux(random_weights=True)
+
+    def deep_copy(self) -> "NeatGenome":
+        """ Makes an exact/deep copy of the genome.
+
+        All the nodes and connections (including their weights) of the parent
+        genome are copied to the new genome.
+
+        Returns:
+            An exact/deep copy of the genome.
+        """
+        return self.__copy_aux(random_weights=False)
 
     def process_node(self, n: NodeGene) -> float:
         """ Recursively processes the activation of the given node.
@@ -644,52 +648,6 @@ class NeatGenome(BaseGenome):
                 return False
         return True
 
-    @classmethod
-    def random_genome(cls,
-                      num_inputs: int,
-                      num_outputs: int,
-                      config: NeatConfig,
-                      id_handler: IdHandler,
-                      max_hidden_nodes: int,
-                      max_hidden_connections: int) -> "NeatGenome":
-        """ Creates a new random genome.
-
-        Args:
-            num_inputs (int): Number of input nodes in the new genome.
-            num_outputs (int): Number of output nodes in the new genome.
-            config (NeatConfig): Settings of the current evolution session.
-            id_handler (IdHandler): ID handler used to assign IDs to the new
-                genome's hidden nodes and connections.
-            max_hidden_nodes (int): Maximum number of hidden nodes the new
-                genome can have. The number of hidden nodes in the genome will
-                be randomly picked from the interval `[0, max_hidden_nodes]`.
-            max_hidden_connections (int): Maximum number of hidden connections
-                (connections involving at least one hidden node) the new genome
-                can have. The number of hidden connections in the genome will be
-                randomly picked from the interval `[0, max_hidden_connections]`.
-
-        Returns:
-            The randomly generated genome.
-        """
-        new_genome = cls(num_inputs=num_inputs,
-                         num_outputs=num_outputs,
-                         config=config)
-
-        # adding hidden nodes
-        max_hnodes = max_hidden_nodes + config.random_genome_bonus_nodes
-        if max_hnodes > 0:
-            for _ in range(np.random.randint(low=0, high=(max_hnodes + 1))):
-                new_genome.add_random_hidden_node(id_handler)
-
-        # adding random connections
-        max_hcons = (max_hidden_connections
-                     + config.random_genome_bonus_connections)
-        if max_hcons > 0:
-            for _ in range(np.random.randint(low=0, high=(max_hcons + 1))):
-                new_genome.add_random_connection(id_handler)
-
-        return new_genome
-
     def mate(self, other: "NeatGenome") -> "NeatGenome":
         """ Mates two genomes to produce a new genome (offspring).
 
@@ -729,7 +687,7 @@ class NeatGenome(BaseGenome):
         genes = align_connections(self.connections, other.connections)
 
         # new genome
-        new_gen = self.shallow_copy()
+        new_gen = self.simple_copy()
         copied_nodes = {n.id: n for n in new_gen.nodes()}
 
         # mate (choose new genome's connections)
@@ -766,8 +724,7 @@ class NeatGenome(BaseGenome):
                 for node in (c.from_node, c.to_node):
                     if (node.type == NodeGene.Type.HIDDEN
                             and node.id not in copied_nodes):
-                        new_node = node.shallow_copy(
-                            debug_info="[mate_genomes]")
+                        new_node = node.simple_copy()
                         new_gen.hidden_nodes.append(new_node)
                         copied_nodes[node.id] = new_node
 
@@ -778,8 +735,7 @@ class NeatGenome(BaseGenome):
             try:
                 new_gen.add_connection(cid=c.id,
                                        src_node=src_node, dest_node=dest_node,
-                                       enabled=enabled, weight=c.weight,
-                                       debug_info="[mate_genomes]")
+                                       enabled=enabled, weight=c.weight)
             except ConnectionExistsError:
                 # if this exception is raised, it means that the connection was
                 # already inherited from the other parent; this is possible

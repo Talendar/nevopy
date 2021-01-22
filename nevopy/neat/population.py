@@ -28,7 +28,6 @@ implements the :class:`.Population` class, which handles the evolution of a
 population/community of genomes.
 """
 
-import typing
 from typing import Optional, List, Sequence, Dict, Callable
 
 import pickle
@@ -92,13 +91,16 @@ class Population:
 
     Args:
         size (int): Number of genomes in the population (constant value).
-        num_inputs (int): Number of input nodes in each genome.
-        num_outputs (int): Number of output nodes in each genome.
-        genome_type (typing.Type[NeatGenome]): Type of the genome to be evolved.
-            Accepts :class:`.neat.genome.Genome` (default) or a subclass of
-            :class:`.neat.genome.Genome`.
-        config (NeatConfig): The settings of the evolutionary process. If `None` the
-            default settings will be used.
+        num_inputs (Optional[int]): Number of input nodes in each genome. If
+            `None`, the number of inputs will be inferred from the base genome.
+        num_outputs (Optional[int]): Number of output nodes in each genome. If
+            `None`, the number of outputs will be inferred from the base genome.
+        base_genome (Optional[NeatGenome]): Genome that will serve as a base for
+            the randomly generated genomes of the population. If `None`, a new
+            genome of the class :class:`.NeatGenome` will be used as the base
+            genome.
+        config (NeatConfig): The settings of the evolutionary process. If `None`
+            the default settings will be used.
         processing_scheduler (Optional[ProcessingScheduler]): Processing
             scheduler to be used to compute the fitness of the population's
             genomes. If `None`, the default scheduler will be used
@@ -119,23 +121,45 @@ class Population:
 
     def __init__(self,
                  size: int,
-                 num_inputs: int,
-                 num_outputs: int,
-                 genome_type: typing.Type[NeatGenome] = NeatGenome,
+                 num_inputs: Optional[int] = None,
+                 num_outputs: Optional[int] = None,
+                 base_genome: Optional[NeatGenome] = None,
                  config: Optional[NeatConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
                  ) -> None:
+        # assertions
+        if base_genome is None and None in (num_inputs, num_outputs):
+            raise ValueError("If you don't pass a base genome as argument, you "
+                             "must specify a number of inputs and a number of "
+                             "outputs!")
+
+        if None not in (base_genome, num_inputs, num_outputs):
+            if (base_genome.num_inputs == num_inputs
+                    or base_genome.num_outputs == num_outputs):
+                raise ValueError("The specified numbers of inputs and outputs "
+                                 "are not compatible with the given base "
+                                 "genome! Expected "
+                                 f"(in: {base_genome.num_inputs}, "
+                                 f"out: {base_genome.num_outputs}) but got "
+                                 f"(in: {num_inputs}, out: {num_outputs}).")
+
+        # config
+        self.config = config if config is not None else NeatConfig()
+
+        # base genome
+        self._base_genome = (base_genome if base_genome is not None
+                             else NeatGenome(num_inputs=num_inputs,
+                                             num_outputs=num_outputs,
+                                             config=self.config))
+
+        # others instance variables
         self._size = size
-        self._num_inputs = num_inputs
-        self._num_outputs = num_outputs
-        self._Genome = genome_type
         self.stop_evolving = False
 
         self._scheduler = (processing_scheduler
                            if processing_scheduler is not None
                            else Population._DEFAULT_SCHEDULER())
 
-        self.config = config if config is not None else NeatConfig()
         self._id_handler = IdHandler(num_inputs, num_outputs,
                                      has_bias=self.config.bias_value is not None)
 
@@ -150,12 +174,7 @@ class Population:
         self._last_improvement = 0
 
         # creating initial genomes
-        self.genomes = [
-            self._Genome(num_inputs=num_inputs,
-                         num_outputs=num_outputs,
-                         config=self.config)
-            for _ in range(size)
-        ]
+        self.genomes = [self._base_genome.random_copy() for _ in range(size)]
 
         # creating pioneer species
         new_sp = Species(species_id=self._id_handler.next_species_id(),
@@ -283,16 +302,8 @@ class Population:
 
                 # mass extinction
                 self._mass_extinction_counter = 0
-                self.genomes = [best]
-                for _ in range(self._size - 1):
-                    self.genomes.append(self._Genome.random_genome(
-                        num_inputs=self._num_inputs,
-                        num_outputs=self._num_outputs,
-                        id_handler=self._id_handler,
-                        config=self.config,
-                        max_hidden_nodes=self.__max_hidden_nodes,
-                        max_hidden_connections=self.__max_hidden_connections,
-                    ))
+                self.genomes = [best] + [self._random_genome_with_extras()
+                                         for _ in range(self._size - 1)]
                 assert len(self.genomes) == self._size
             else:
                 # callback: on_reproduction_start
@@ -322,6 +333,37 @@ class Population:
             cb.on_evolution_end(generation_num)
 
         return history_callback
+
+    def _random_genome_with_extras(self) -> NeatGenome:
+        """ Creates a new random genome with extra hidden nodes and connections.
+
+        The number of hidden nodes in the new genome will be randomly picked
+        from the interval `[0, max_hn + bonus_hn]`, where `max_hn` is the
+        number of hidden nodes in the genome (of the population) with the
+        greatest number of hidden nodes and `bonus_hn` is a bonus value
+        specified in the settings. The number of hidden connections in the new
+        genome is chosen in a similar way.
+
+        Returns:
+            A new random genome with extra hidden nodes and connections.
+        """
+        new_genome = self._base_genome.random_copy()
+
+        # adding hidden nodes
+        max_hnodes = (self.__max_hidden_nodes
+                      + self.config.random_genome_bonus_nodes)
+        if max_hnodes > 0:
+            for _ in range(np.random.randint(low=0, high=(max_hnodes + 1))):
+                new_genome.add_random_hidden_node(self._id_handler)
+
+        # adding random connections
+        max_hcons = (self.__max_hidden_connections
+                     + self.config.random_genome_bonus_connections)
+        if max_hcons > 0:
+            for _ in range(np.random.randint(low=0, high=(max_hcons + 1))):
+                new_genome.add_random_connection(self._id_handler)
+
+        return new_genome
 
     def generate_offspring(self,
                            species: Species,
@@ -393,13 +435,7 @@ class Population:
 
         # invalid genome: replacing with a new random genome
         self._invalid_genomes_replaced += 1
-        return self._Genome.random_genome(
-            num_inputs=self._num_inputs,
-            num_outputs=self._num_outputs,
-            id_handler=self._id_handler,
-            config=self.config,
-            max_hidden_nodes=self.__max_hidden_nodes,
-            max_hidden_connections=self.__max_hidden_connections)
+        return self._random_genome_with_extras()
 
     def _calc_prob_dist(self) -> None:
         """

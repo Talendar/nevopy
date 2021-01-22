@@ -104,16 +104,22 @@ class BaseGenome(ABC):
     def mutate_weights(self) -> None:
         """ Randomly mutates the weights of the genome's connections. """
 
-    # todo:
-    # def shallow_copy(self):
-    #     pass
+    @abstractmethod
+    def random_copy(self) -> "BaseGenome":
+        """ Makes a deep copy of the genome, but with random weights.
+
+        Returns:
+            A deep copy of the genome with the same topology of the original
+            genome, but random connections weights.
+        """
 
     @abstractmethod
     def deep_copy(self) -> "BaseGenome":
         """ Makes an exact/deep copy of the genome.
 
         Returns:
-            An exact/deep copy of the genome.
+            An exact/deep copy of the genome. It has the same topology and
+            connections weights of the original genome.
         """
 
     @abstractmethod
