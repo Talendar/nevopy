@@ -22,7 +22,7 @@ import tensorflow as tf
 
 #################################### CONFIG ####################################
 GENERATIONS = 50
-POP_SIZE = 30
+POP_SIZE = 50
 RENDER_FPS = 60
 MAX_STEPS = float("inf")
 MAX_IDLE_STEPS = 64
@@ -166,7 +166,6 @@ def evaluate(genome, max_steps=MAX_STEPS, visualize=False):
             break
 
     env.close()
-    print(f"gid = {genome}, fitness = {total_reward}")
     return total_reward
 
 
@@ -186,13 +185,6 @@ def new_pop():
         layers=[
             TFConv2DLayer(filters=128, kernel_size=(8, 11), strides=(4, 4)),
             TFConv2DLayer(filters=8, kernel_size=(5, 5), strides=(3, 3)),
-            # TFConv2DLayer(filters=32, kernel_size=(3, 3), strides=(1, 1)),
-            # TFConv2DLayer(filters=32, kernel_size=(3, 5), strides=(2, 2)),
-            # TFConv2DLayer(filters=8, kernel_size=(2, 3), strides=(1, 2)),
-            # TFConv2DLayer(filters=16, kernel_size=(3, 3), strides=(2, 2)),
-            # TFConv2DLayer(filters=8, kernel_size=(5, 5), strides=(3, 3)),
-            # TFConv2DLayer(filters=4, kernel_size=(3, 3), strides=(1, 1)),
-            # TFConv2DLayer(filters=2, kernel_size=(3, 3), strides=(1, 1)),
         ]
     )
 
@@ -210,13 +202,11 @@ def new_pop():
     )
 
     # evolution
-    p = neat.population.Population(
+    p = neat.population.NeatPopulation(
         size=POP_SIZE,
         base_genome=base_genome,
         config=NEAT_CONFIG,
-        processing_scheduler=RayProcessingScheduler(num_gpus=1,
-                                                    num_cpus=12,
-                                                    worker_gpu_pc=0.25)
+        processing_scheduler=RayProcessingScheduler(worker_gpu_frac=0.25)
     )
     history = p.evolve(generations=GENERATIONS,
                        fitness_function=evaluate)
@@ -225,11 +215,6 @@ def new_pop():
 
 
 if __name__ == "__main__":
-    # fixing TF
-    # tf_config = tf.compat.v1.ConfigProto()
-    # tf_config.gpu_options.allow_growth = True
-    # tf_session = tf.compat.v1.InteractiveSession(config=tf_config)
-
     # start
     pop = best = None
     while True:
@@ -257,7 +242,7 @@ if __name__ == "__main__":
             file_pathname = input("Path of the population file to be "
                                   "loaded: ")
             try:
-                pop = neat.population.Population.load(file_pathname)
+                pop = neat.population.NeatPopulation.load(file_pathname)
                 best = pop.fittest()
                 print("Population loaded!")
             except:

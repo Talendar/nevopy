@@ -53,8 +53,8 @@ if __name__ == "__main__":
 
     for r in range(runs):
         start_time = timer()
-        pop = neat.population.Population(
-            size=150,
+        pop = neat.population.NeatPopulation(
+            size=200,
             num_inputs=len(xor_inputs[0]),
             num_outputs=1,
         )
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # del pop
     # del best
     #
-    # pop = nevopy.neat.population.Population.load("./test/test_pop.pkl")
+    # pop = nevopy.neat.population.NeatPopulation.load("./test/test_pop.pkl")
     # print(pop.info())
     # best = pop.fittest()
     # eval_genome(best, log=True)

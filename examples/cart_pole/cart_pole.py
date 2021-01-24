@@ -19,9 +19,9 @@ if __name__ == "__main__":
     evaluate = utils.GymEnvFitness(make_env=make_env,
                                    num_episodes=num_episodes,
                                    render_fps=render_fps)
-    pop = neat.population.Population(size=100,
-                                     num_inputs=num_inputs,
-                                     num_outputs=num_outputs)
+    pop = neat.population.NeatPopulation(size=100,
+                                         num_inputs=num_inputs,
+                                         num_outputs=num_outputs)
     history = pop.evolve(generations=50,
                          fitness_function=evaluate,
                          callbacks=[

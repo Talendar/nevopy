@@ -32,8 +32,6 @@ import ray
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
 from typing import List, Optional, Sequence, Callable
-from multiprocessing import cpu_count
-import numpy as np
 
 
 class RayProcessingScheduler(ProcessingScheduler):
@@ -60,8 +58,6 @@ class RayProcessingScheduler(ProcessingScheduler):
     that you implement your own scheduler by inheriting
     :class:`.ProcessingScheduler`.
 
-    TODO: update docs
-
     Args:
         address (Optional[str]): The address of the Ray cluster to connect to.
             If this address is not provided, then this command will start Redis,
@@ -71,56 +67,58 @@ class RayProcessingScheduler(ProcessingScheduler):
             tells the driver to detect the the cluster, removing the need to
             specify a specific node address.
         num_cpus (Optional[int]): Number of CPUs the user wishes to assign to
-            each raylet. By default, this is set based on virtual cores.
+            each raylet. By default, this is set based on virtual cores (value
+            returned by os.cpu_count()).
+        num_gpus (Optional[int]): Number of GPUs the user wishes to assign to
+            each raylet. By default, this is set based on detected GPUs. If you
+            are using TensorFlow, it's recommended for you to execute the
+            following piece of code before importing the module:
+
+                .. code-block:: python
+
+                    import os
+                    os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+
+            This will prevent individual TensorFlow's sessions from allocating
+            the entire GPU memory available.
+
+        worker_gpu_frac (Optional[float]): Minimum fraction of a GPU a worker
+            needs in order to use it. If there isn't enough GPU resources
+            available for a worker when a task is assigned to it, it will not
+            use any GPU resources. Here we consider the number of workers as
+            being equal to the number of virtual CPU cores available. By
+            default, this fraction is set to ``num_gpus / num_cpus``, which
+            means that all workers will use the GPUs, each being able to access
+            an equal fraction of them. Note that this might be a source of `out
+            of memory errors`, since the GPU fraction assigned to each worker
+            might be too low. It's usually better to manually select a fraction.
         **kwargs: Optional named arguments to be passed to `ray.init()`. For a
             complete list of the parameters of `ray.init()`, check `ray's`
             official docs (https://docs.ray.io/en/master/package-ref.html).
     """
 
-    # def __init__(self,
-    #              address: Optional[str] = None,
-    #              num_cpus: Optional[int] = None,
-    #              num_gpus: Optional[int] = None,
-    #              worker_gpu_pc: float = 0.1,
-    #              gpu_jobs_frac: Optional[float] = None,
-    #              gpu_usage_pc: float = 1.0,
-    #              **kwargs) -> None:
-    #     if ray.is_initialized():
-    #         RuntimeError("An existing ray runtime was detected! Stop it before "
-    #                      "instantiating this class to avoid conflicts.")
-    #
-    #     self._num_cpus = num_cpus if num_gpus is not None else cpu_count()
-    #     self._num_gpus = num_gpus if num_gpus is not None else 0
-    #
-    #     if self._num_gpus > 0:
-    #         self._gpu_jobs_frac = (gpu_jobs_frac if gpu_jobs_frac is not None
-    #                                else 1 / self._num_cpus)
-    #         self._gpu_usage_pc = gpu_usage_pc
-    #     else:
-    #         self._gpu_jobs_frac = self._gpu_usage_pc = 0
-    #
-    #     ray.init(address=address,
-    #              num_cpus=self._num_cpus,
-    #              num_gpus=self._num_gpus,
-    #              **kwargs)
     def __init__(self,
                  address: Optional[str] = None,
                  num_cpus: Optional[int] = None,
                  num_gpus: Optional[int] = None,
-                 worker_gpu_pc: float = 0.1,
+                 worker_gpu_frac: Optional[float] = None,
                  **kwargs) -> None:
         if ray.is_initialized():
             RuntimeError("An existing ray runtime was detected! Stop it before "
                          "instantiating this class to avoid conflicts.")
 
-        self._num_cpus = num_cpus if num_gpus is not None else cpu_count()
-        self._num_gpus = num_gpus if num_gpus is not None else 0
-        self._worker_gpu_pc = worker_gpu_pc
-
+        self._num_cpus = num_cpus if num_cpus is not None else os.cpu_count()
         ray.init(address=address,
                  num_cpus=self._num_cpus,
-                 num_gpus=self._num_gpus,
+                 num_gpus=num_gpus,
                  **kwargs)
+        self._num_gpus = ray.available_resources()["GPU"]
+        self._worker_gpu_frac = (worker_gpu_frac if worker_gpu_frac is not None
+                                 else self._num_gpus / self._num_cpus)
+
+        print(f"Ray's Resources: CPUs: {self._num_cpus}  |  "
+              f"GPUs: {self._num_gpus}  |  "
+              f"GPU frac: {self._worker_gpu_frac:.4f}")
 
     def run(self,
             items: Sequence[TProcItem],
@@ -171,15 +169,15 @@ class RayProcessingScheduler(ProcessingScheduler):
                 done_refs, processing_refs = ray.wait(processing_refs)
                 for ref, result in zip(done_refs, ray.get(done_refs)):
                     if ref in gpu_processing_refs:
-                        gpu_available += self._worker_gpu_pc
+                        gpu_available += self._worker_gpu_frac
                         gpu_processing_refs.remove(ref)
                     results_dict[ref2idx[ref]] = result
 
             # assigning work
             while len(processing_refs) < NUM_WORKERS and idx < len(items):
-                if gpu_available >= self._worker_gpu_pc:
-                    gpu_available -= self._worker_gpu_pc
-                    ref = _func_wrapper.options(num_gpus=self._worker_gpu_pc)\
+                if gpu_available >= self._worker_gpu_frac:
+                    gpu_available -= self._worker_gpu_frac
+                    ref = _func_wrapper.options(num_gpus=self._worker_gpu_frac)\
                                        .remote(func_id, items[idx])
                     gpu_processing_refs.add(ref)
                 else:
@@ -191,7 +189,6 @@ class RayProcessingScheduler(ProcessingScheduler):
 
         # returning results
         assert len(items) == len(results_dict)
-        # todo: test order os results
         return [results_dict[i] for i in sorted(results_dict)]
 
 

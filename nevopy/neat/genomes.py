@@ -1146,8 +1146,35 @@ class ConnectionToBiasNodeError(Exception):
 
 
 class FixTopNeatGenome(NeatGenome):
-    """
-    TODO
+    """ Integration of a NEAT genome with a fixed topology genome.
+
+    This class defines a new type of NEAT genome that integrates the default
+    :class:`.NeatGenome with a :class:`.FixedTopologyGenome`. It can be used
+    with :class:`.NeatPopulation`.
+
+    When an input is received, it's first processed by the layers of the fixed
+    topology genome. The output is, then, processed using NEAT, which generates
+    the final output.
+
+    Note:
+        This class is useful when the inputs that will be fed to the genome have
+        high dimensions. Since NEAT doesn't scale well with such lengthy inputs
+        (like images), a fixed topology genome (that can contain, for instance,
+        convolutional layers) can be used to reduce the dimensionality of the
+        input before feeding it to NEAT's nodes.
+
+    Args:
+        fito_genome (FixedTopologyGenome): Instance of
+            :class:`.FixedTopologyGenome` to be used to pre-process the inputs.
+            It will also be evolved.
+        num_neat_inputs (int): Length of the flattened outputs of the fixed
+            topology genome. It's also the number of input nodes of the NEAT
+            genome.
+        num_neat_outputs (int): Number of output nodes of the NEAT genome.
+        config (NeatConfig): Settings of the current evolutionary session.
+        initial_neat_connections (bool): Whether to create connections
+            connecting each input node of the NEAT genome to each of its output
+            nodes.
     """
 
     def __init__(self,
@@ -1155,14 +1182,18 @@ class FixTopNeatGenome(NeatGenome):
                  num_neat_inputs: int,
                  num_neat_outputs: int,
                  config: NeatConfig,
-                 initial_connections: bool = True) -> None:
+                 initial_neat_connections: bool = True) -> None:
         super().__init__(num_inputs=num_neat_inputs,
                          num_outputs=num_neat_outputs,
                          config=config,
-                         initial_connections=initial_connections)
+                         initial_connections=initial_neat_connections)
         self.fito_genome = fito_genome
 
     def distance(self, other: "FixTopNeatGenome") -> float:
+        """ Sums, to the default distance calculated by
+        :meth:`.NeatGenome.distance()`, the sum of the absolute difference
+        between the fixed topology layers weights.
+        """
         dist = super().distance(other)
         c = self.config.weight_difference_coefficient
         for l1, l2 in zip(self.fito_genome.layers, other.fito_genome.layers):
@@ -1180,13 +1211,6 @@ class FixTopNeatGenome(NeatGenome):
             self.fito_genome.config.update_mass_extinction(self.config.maex_counter)
         self.fito_genome.mutate_weights()
 
-    def __fito_copy_aux(self):
-        return FixTopNeatGenome(fito_genome=None,
-                                num_neat_inputs=self.num_inputs,
-                                num_neat_outputs=self.num_outputs,
-                                config=self.config,
-                                initial_connections=False)
-
     def simple_copy(self) -> "FixTopNeatGenome":
         """ Makes a simple copy of the genome.
 
@@ -1203,7 +1227,7 @@ class FixTopNeatGenome(NeatGenome):
                                 num_neat_inputs=self.num_inputs,
                                 num_neat_outputs=self.num_outputs,
                                 config=self.config,
-                                initial_connections=False)
+                                initial_neat_connections=False)
 
     def random_copy(self) -> "FixTopNeatGenome":
         new_genome = super().random_copy()
@@ -1216,6 +1240,9 @@ class FixTopNeatGenome(NeatGenome):
         return new_genome
 
     def process(self, X: Sequence[float]) -> np.ndarray:
+        """ Feeds the input to the fixed topology genome and uses the outout as
+        input to the NEAT genome.
+        """
         X = reshape(self.fito_genome.process(X), [-1])
         return super().process(X)
 

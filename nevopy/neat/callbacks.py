@@ -31,7 +31,7 @@ Example:
 
     To implement your own callback, simply create a class that inherits from
     :class:`.Callback` and pass an instance of it to
-    :meth:`.neat.population.Population.evolve()`.
+    :meth:`.neat.population.NeatPopulation.evolve()`.
 
     .. code-block:: python
 
@@ -64,16 +64,16 @@ class Callback:
     """ Abstract base class used to build new callbacks.
 
     All callbacks passed as argument to
-    :meth:`.neat.population.Population.evolve()` should inherit this class.
+    :meth:`.neat.population.NeatPopulation.evolve()` should inherit this class.
 
     Attributes:
-        population (Population): Reference to the instance of
-            :class:`.neat.population.Population` being evolved by the NEAT
+        population (NeatPopulation): Reference to the instance of
+            :class:`.neat.population.NeatPopulation` being evolved by the NEAT
             algorithm.
     """
 
     def __init__(self) -> None:
-        self.population = None  # type: Optional[neat.population.Population]
+        self.population = None  # type: Optional[neat.population.NeatPopulation]
 
     def on_generation_start(self,
                             current_generation: int,

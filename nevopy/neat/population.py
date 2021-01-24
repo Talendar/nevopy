@@ -24,7 +24,7 @@
 """ Implements the main mechanisms of the NEAT algorithm.
 
 This is the main module of `NEvoPY's` implementation of the NEAT algorithm. It
-implements the :class:`.Population` class, which handles the evolution of a
+implements the :class:`.NeatPopulation` class, which handles the evolution of a
 population/community of genomes.
 """
 
@@ -47,7 +47,7 @@ from nevopy.processing.base_scheduler import ProcessingScheduler
 from nevopy.processing.pool_processing import PoolProcessingScheduler
 
 
-class Population:
+class NeatPopulation:
     """ Population of individuals (genomes) to be evolved by the NEAT algorithm.
 
     Main class of `NEvoPY's` implementation of the NEAT algorithm. It represents
@@ -79,7 +79,7 @@ class Population:
 
         .. code-block:: python
 
-            pop = Population(size=100,
+            pop = NeatPopulation(size=100,
                              num_inputs=10,
                              num_outputs=3)
 
@@ -127,33 +127,37 @@ class Population:
                  config: Optional[NeatConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
                  ) -> None:
-        # assertions
-        if base_genome is None and None in (num_inputs, num_outputs):
-            raise ValueError("If you don't pass a base genome as argument, you "
-                             "must specify a number of inputs and a number of "
-                             "outputs!")
+        # assertions and config
+        if base_genome is None:
+            if None in (num_inputs, num_outputs):
+                raise ValueError(
+                    "If you don't pass a base genome as argument, you "
+                    "must specify a number of inputs and a number of "
+                    "outputs!")
 
-        if None not in (base_genome, num_inputs, num_outputs):
-            if (base_genome.num_inputs == num_inputs
-                    or base_genome.num_outputs == num_outputs):
-                raise ValueError("The specified numbers of inputs and outputs "
-                                 "are not compatible with the given base "
-                                 "genome! Expected "
-                                 f"(in: {base_genome.num_inputs}, "
-                                 f"out: {base_genome.num_outputs}) but got "
-                                 f"(in: {num_inputs}, out: {num_outputs}).")
+            self.config = config if config is not None else NeatConfig()
+            self._base_genome = NeatGenome(num_inputs=num_inputs,
+                                           num_outputs=num_outputs,
+                                           config=self.config)
+        else:
+            if None not in (num_inputs, num_outputs):
+                if (base_genome.num_inputs != num_inputs
+                        or base_genome.num_outputs != num_outputs):
+                    raise ValueError(
+                        "The specified numbers of inputs and outputs "
+                        "are not compatible with the given base "
+                        "genome! Expected "
+                        f"(in: {base_genome.num_inputs}, "
+                        f"out: {base_genome.num_outputs}) but got "
+                        f"(in: {num_inputs}, out: {num_outputs}).")
 
-        # config
-        self.config = config if config is not None else NeatConfig()
+            if config is not None and config != base_genome.config:
+                raise ValueError("The `NeatConfig` object passed as argument "
+                                 "does not match the `NeatConfig` object of "
+                                 "the base genome!")
 
-        # base genome
-        self._base_genome = (base_genome if base_genome is not None
-                             else NeatGenome(num_inputs=num_inputs,
-                                             num_outputs=num_outputs,
-                                             config=self.config))
-
-        num_inputs = self._base_genome.num_inputs
-        num_outputs = self._base_genome.num_outputs
+            self.config = base_genome.config
+            self._base_genome = base_genome
 
         # others instance variables
         self._size = size
@@ -161,9 +165,10 @@ class Population:
 
         self._scheduler = (processing_scheduler
                            if processing_scheduler is not None
-                           else Population._DEFAULT_SCHEDULER())
+                           else NeatPopulation._DEFAULT_SCHEDULER())
 
-        self._id_handler = IdHandler(num_inputs, num_outputs,
+        self._id_handler = IdHandler(self._base_genome.num_inputs,
+                                     self._base_genome.num_outputs,
                                      has_bias=self.config.bias_value is not None)
 
         self._rank_prob_dist = None            # type: Optional[np.ndarray]
@@ -674,7 +679,8 @@ class Population:
 
     @staticmethod
     def load(abs_path: str,
-             scheduler: Optional[ProcessingScheduler] = None) -> "Population":
+             scheduler: Optional[ProcessingScheduler] = None,
+    ) -> "NeatPopulation":
         """ Loads the population from the given absolute path.
 
         This method uses :py:mod:`pickle` to load the genome.
@@ -692,7 +698,7 @@ class Population:
             pop = pickle.load(in_file)
 
         pop._scheduler = (scheduler if scheduler is not None
-                          else Population._DEFAULT_SCHEDULER())
+                          else NeatPopulation._DEFAULT_SCHEDULER())
         return pop
 
     def info(self) -> str:
