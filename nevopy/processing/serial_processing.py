@@ -26,7 +26,7 @@
 
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
-from typing import List, Iterable, Callable
+from typing import List, Sequence, Callable
 
 
 class SerialProcessingScheduler(ProcessingScheduler):
@@ -38,13 +38,13 @@ class SerialProcessingScheduler(ProcessingScheduler):
     """
 
     def run(self,
-            items: Iterable[TProcItem],
+            items: Sequence[TProcItem],
             func: Callable[[TProcItem], TProcResult],
     ) -> List[TProcResult]:
         """ Sequentially processes the input items.
 
         Args:
-            items (Iterable[TProcItem]): Iterable containing the items to be
+            items (Sequence[TProcItem]): Iterable containing the items to be
                 processed.
             func (Callable[[TProcItem], TProcResult]): Callable (usually a
                 function) that takes one item :attr:`.TProcItem` as input and

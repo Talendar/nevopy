@@ -21,7 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Implements neural network layers.
+""" Implements neural network layers with fixed topology.
 
 This module implements a variety of neural network layers to be used by genomes
 in the context of neuroevolution.
@@ -43,7 +43,8 @@ class BaseLayer(ABC):
     """ Abstract base class that defines a neural network layer.
 
     This abstract base class defines the general structure and behaviour of a
-    neural network layer in the context of neuroevolutionary algorithms.
+    fixed topology neural network layer in the context of neuroevolutionary
+    algorithms.
 
     Args:
         config (Optional[FixedTopologyConfig]): Settings being used in the
@@ -53,18 +54,24 @@ class BaseLayer(ABC):
         input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
             processed by the layer. If `None`, an input shape for the layer must
             be manually specified later or be inferred from an input sample.
+        mutable (Optional[bool]): Whether or not the layer can have its weights
+            changed (mutation).
 
     Attributes:
         config (Optional[FixedTopologyConfig]): Settings being used in the
             current evolutionary session. If `None`, a config object hasn't been
             assigned to the layer yet.
+        mutable (bool): Whether or not the layer can have its weights changed
+            (mutation).
     """
 
     def __init__(self,
                  config: Optional[FixedTopologyConfig] = None,
-                 input_shape: Optional[Tuple[int, ...]] = None) -> None:
+                 input_shape: Optional[Tuple[int, ...]] = None,
+                 mutable: Optional[bool] = True) -> None:
         self.config = config
         self._input_shape = input_shape
+        self.mutable = mutable
 
     @property
     @abstractmethod
@@ -130,7 +137,9 @@ class BaseLayer(ABC):
 
         Returns:
             A new layer with the same topology of the current layer, but with
-            newly initialized weights and biases.
+            newly initialized weights and biases. If the layer is immutable, a
+            deep copy (:meth:`.BaseLayer.deep_copy`) of the layer is returned
+            instead.
         """
 
     @abstractmethod
@@ -143,7 +152,10 @@ class BaseLayer(ABC):
 
     @abstractmethod
     def mutate_weights(self) -> None:
-        """ Randomly mutates the weights of the layer's connections. """
+        """ Randomly mutates the weights of the layer's connections.
+
+        If the layer is immutable, this method doesn't do anything.
+        """
 
     @abstractmethod
     def mate(self, other: Any) -> "BaseLayer":
@@ -159,7 +171,9 @@ class BaseLayer(ABC):
 
         Returns:
             A new layer (the offspring born from the sexual reproduction between
-            the current layer and the layer passed as argument.
+            the current layer and the layer passed as argument. If the layer is
+            immutable, ``other`` is expected to be equal to ``self``, so a deep
+            copy (:meth:`.BaseLayer.deep_copy`) of the layer is returned.
 
         Raises:
             IncompatibleLayersError: If the layer passed as argument to
@@ -205,6 +219,8 @@ class TensorFlowLayer(BaseLayer, ABC):
         input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
             processed by the layer. If `None`, an input shape for the layer must
             be manually specified later or be inferred from an input sample.
+        mutable (Optional[bool]): Whether or not the layer can have its weights
+            changed (mutation).
         **kwargs: Named arguments to be passed to the constructor of a subclass
             of this base class when making a copy of the subclass.
     """
@@ -212,8 +228,9 @@ class TensorFlowLayer(BaseLayer, ABC):
     def __init__(self,
                  config: Optional[FixedTopologyConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
+                 mutable: Optional[bool] = True,
                  **kwargs):
-        super().__init__(config, input_shape)
+        super().__init__(config, input_shape, mutable)
         self._new_layer_kwargs = kwargs
 
     @property
@@ -261,13 +278,24 @@ class TensorFlowLayer(BaseLayer, ABC):
                                     "shape expected by the layer! "
                                     f"TensorFlow's error message: {str(e)}")
 
-    def random_copy(self) -> "TensorFlowLayer":
+    def _new_instance(self):
+        """ Returns a new instance of the layer.
+
+        The new instance doesn't inherit the current layer's weights - a new set
+        of weights is initialized.
+        """
         return self.__class__(config=self.config,
                               input_shape=self._input_shape,
+                              mutable=self.mutable,
                               **self._new_layer_kwargs)
 
+    def random_copy(self) -> "TensorFlowLayer":
+        if not self.mutable:
+            return self.deep_copy()
+        return self._new_instance()
+
     def deep_copy(self) -> "TensorFlowLayer":
-        new_layer = self.random_copy()
+        new_layer = self._new_instance()
         new_layer.weights = self.weights
         return new_layer
 
@@ -277,7 +305,13 @@ class TensorFlowLayer(BaseLayer, ABC):
         Each weight will be perturbed by an amount defined in the settings of
         the current evolutionary session. Each weight also has a chance of being
         reset (a new random value is assigned to it).
+
+        If the layer is immutable, nothing happens (the layer's weights remain
+        unchanged).
         """
+        if not self.mutable:
+            return
+
         assert self.config is not None
         if self.input_shape is None:
             raise RuntimeError("Attempt to mutate the weights of a layer that "
@@ -352,6 +386,8 @@ class TFConv2DLayer(TensorFlowLayer):
         input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
             processed by the layer. If `None`, an input shape for the layer must
             be manually specified later or be inferred from an input sample.
+        mutable (Optional[bool]): Whether or not the layer can have its weights
+            changed (mutation).
         **kwargs: Named arguments to be passed to the constructor of the
             TensorFlow layer.
     """
@@ -361,6 +397,7 @@ class TFConv2DLayer(TensorFlowLayer):
                  kernel_size: Tuple[int, int],
                  config: Optional[FixedTopologyConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
+                 mutable: Optional[bool] = True,
                  strides: Tuple[int, int] = (1, 1),
                  padding: str = "valid",
                  activation="relu",
@@ -395,14 +432,20 @@ class TFConv2DLayer(TensorFlowLayer):
 
         Returns:
             A new 2D-convolutional layer that inherits information from both
-            parents.
+            parents. If the layer is immutable, a deep copy
+            (:meth:`.BaseLayer.deep_copy`) of the layer is returned.
 
         Raises:
             IncompatibleLayersError: If the weight and bias matrices of the two
                 given layers are not of the same shape (i.e., the layers are not
-                compatible for mating).
+                compatible for mating) or if one of the layers is immutable and
+                the other is mutable.
         """
-        if other == self:
+        if self.mutable != other.mutable:
+            raise IncompatibleLayersError("Attempt to mate an immutable "
+                                          "layer with a mutable layer!")
+
+        if other == self or not self.mutable:
             return self.deep_copy()  # type: ignore
 
         # retrieving weights and biases as numpy arrays

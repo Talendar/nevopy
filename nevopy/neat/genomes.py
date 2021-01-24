@@ -28,7 +28,7 @@ phenotype). In this implementation, there is no distinction between a genome and
 the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
-from typing import Optional, Sequence, Dict, Set, Any
+from typing import Optional, Sequence, Dict, Set, Any, cast
 
 import pickle
 from pathlib import Path
@@ -1189,19 +1189,21 @@ class FixTopNeatGenome(NeatGenome):
                          initial_connections=initial_neat_connections)
         self.fito_genome = fito_genome
 
-    def distance(self, other: "FixTopNeatGenome") -> float:
+    def distance(self, other: NeatGenome) -> float:
         """ Sums, to the default distance calculated by
         :meth:`.NeatGenome.distance()`, the sum of the absolute difference
         between the fixed topology layers weights.
         """
         dist = super().distance(other)
-        c = self.config.weight_difference_coefficient
-        for l1, l2 in zip(self.fito_genome.layers, other.fito_genome.layers):
-            w1, b1 = [a.numpy() for a in l1.weights]
-            w2, b2 = [a.numpy() for a in l2.weights]
+        if isinstance(other, FixTopNeatGenome):
+            c = self.config.weight_difference_coefficient
+            for l1, l2 in zip(self.fito_genome.layers,
+                              other.fito_genome.layers):
+                w1, b1 = [a.numpy() for a in l1.weights]
+                w2, b2 = [a.numpy() for a in l2.weights]
 
-            dist += np.abs(w1 - w2).sum() * c
-            dist += np.abs(b1 - b2).sum() * c
+                dist += np.abs(w1 - w2).sum() * c
+                dist += np.abs(b1 - b2).sum() * c
 
         return dist
 
@@ -1231,11 +1233,13 @@ class FixTopNeatGenome(NeatGenome):
 
     def random_copy(self) -> "FixTopNeatGenome":
         new_genome = super().random_copy()
+        new_genome = cast(FixTopNeatGenome, new_genome)
         new_genome.fito_genome = self.fito_genome.random_copy()
         return new_genome
 
     def deep_copy(self) -> "FixTopNeatGenome":
         new_genome = super().deep_copy()
+        new_genome = cast(FixTopNeatGenome, new_genome)
         new_genome.fito_genome = self.fito_genome.deep_copy()
         return new_genome
 
@@ -1246,11 +1250,14 @@ class FixTopNeatGenome(NeatGenome):
         X = reshape(self.fito_genome.process(X), [-1])
         return super().process(X)
 
-    def mate(self, other: "FixTopNeatGenome") -> "FixTopNeatGenome":
+    def mate(self, other: NeatGenome) -> NeatGenome:
         new_genome = super().mate(other)
         if self.fito_genome.config.maex_counter != self.config.maex_counter:
             self.fito_genome.config.update_mass_extinction(self.config.maex_counter)
 
-        new_genome.fito_genome = self.fito_genome.mate(other.fito_genome)
+        if isinstance(other, FixTopNeatGenome):
+            new_genome = cast(FixTopNeatGenome, new_genome)
+            new_genome.fito_genome = self.fito_genome.mate(other.fito_genome)
+
         return new_genome
 

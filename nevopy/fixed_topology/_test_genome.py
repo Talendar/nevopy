@@ -62,9 +62,16 @@ def test_processing_and_mutation(genome, num_tests=100):
     for _ in range(num_tests):
         w_list, b_list = get_weight_lists(genome)
         if past_w_list is not None:
+            idx = 0
             for (w0, w1), (b0, b1) in zip(zip(past_w_list, w_list),
                                           zip(past_b_list, b_list)):
-                assert not (w0 == w1).all() and not (b0 == b1).all()
+                if genome.layers[idx].mutable:
+                    assert not (w0 == w1).all()
+                    assert not (b0 == b1).all()
+                else:
+                    assert (w0 == w1).all()
+                    assert (b0 == b1).all()
+                idx += 1
 
         past_w_list, past_b_list = w_list, b_list
         for __ in range(3):
@@ -79,8 +86,15 @@ def test_random_copy(genome):
     for l_new, l_old in zip(new_genome.layers, genome.layers):
         w_new, b_new = [w.numpy() for w in l_new.weights]
         w_old, b_old = [w.numpy() for w in l_old.weights]
+
         assert w_new.shape == w_old.shape and b_new.shape == b_old.shape
-        assert not (w_new == w_old).all()
+        assert l_new.mutable == l_old.mutable
+
+        if l_old.mutable:
+            assert not (w_new == w_old).all()
+        else:
+            assert (w_new == w_old).all()
+            assert (b_new == b_old).all()
 
 
 def test_deep_copy(genome, num_tests=100):
@@ -102,8 +116,16 @@ def test_deep_copy(genome, num_tests=100):
 
             w_new, b_new = get_weight_lists(new_genome)
             w_old, b_old = get_weight_lists(genome)
+
+            idx = 0
             for (w0, w1), (b0, b1) in zip(zip(w_new, w_old), zip(b_new, b_old)):
-                assert not (w0 == w1).all() and not (b0 == b1).all()
+                if genome.layers[idx].mutable:
+                    assert not (w0 == w1).all()
+                    assert not (b0 == b1).all()
+                else:
+                    assert (w0 == w1).all()
+                    assert (b0 == b1).all()
+                idx += 1
 
 
 def test_mating(g1, g2, mode, num_tests=100):
@@ -122,34 +144,36 @@ def test_mating(g1, g2, mode, num_tests=100):
         w1_list, b1_list = get_weight_lists(p1)
         w2_list, b2_list = get_weight_lists(p2)
 
+        idx = 0
         for (w0, w1, w2), (b0, b1, b2) in zip(zip(w_new_list, w1_list, w2_list),
                                               zip(b_new_list, b1_list, b2_list)):
-            if p1 != p2:
-                if mode == "exchange_weights":
-                    assert not (w0 == w1).all() and not (w0 == w2).all()
-                    assert not (b0 == b1).all() and not (b0 == b2).all()
-                else:
-                    assert (w0 == w1).all() ^ (w0 == w2).all()
-                    assert (b0 == b1).all() ^ (b0 == b2).all()
-            else:
+            if p1 == p2:
                 assert (w0 == w1).all() and (w0 == w2).all()
                 assert (b0 == b1).all() and (b0 == b2).all()
+            else:
+                if mode == "exchange_weights":
+                    if p1.layers[idx].mutable:
+                        assert not (w0 == w1).all() and not (w0 == w2).all()
+                        assert not (b0 == b1).all() and not (b0 == b2).all()
+                    else:
+                        assert (w0 == w1).all()
+                        assert (b0 == b1).all()
+                else:
+                    assert (w0 == w1).all() ^ (w0 == w2).all()
+                    if not ((b0 == b1).all() and (b0 == b2).all()):
+                        assert (b0 == b1).all() ^ (b0 == b2).all()
+            idx += 1
 
 
 if __name__ == "__main__":
-    # fixing TF
-    # tf_config = tf.compat.v1.ConfigProto()
-    # tf_config.gpu_options.allow_growth = True
-    # tf_session = tf.compat.v1.InteractiveSession(config=tf_config)
-
     # genomes
     genome1 = FixedTopologyGenome(config=config, layers=[
-        TFConv2DLayer(filters=64, kernel_size=(3, 3)),
+        TFConv2DLayer(filters=64, kernel_size=(3, 3), mutable=False),
         TFConv2DLayer(filters=32, kernel_size=(3, 3)),
         TFConv2DLayer(filters=128, kernel_size=(3, 3)),
     ])
     genome2 = FixedTopologyGenome(config=config, layers=[
-        TFConv2DLayer(filters=64, kernel_size=(3, 3)),
+        TFConv2DLayer(filters=64, kernel_size=(3, 3), mutable=False),
         TFConv2DLayer(filters=32, kernel_size=(3, 3)),
         TFConv2DLayer(filters=128, kernel_size=(3, 3)),
     ])

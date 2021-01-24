@@ -31,7 +31,7 @@ with `pickle`.
 import multiprocessing
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
-from typing import List, Optional, Iterable, Callable
+from typing import List, Optional, Sequence, Callable
 
 
 class PoolProcessingScheduler(ProcessingScheduler):
@@ -74,7 +74,7 @@ class PoolProcessingScheduler(ProcessingScheduler):
         self._pool = multiprocessing.Pool(processes=num_processes)
 
     def run(self,
-            items: Iterable[TProcItem],
+            items: Sequence[TProcItem],
             func: Callable[[TProcItem], TProcResult],
     ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
@@ -87,7 +87,7 @@ class PoolProcessingScheduler(ProcessingScheduler):
             Make sure that both `items` and `func` are serializable with pickle.
 
         Args:
-            items (Iterable[TProcItem]): Iterable containing the items to be
+            items (Sequence[TProcItem]): Iterable containing the items to be
                 processed.
             func (Callable[[TProcItem], TProcResult]): Callable (usually a
                 function) that takes one item :attr:`.TProcItem` as input and

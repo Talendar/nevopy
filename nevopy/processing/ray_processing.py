@@ -31,7 +31,7 @@ import os
 import ray
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
-from typing import List, Optional, Sequence, Callable
+from typing import List, Optional, Sequence, Callable, Dict, Set
 
 
 class RayProcessingScheduler(ProcessingScheduler):
@@ -130,7 +130,7 @@ class RayProcessingScheduler(ProcessingScheduler):
         parallel processing of a batch of items using `ray`.
 
         Args:
-            items (Sequence[TProcItem]): Iterable containing the items to be
+            items (Sequence[TProcItem]): Sequence containing the items to be
                 processed.
             func (Callable[[TProcItem], TProcResult]): Callable (usually a
                 function) that takes one item :attr:`.TProcItem` as input and
@@ -156,10 +156,10 @@ class RayProcessingScheduler(ProcessingScheduler):
                             for item in items])
 
         NUM_WORKERS = self._num_cpus
-        processing_refs = []
-        results_dict = {}
-        gpu_processing_refs = set()
-        ref2idx = {}
+        processing_refs = []         # type: List[ray.ObjectRef]
+        results_dict = {}            # type: Dict[int, TProcResult]
+        gpu_processing_refs = set()  # type: Set[ray.ObjectRef]
+        ref2idx = {}                 # type: Dict[ray.ObjectRef, int]
 
         gpu_available = self._num_gpus
         idx = 0

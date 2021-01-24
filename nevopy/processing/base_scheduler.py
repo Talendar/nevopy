@@ -38,7 +38,7 @@ Attributes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Iterable, Sequence, TypeVar, Optional, Callable
+from typing import Sequence, TypeVar, Optional, Callable
 
 
 TProcItem = TypeVar("TProcItem")
@@ -63,7 +63,7 @@ class ProcessingScheduler(ABC):
 
     @abstractmethod
     def run(self,
-            items: Iterable[TProcItem],
+            items: Sequence[TProcItem],
             func: Optional[Callable[[TProcItem], TProcResult]],
     ) -> Sequence[TProcResult]:
         """ Processes the given items and returns a result.
@@ -72,7 +72,7 @@ class ProcessingScheduler(ABC):
         processing of a batch of items.
 
         Args:
-            items (Iterable[TProcItem]): Iterable containing the items to be
+            items (Sequence[TProcItem]): Iterable containing the items to be
                 processed.
             func (Optional[Callable[[TProcItem], TProcResult]]): Callable
                 (usually a function) that takes one item :attr:`TProcItem` as

@@ -24,13 +24,14 @@
 """ Tests the implementation in :mod:`.fixed_topology.layers`.
 """
 
+import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+
 from nevopy.fixed_topology.config import FixedTopologyConfig
-from nevopy.fixed_topology.layers import TFConv2DLayer
+from nevopy.fixed_topology.layers import TFConv2DLayer, IncompatibleLayersError
 
 from timeit import default_timer as timer
 import numpy as np
-
-import tensorflow as tf
 
 config = FixedTopologyConfig(  # weight mutation
                              weight_mutation_chance=(0.7, 0.9),
@@ -279,22 +280,76 @@ def test_mating_conv2d(conv1, conv2, num_tests=100, verbose=False):
         )
 
 
-if __name__ == "__main__":
-    # fixing TF
-    tf_config = tf.compat.v1.ConfigProto()
-    tf_config.gpu_options.allow_growth = True
-    tf_session = tf.compat.v1.InteractiveSession(config=tf_config)
+def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
+    _mutable = layer.mutable
+    layer.mutable = False
 
+    deltaT = 0
+    for _ in range(num_tests):
+        old_w, old_b = [w.numpy() for w in layer.weights]
+
+        start_time = timer()
+        layer.mutate_weights()
+        deltaT += timer() - start_time
+
+        new_w, new_b = [w.numpy() for w in layer.weights]
+
+        assert (old_w == new_w).all()
+        assert (old_b == new_b).all()
+
+    layer.mutable = _mutable
+    if verbose:
+        print(f"Avg immutable layer mutation time: {1000 * deltaT / num_tests}ms")
+
+
+def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
+    _mutable1 = layer1.mutable
+    _mutable2 = layer2.mutable
+
+    deltaT = 0
+    for _ in range(num_tests):
+        # valid mating
+        layer1.mutable = layer2.mutable = False
+        start_time = timer()
+        new_layer1 = layer1.mate(layer2)
+        new_layer2 = layer2.mate(layer1)
+        deltaT += (timer() - start_time) / 2
+
+        for o, n in [(layer1, new_layer1), (layer2, new_layer2)]:
+            w_old, b_old = [a.numpy() for a in o.weights]
+            w_new, b_new = [a.numpy() for a in n.weights]
+            assert (w_old == w_new).all()
+            assert (b_old == b_new).all()
+
+        # invalid mating
+        layer2.mutable = True
+        try:
+            layer1.mate(layer2)
+            layer2.mate(layer1)
+            raise AssertionError("Invalid mating occurred!")
+        except IncompatibleLayersError:
+            pass
+
+    layer1.mutable = _mutable1
+    layer2.mutable = _mutable2
+    if verbose:
+        print("\nAvg immutable layer valid mating time: "
+              f"{1000 * deltaT / num_tests}ms")
+
+
+if __name__ == "__main__":
     # layers
     input_shape = (1, 128, 128, 3)
-    layer1 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
-                           config=config, input_shape=input_shape)
-    layer2 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
-                           config=config, input_shape=input_shape)
+    test_layer1 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
+                                config=config, input_shape=input_shape)
+    test_layer2 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
+                                config=config, input_shape=input_shape)
 
     # tests
-    test_mutate_weights(layer1, num_tests=100, verbose=False)
-    test_deep_copy(layer1, verbose=False)
-    test_random_copy(layer1, verbose=False)
-    test_mating_conv2d(layer1, layer2, num_tests=100, verbose=False)
-    print("\nPassed in all assertions!")
+    test_mutate_weights(test_layer1, num_tests=100, verbose=False)
+    test_immutable_layer_mutation(test_layer1)
+    test_deep_copy(test_layer1, verbose=False)
+    test_random_copy(test_layer1, verbose=False)
+    test_mating_conv2d(test_layer1, test_layer2, num_tests=100, verbose=False)
+    test_immutable_layer_mating(test_layer1, test_layer2, verbose=False)
+    print("\nPassed all assertions!")
