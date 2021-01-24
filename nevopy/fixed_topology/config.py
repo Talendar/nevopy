@@ -93,7 +93,12 @@ class FixedTopologyConfig:
 
         # mass extinction ("maex")
         self._maex_cache = {}  # type: Dict[str, float]
+        self._maex_counter = 0
         self.update_mass_extinction(0)
+
+    @property
+    def maex_counter(self):
+        return self._maex_counter
 
     def __getattribute__(self, key):
         if key in FixedTopologyConfig.__MAEX_KEYS:
@@ -108,6 +113,7 @@ class FixedTopologyConfig:
             maex_counter (int): Current value of the mass extinction counter
                 (generations without improvement).
         """
+        self._maex_counter = maex_counter
         for k in FixedTopologyConfig.__MAEX_KEYS:
             base_value, max_value = self.__dict__[k]
             unit = (max_value - base_value) / self.mass_extinction_threshold

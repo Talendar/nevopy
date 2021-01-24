@@ -26,7 +26,7 @@
 
 from typing import Optional, List
 import numpy as np
-from nevopy.neat.genome import NeatGenome
+from nevopy.neat.genomes import NeatGenome
 
 
 class Species:

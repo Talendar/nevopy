@@ -26,7 +26,7 @@ for num in range(2 ** num_variables):
 # ===================================================
 
 
-def eval_genome(genome: neat.genome.NeatGenome,
+def eval_genome(genome: neat.genomes.NeatGenome,
                 shuffle=True,
                 log=False) -> float:
     idx = list(range(len(xor_inputs)))

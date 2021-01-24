@@ -34,7 +34,7 @@ import pickle
 from pathlib import Path
 import numpy as np
 
-from nevopy.neat.genome import NeatGenome
+from nevopy.neat.genomes import NeatGenome
 from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
@@ -151,6 +151,9 @@ class Population:
                              else NeatGenome(num_inputs=num_inputs,
                                              num_outputs=num_outputs,
                                              config=self.config))
+
+        num_inputs = self._base_genome.num_inputs
+        num_outputs = self._base_genome.num_outputs
 
         # others instance variables
         self._size = size

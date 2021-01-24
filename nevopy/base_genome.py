@@ -136,7 +136,7 @@ class BaseGenome(ABC):
 
         Returns:
             A new genome (the offspring born from the sexual reproduction
-            between the current genome and the genome passed as argument.
+            between the current genome and the genome passed as argument).
 
         Raises:
             IncompatibleGenomesError: If the genome passed as argument to

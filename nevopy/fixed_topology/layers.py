@@ -28,7 +28,7 @@ in the context of neuroevolution.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, Dict
+from typing import Any, Tuple, Dict, Optional, Union
 
 from nevopy.base_genome import InvalidInputError
 from nevopy.fixed_topology.config import FixedTopologyConfig
@@ -46,19 +46,23 @@ class BaseLayer(ABC):
     neural network layer in the context of neuroevolutionary algorithms.
 
     Args:
-        config (FixedTopologyConfig): Settings being used in the current
-            evolutionary session.
-        input_shape (Tuple[int, ...]): Shape of the data that will be processed
-            by the layer.
+        config (Optional[FixedTopologyConfig]): Settings being used in the
+            current evolutionary session. If `None`, a config object must be
+            assigned to the layer later on, before calling the methods that
+            require it.
+        input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
+            processed by the layer. If `None`, an input shape for the layer must
+            be manually specified later or be inferred from an input sample.
 
     Attributes:
-        config (FixedTopologyConfig): Settings being used in the current
-            evolutionary session.
+        config (Optional[FixedTopologyConfig]): Settings being used in the
+            current evolutionary session. If `None`, a config object hasn't been
+            assigned to the layer yet.
     """
 
     def __init__(self,
-                 config: FixedTopologyConfig,
-                 input_shape: Tuple[int, ...]):
+                 config: Optional[FixedTopologyConfig] = None,
+                 input_shape: Optional[Tuple[int, ...]] = None) -> None:
         self.config = config
         self._input_shape = input_shape
 
@@ -70,11 +74,38 @@ class BaseLayer(ABC):
         Usually contained within a `NumPy ndarray` or a `TensorFlow tensor`.
         """
 
+    @property
+    def input_shape(self) -> Optional[Tuple[int, ...]]:
+        """ The expected shape of an input for the layer.
+
+        Returns:
+            A tuple with the layer's input shape or `None` if an input shape
+            hasn't been specified yet.
+        """
+        return self._input_shape
+
+    @abstractmethod
+    def build(self, input_shape: Tuple[int, ...]) -> None:
+        """ Builds the layer's weight and bias matrices.
+
+        If the layer has already been built, it will be built again (new weight
+        and bias matrices will be generated).
+
+        Args:
+            input_shape (Tuple[int, ...]): Tuple with the shape of the inputs
+                that will be fed to the layer.
+
+        Raises:
+            ValueError: If the layer isn't compatible with the given input
+                shape.
+        """
+
     @abstractmethod
     def process(self, X: Any) -> Any:
         """ Feeds the given input(s) to the layer.
 
-        This is where the layer's logic lives.
+        This is where the layer's logic lives. If the layer hasn't been built
+        yet, it will be automatically built using the given input shape.
 
         Args:
             X (Any): The input(s) to be fed to the layer. Usually a
@@ -163,24 +194,27 @@ class TensorFlowLayer(BaseLayer, ABC):
                         self._tf_layer = tf.keras.layers.AwesomeLayer(some_arg1,
                                                                       some_arg2,
                                                                       **kwargs)
-                        self._tf_layer.build(input_shape=self._input_shape)
+                        if self._input_shape is not None:
+                            self._tf_layer.build(input_shape=self._input_shape)
 
     Args:
-        config (FixedTopologyConfig): Settings being used in the current
-            evolutionary session.
-        input_shape (Tuple[int, ...]): Shape of the data that will be processed
-            by the layer.
+        config (Optional[FixedTopologyConfig]): Settings being used in the
+            current evolutionary session. If `None`, a config object must be
+            assigned to the layer later on, before calling the methods that
+            require it.
+        input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
+            processed by the layer. If `None`, an input shape for the layer must
+            be manually specified later or be inferred from an input sample.
         **kwargs: Named arguments to be passed to the constructor of a subclass
             of this base class when making a copy of the subclass.
     """
 
     def __init__(self,
-                 config: FixedTopologyConfig,
-                 input_shape: Tuple[int, ...],
+                 config: Optional[FixedTopologyConfig] = None,
+                 input_shape: Optional[Tuple[int, ...]] = None,
                  **kwargs):
         super().__init__(config, input_shape)
         self._new_layer_kwargs = kwargs
-        self._shape = None
 
     @property
     @abstractmethod
@@ -192,10 +226,10 @@ class TensorFlowLayer(BaseLayer, ABC):
         """
 
     @property
-    def weights(self) -> Tuple[tf.Tensor, tf.Tensor]:
+    def weights(self) -> Tuple[tf.Variable, tf.Variable]:
         """ The current weights and biases of the layer.
 
-        Wrapper for :py:meth:`tf.keras.layers.Layer.weights`.
+        Wrapper for :meth:`tf.keras.layers.Layer.weights`.
 
         The weights of a layer represent the state of the layer. This property
         returns the weight values associated with this layer as a list of Numpy
@@ -206,12 +240,22 @@ class TensorFlowLayer(BaseLayer, ABC):
 
     @weights.setter
     def weights(self, new_weights: Tuple[Any, Any]) -> None:
-        """ Wrapper for :py:`tf.keras.layers.Layer.set_weights()`. """
+        """ Wrapper for :meth:`tf.keras.layers.Layer.set_weights()`. """
+        if True in [isinstance(w, tf.Variable) for w in new_weights]:
+            new_weights = new_weights[0].numpy(), new_weights[1].numpy()
         self.tf_layer.set_weights(new_weights)
 
-    def process(self, X: Any) -> tf.Tensor:
+    def build(self, input_shape: Tuple[int, ...]) -> None:
+        """ Wrapper for :meth:`tf.keras.layers.Layer.build()`. """
+        self.tf_layer.build(input_shape=input_shape)
+        self._input_shape = input_shape
+
+    def process(self, X: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
         try:
-            return self.tf_layer(X)
+            result = self.tf_layer(X)
+            if self._input_shape is None:
+                self._input_shape = X.shape
+            return result
         except ValueError as e:
             raise InvalidInputError("The given input's shape doesn't match the "
                                     "shape expected by the layer! "
@@ -234,6 +278,12 @@ class TensorFlowLayer(BaseLayer, ABC):
         the current evolutionary session. Each weight also has a chance of being
         reset (a new random value is assigned to it).
         """
+        assert self.config is not None
+        if self.input_shape is None:
+            raise RuntimeError("Attempt to mutate the weights of a layer that "
+                               "didn't have its weight and bias matrices "
+                               "initialized!")
+
         weights, bias = self.weights
 
         # weight perturbation
@@ -295,10 +345,13 @@ class TFConv2DLayer(TensorFlowLayer):
     <https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D>`_.
 
     Args:
-        config (FixedTopologyConfig): Settings being used in the current
-            evolutionary session.
-        input_shape (Tuple[int, ...]): Shape of the data that will be processed
-            by the layer.
+        config (Optional[FixedTopologyConfig]): Settings being used in the
+            current evolutionary session. If `None`, a config object must be
+            assigned to the layer later on, before calling the methods that
+            require it.
+        input_shape (Optional[Tuple[int, ...]]): Shape of the data that will be
+            processed by the layer. If `None`, an input shape for the layer must
+            be manually specified later or be inferred from an input sample.
         **kwargs: Named arguments to be passed to the constructor of the
             TensorFlow layer.
     """
@@ -306,8 +359,8 @@ class TFConv2DLayer(TensorFlowLayer):
     def __init__(self,
                  filters: int,
                  kernel_size: Tuple[int, int],
-                 config: FixedTopologyConfig,
-                 input_shape: Tuple[int, ...],
+                 config: Optional[FixedTopologyConfig] = None,
+                 input_shape: Optional[Tuple[int, ...]] = None,
                  strides: Tuple[int, int] = (1, 1),
                  padding: str = "valid",
                  activation="relu",
@@ -319,12 +372,12 @@ class TFConv2DLayer(TensorFlowLayer):
         )
         self._tf_layer = tf.keras.layers.Conv2D(filters=filters,
                                                 kernel_size=kernel_size,
-                                                input_shape=self._input_shape,
                                                 strides=strides,
                                                 padding=padding,
                                                 activation=activation,
                                                 **kwargs)
-        self._tf_layer.build(input_shape=self._input_shape)
+        if input_shape is not None:
+            self.build(input_shape)
 
     @property
     def tf_layer(self) -> tf.keras.layers.Conv2D:
@@ -337,7 +390,8 @@ class TFConv2DLayer(TensorFlowLayer):
         and with an equal chance, from one of the parents.
 
         Args:
-            other (TFConv2DLayer): The "sexual partner" of the current layer.
+            other (TFConv2DLayer): The "sexual partner" of the current layer. If
+                it's the layer itself, a deep copy of it is returned.
 
         Returns:
             A new 2D-convolutional layer that inherits information from both
@@ -348,6 +402,9 @@ class TFConv2DLayer(TensorFlowLayer):
                 given layers are not of the same shape (i.e., the layers are not
                 compatible for mating).
         """
+        if other == self:
+            return self.deep_copy()  # type: ignore
+
         # retrieving weights and biases as numpy arrays
         f_array1, f_array2 = self.weights[0].numpy(), other.weights[0].numpy()
         b_array1, b_array2 = self.weights[1].numpy(), other.weights[1].numpy()

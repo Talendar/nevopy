@@ -31,9 +31,6 @@ from timeit import default_timer as timer
 import numpy as np
 
 import tensorflow as tf
-tf_config = tf.compat.v1.ConfigProto()
-tf_config.gpu_options.allow_growth = True
-session = tf.compat.v1.InteractiveSession(config=tf_config)
 
 config = FixedTopologyConfig(  # weight mutation
                              weight_mutation_chance=(0.7, 0.9),
@@ -134,7 +131,24 @@ def test_filter_stacking(conv2d, verbose=False):
         assert array.flat[i] == stacked_filters.flat[i]
 
 
-def test_shallow_copy(layer, verbose=False):
+def test_deep_copy(layer, verbose=False):
+    new_layer = layer.deep_copy()
+
+    w_new, b_new = (w.numpy() for w in new_layer.weights)
+    w_p, b_p = (w.numpy() for w in layer.weights)
+
+    if verbose:
+        for _ in range(100):
+            i = np.random.randint(low=0, high=w_p.size)
+            print(f"[W] old = {w_p.flat[i]}, new = {w_new.flat[i]}")
+            i = np.random.randint(low=0, high=len(b_p))
+            print(f"[B] old = {b_p[i]}, new = {b_new[i]}")
+
+    assert w_new.shape == w_p.shape and b_new.shape == b_p.shape
+    assert (w_new == w_p).all()
+
+
+def test_random_copy(layer, verbose=False):
     new_layer = layer.random_copy()
 
     w_new, b_new = (w.numpy() for w in new_layer.weights)
@@ -266,16 +280,21 @@ def test_mating_conv2d(conv1, conv2, num_tests=100, verbose=False):
 
 
 if __name__ == "__main__":
-    input_shape = (1, 128, 128, 3)
+    # fixing TF
+    tf_config = tf.compat.v1.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    tf_session = tf.compat.v1.InteractiveSession(config=tf_config)
 
     # layers
+    input_shape = (1, 128, 128, 3)
     layer1 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
                            config=config, input_shape=input_shape)
     layer2 = TFConv2DLayer(filters=64, kernel_size=(3, 3),
                            config=config, input_shape=input_shape)
 
     # tests
-    # test_filter_stacking(layer1, verbose=False)
     test_mutate_weights(layer1, num_tests=100, verbose=False)
-    test_shallow_copy(layer1, verbose=False)
+    test_deep_copy(layer1, verbose=False)
+    test_random_copy(layer1, verbose=False)
     test_mating_conv2d(layer1, layer2, num_tests=100, verbose=False)
+    print("\nPassed in all assertions!")

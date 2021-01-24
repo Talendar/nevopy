@@ -27,10 +27,13 @@ By using `ray` (https://github.com/ray-project/ray), the scheduler is able to
 implement parallel processing, either on a single machine or on a cluster.
 """
 
+import os
 import ray
 from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
-from typing import List, Optional, Iterable, Callable
+from typing import List, Optional, Sequence, Callable
+from multiprocessing import cpu_count
+import numpy as np
 
 
 class RayProcessingScheduler(ProcessingScheduler):
@@ -57,6 +60,8 @@ class RayProcessingScheduler(ProcessingScheduler):
     that you implement your own scheduler by inheriting
     :class:`.ProcessingScheduler`.
 
+    TODO: update docs
+
     Args:
         address (Optional[str]): The address of the Ray cluster to connect to.
             If this address is not provided, then this command will start Redis,
@@ -72,17 +77,53 @@ class RayProcessingScheduler(ProcessingScheduler):
             official docs (https://docs.ray.io/en/master/package-ref.html).
     """
 
+    # def __init__(self,
+    #              address: Optional[str] = None,
+    #              num_cpus: Optional[int] = None,
+    #              num_gpus: Optional[int] = None,
+    #              worker_gpu_pc: float = 0.1,
+    #              gpu_jobs_frac: Optional[float] = None,
+    #              gpu_usage_pc: float = 1.0,
+    #              **kwargs) -> None:
+    #     if ray.is_initialized():
+    #         RuntimeError("An existing ray runtime was detected! Stop it before "
+    #                      "instantiating this class to avoid conflicts.")
+    #
+    #     self._num_cpus = num_cpus if num_gpus is not None else cpu_count()
+    #     self._num_gpus = num_gpus if num_gpus is not None else 0
+    #
+    #     if self._num_gpus > 0:
+    #         self._gpu_jobs_frac = (gpu_jobs_frac if gpu_jobs_frac is not None
+    #                                else 1 / self._num_cpus)
+    #         self._gpu_usage_pc = gpu_usage_pc
+    #     else:
+    #         self._gpu_jobs_frac = self._gpu_usage_pc = 0
+    #
+    #     ray.init(address=address,
+    #              num_cpus=self._num_cpus,
+    #              num_gpus=self._num_gpus,
+    #              **kwargs)
     def __init__(self,
                  address: Optional[str] = None,
                  num_cpus: Optional[int] = None,
+                 num_gpus: Optional[int] = None,
+                 worker_gpu_pc: float = 0.1,
                  **kwargs) -> None:
         if ray.is_initialized():
             RuntimeError("An existing ray runtime was detected! Stop it before "
                          "instantiating this class to avoid conflicts.")
-        ray.init(address=address, num_cpus=num_cpus, **kwargs)
+
+        self._num_cpus = num_cpus if num_gpus is not None else cpu_count()
+        self._num_gpus = num_gpus if num_gpus is not None else 0
+        self._worker_gpu_pc = worker_gpu_pc
+
+        ray.init(address=address,
+                 num_cpus=self._num_cpus,
+                 num_gpus=self._num_gpus,
+                 **kwargs)
 
     def run(self,
-            items: Iterable[TProcItem],
+            items: Sequence[TProcItem],
             func: Callable[[TProcItem], TProcResult],
     ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
@@ -91,7 +132,7 @@ class RayProcessingScheduler(ProcessingScheduler):
         parallel processing of a batch of items using `ray`.
 
         Args:
-            items (Iterable[TProcItem]): Iterable containing the items to be
+            items (Sequence[TProcItem]): Iterable containing the items to be
                 processed.
             func (Callable[[TProcItem], TProcResult]): Callable (usually a
                 function) that takes one item :attr:`.TProcItem` as input and
@@ -112,12 +153,51 @@ class RayProcessingScheduler(ProcessingScheduler):
             match the order of the sequence.
         """
         func_id = ray.put(func)
-        return ray.get([_func_wrapper.remote(item, func_id)
-                        for item in items])
+        if self._num_gpus == 0:
+            return ray.get([_func_wrapper.remote(func_id, item)
+                            for item in items])
+
+        NUM_WORKERS = self._num_cpus
+        processing_refs = []
+        results_dict = {}
+        gpu_processing_refs = set()
+        ref2idx = {}
+
+        gpu_available = self._num_gpus
+        idx = 0
+        while len(results_dict) != len(items):
+            # retrieving results
+            if len(processing_refs) > 0:
+                done_refs, processing_refs = ray.wait(processing_refs)
+                for ref, result in zip(done_refs, ray.get(done_refs)):
+                    if ref in gpu_processing_refs:
+                        gpu_available += self._worker_gpu_pc
+                        gpu_processing_refs.remove(ref)
+                    results_dict[ref2idx[ref]] = result
+
+            # assigning work
+            while len(processing_refs) < NUM_WORKERS and idx < len(items):
+                if gpu_available >= self._worker_gpu_pc:
+                    gpu_available -= self._worker_gpu_pc
+                    ref = _func_wrapper.options(num_gpus=self._worker_gpu_pc)\
+                                       .remote(func_id, items[idx])
+                    gpu_processing_refs.add(ref)
+                else:
+                    ref = _func_wrapper.options(num_gpus=0).remote(func_id,
+                                                                   items[idx])
+                processing_refs.append(ref)
+                ref2idx[ref] = idx
+                idx += 1
+
+        # returning results
+        assert len(items) == len(results_dict)
+        # todo: test order os results
+        return [results_dict[i] for i in sorted(results_dict)]
 
 
 @ray.remote
-def _func_wrapper(item: TProcItem,
-                  func: Callable[[TProcItem], TProcResult]) -> TProcResult:
+def _func_wrapper(func: Callable[[TProcItem], TProcResult],
+                  item: TProcItem) -> TProcResult:
     """ Wrapper function to be used by `ray`. """
+    # os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     return func(item)
