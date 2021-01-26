@@ -8,6 +8,8 @@ from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 from nevopy import neat
 from nevopy import fixed_topology
 from nevopy.fixed_topology.layers import TFConv2DLayer
+from nevopy.fixed_topology.layers import TFDenseLayer
+from nevopy.fixed_topology.layers import TFFlattenLayer
 from nevopy.processing.ray_processing import RayProcessingScheduler
 
 from skimage.transform import resize
@@ -21,8 +23,10 @@ import tensorflow as tf
 
 
 #################################### CONFIG ####################################
-GENERATIONS = 50
-POP_SIZE = 50
+GENERATIONS = 500
+POP_SIZE = 200
+IMG_BATCH_SIZE = 4
+FITO_OUTPUT_LEN = 4
 RENDER_FPS = 60
 MAX_STEPS = float("inf")
 MAX_IDLE_STEPS = 64
@@ -41,30 +45,30 @@ NEAT_CONFIG = neat.config.NeatConfig(
     weight_perturbation_pc=(0.1, 0.5),
     weight_reset_chance=(0.1, 0.4),
 
-    mass_extinction_threshold=50,
+    mass_extinction_threshold=30,
     maex_improvement_threshold_pc=0.05,
+
+    excess_genes_coefficient=2,
+    disjoint_genes_coefficient=2,
+    weight_difference_coefficient=1.5,
     species_distance_threshold=6,
 
-    excess_genes_coefficient=1.5,
-    disjoint_genes_coefficient=1.5,
-    weight_difference_coefficient=0.0001,
-
     infanticide_output_nodes=False,
-    infanticide_input_nodes=False,
+    infanticide_input_nodes=True,
 )
 FITO_CONFIG = fixed_topology.config.FixedTopologyConfig(
-    weight_mutation_chance=(0.7, 0.9),
-    weight_perturbation_pc=(0.1, 0.4),
-    weight_reset_chance=(0.1, 0.3),
+    weight_mutation_chance=(0.8, 0.9),
+    weight_perturbation_pc=(0.1, 0.5),
+    weight_reset_chance=(0.1, 0.4),
     new_weight_interval=(-1, 1),
 
-    bias_mutation_chance=(0.6, 0.8),
-    bias_perturbation_pc=(0.1, 0.3),
-    bias_reset_chance=(0.1, 0.3),
+    bias_mutation_chance=(0.7, 0.9),
+    bias_perturbation_pc=(0.1, 0.4),
+    bias_reset_chance=(0.1, 0.4),
     new_bias_interval=(-1, 1),
 
-    mating_mode="exchange_weights",
-    mass_extinction_threshold=50,
+    mating_mode="exchange_weights_mating",
+    mass_extinction_threshold=30,
 )
 ################################################################################
 
@@ -76,7 +80,7 @@ _SIMPLIFIED_IMGS_CACHE = []
 def simplify_img(img, show=False):
     # img = rgb2gray(img[70:225, :])
     img = img[70:235]
-    w, h = img.shape[0] // 4.5, img.shape[1] // 4.5
+    w, h = img.shape[0] // 3, img.shape[1] // 3
     img = resize(img, (w, h))
 
     if _CACHE_IMGS:
@@ -88,12 +92,16 @@ def simplify_img(img, show=False):
         plt.show()
 
     img = img.astype(np.float32)
-    return tf.expand_dims(img, axis=0)
+    return img
 
 
 def video():
+    # for img in _SIMPLIFIED_IMGS_CACHE:
+    #     plt.imshow(img)
+    #     plt.show()
+
     fig = plt.figure()
-    img = plt.imshow(_SIMPLIFIED_IMGS_CACHE[0], cmap=plt.cm.gray)
+    img = plt.imshow(_SIMPLIFIED_IMGS_CACHE[0])
 
     def update_fig(j):
         img.set_array(_SIMPLIFIED_IMGS_CACHE[j])
@@ -125,7 +133,9 @@ def evaluate(genome, max_steps=MAX_STEPS, visualize=False):
     lives = None
     death_count = 0
 
+    img_batch = []
     steps = 0
+    action = env.action_space.sample()
     while steps < max_steps:
         steps += 1
         if visualize:
@@ -134,7 +144,11 @@ def evaluate(genome, max_steps=MAX_STEPS, visualize=False):
 
         img = simplify_img(img)
         if genome is not None:
-            action = np.argmax(genome.process(img))
+            img_batch.append(img)
+            if len(img_batch) >= IMG_BATCH_SIZE:
+                img_stack = np.array(img_batch)
+                action = np.argmax(genome.process(img_stack))
+                img_batch = []
         else:
             action = env.action_space.sample()
 
@@ -183,13 +197,17 @@ def new_pop():
     fito_genome = fixed_topology.genomes.FixedTopologyGenome(
         config=FITO_CONFIG,
         layers=[
-            TFConv2DLayer(filters=128, kernel_size=(8, 11), strides=(4, 4)),
-            TFConv2DLayer(filters=8, kernel_size=(5, 5), strides=(3, 3)),
+            TFConv2DLayer(filters=32, kernel_size=(3, 3), strides=(1, 1)),
+            TFConv2DLayer(filters=32, kernel_size=(3, 3), strides=(1, 1)),
+            TFFlattenLayer(),
+            TFDenseLayer(32, activation="relu"),
+            TFDenseLayer(FITO_OUTPUT_LEN, activation="relu"),
         ]
     )
 
-    test_output = fito_genome(sample_img)
-    print(f"CNN input shape: {sample_img.shape}")
+    sample_input = tf.random.uniform(shape=[IMG_BATCH_SIZE, *sample_img.shape])
+    test_output = fito_genome(sample_input)
+    print(f"CNN input shape: {sample_input.shape}")
     print(f"CNN output shape: {test_output.shape} ", end="")
     test_output = tf.reshape(test_output, [-1])
     print(f"(flat: {len(test_output)})")
@@ -206,7 +224,8 @@ def new_pop():
         size=POP_SIZE,
         base_genome=base_genome,
         config=NEAT_CONFIG,
-        processing_scheduler=RayProcessingScheduler(worker_gpu_frac=0.25)
+        processing_scheduler=RayProcessingScheduler(num_gpus=0,
+                                                    worker_gpu_frac=1)
     )
     history = p.evolve(generations=GENERATIONS,
                        fitness_function=evaluate)

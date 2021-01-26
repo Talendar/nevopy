@@ -24,7 +24,20 @@
 """ Imports core names of NEvoPY.
 """
 
+# "NEAT" subpackage
 from nevopy import neat
+
+# "Processing" subpackage
 from nevopy import processing
+
+# "Fixed topology" subpackage
+from nevopy import fixed_topology
+
+# Base genome
+from nevopy.base_genome import BaseGenome
+from nevopy.base_genome import InvalidInputError
+from nevopy.base_genome import IncompatibleGenomesError
+
+# Utils
 from nevopy import activations
 from nevopy import utils

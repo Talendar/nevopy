@@ -144,7 +144,7 @@ class FixedTopologyGenome(BaseGenome):
         new_layers = []
 
         # exchange weights mode
-        if self.config.mating_mode == "exchange_weights":
+        if self.config.mating_mode == "exchange_weights_mating":
             for layer1, layer2 in zip(self.layers, other.layers):
                 try:
                     new_layers.append(layer1.mate(layer2))

@@ -38,8 +38,9 @@ np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
 import nevopy.activations as activations
 import nevopy.utils as utils
-from nevopy.base_genome import (BaseGenome, IncompatibleGenomesError,
-                                InvalidInputError)
+from nevopy.base_genome import BaseGenome
+from nevopy.base_genome import InvalidInputError
+from nevopy.base_genome import IncompatibleGenomesError
 
 from nevopy.neat.genes import *
 from nevopy.neat.config import NeatConfig
@@ -204,6 +205,9 @@ class NeatGenome(BaseGenome):
                     + c_3 \\cdot W
             :label: distance
 
+        Todo:
+            Test this method.
+
         Args:
             other (NeatGenome): The other genome (an instance of
                 :class:`.NeatGenome` or one of its subclasses).
@@ -222,6 +226,7 @@ class NeatGenome(BaseGenome):
             # non-matching genes:
             if cn1 is None or cn2 is None:
                 # if c1 is None, c2 can't be None (and vice-versa)
+                # noinspection PyUnresolvedReferences
                 if ((cn1 is None and cn2.id > g1_max_innov)
                         or (cn2 is None and cn1.id > g2_max_innov)):
                     excess += 1
@@ -1195,17 +1200,20 @@ class FixTopNeatGenome(NeatGenome):
         between the fixed topology layers weights.
         """
         dist = super().distance(other)
+        extra_dist = 0
         if isinstance(other, FixTopNeatGenome):
-            c = self.config.weight_difference_coefficient
+            total_weights = 0
             for l1, l2 in zip(self.fito_genome.layers,
                               other.fito_genome.layers):
-                w1, b1 = [a.numpy() for a in l1.weights]
-                w2, b2 = [a.numpy() for a in l2.weights]
+                for w1, w2 in zip(l1.weights, l2.weights):
+                    extra_dist += np.abs(w1 - w2).sum()
+                    total_weights += w1.size
 
-                dist += np.abs(w1 - w2).sum() * c
-                dist += np.abs(b1 - b2).sum() * c
+            extra_dist *= self.config.weight_difference_coefficient
+            if total_weights > 0:
+                extra_dist /= total_weights
 
-        return dist
+        return dist + extra_dist
 
     def mutate_weights(self) -> None:
         super().mutate_weights()

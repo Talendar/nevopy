@@ -112,7 +112,11 @@ class RayProcessingScheduler(ProcessingScheduler):
                  num_cpus=self._num_cpus,
                  num_gpus=num_gpus,
                  **kwargs)
-        self._num_gpus = ray.available_resources()["GPU"]
+        try:
+            self._num_gpus = ray.available_resources()["GPU"]
+        except KeyError:
+            self._num_gpus = 0
+
         self._worker_gpu_frac = (worker_gpu_frac if worker_gpu_frac is not None
                                  else self._num_gpus / self._num_cpus)
 

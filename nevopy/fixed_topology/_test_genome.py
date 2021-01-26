@@ -45,16 +45,14 @@ config = FixedTopologyConfig(  # weight mutation
                              bias_reset_chance=(0.1, 0.2),
                              new_bias_interval=(-2, 2),
                                # others
-                             mating_mode="exchange_weights")
+                             mating_mode="exchange_weights_mating")
 
 
 def get_weight_lists(genome):
-    w_list, b_list = [], []
+    w_list = []
     for layer in genome.layers:
-        w, b = layer.weights
-        w_list.append(w.numpy())
-        b_list.append(b.numpy())
-    return w_list, b_list
+        w_list += layer.weights
+    return w_list
 
 
 def test_processing_and_mutation(genome, num_tests=100):
@@ -84,17 +82,15 @@ def test_processing_and_mutation(genome, num_tests=100):
 def test_random_copy(genome):
     new_genome = genome.random_copy()
     for l_new, l_old in zip(new_genome.layers, genome.layers):
-        w_new, b_new = [w.numpy() for w in l_new.weights]
-        w_old, b_old = [w.numpy() for w in l_old.weights]
-
-        assert w_new.shape == w_old.shape and b_new.shape == b_old.shape
         assert l_new.mutable == l_old.mutable
 
-        if l_old.mutable:
-            assert not (w_new == w_old).all()
-        else:
-            assert (w_new == w_old).all()
-            assert (b_new == b_old).all()
+        for w_new, w_old in zip(l_new.weights, l_old.weights):
+            assert w_new.shape == w_old.shape
+
+            if l_old.mutable:
+                assert not (w_new == w_old).all()
+            else:
+                assert (w_new == w_old).all()
 
 
 def test_deep_copy(genome, num_tests=100):
@@ -129,7 +125,7 @@ def test_deep_copy(genome, num_tests=100):
 
 
 def test_mating(g1, g2, mode, num_tests=100):
-    assert mode in ("exchange_weights", "exchange_layers")
+    assert mode in ("exchange_weights_mating", "exchange_layers")
     config.mating_mode = mode
     parents = (g1, g2)
 
@@ -151,7 +147,7 @@ def test_mating(g1, g2, mode, num_tests=100):
                 assert (w0 == w1).all() and (w0 == w2).all()
                 assert (b0 == b1).all() and (b0 == b2).all()
             else:
-                if mode == "exchange_weights":
+                if mode == "exchange_weights_mating":
                     if p1.layers[idx].mutable:
                         assert not (w0 == w1).all() and not (w0 == w2).all()
                         assert not (b0 == b1).all() and not (b0 == b2).all()
@@ -194,7 +190,7 @@ if __name__ == "__main__":
     test_deep_copy(genome1, num_tests=100)
     print("passed!\nMating (exchange weights)... ", end="")
 
-    test_mating(genome1, genome2, mode="exchange_weights", num_tests=100)
+    test_mating(genome1, genome2, mode="exchange_weights_mating", num_tests=100)
     print("passed!\nMating (exchange layers)... ", end="")
 
     test_mating(genome1, genome2, mode="exchange_layers", num_tests=100)

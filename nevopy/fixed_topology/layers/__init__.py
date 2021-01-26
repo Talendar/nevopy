@@ -21,10 +21,19 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Imports core names of :mod:`nevopy.fixed_topology`.
+""" Neural network layers to be used with `NEvoPY's` fixed-topology
+neuroevolution algorithms.
 """
 
-from nevopy.fixed_topology import genomes
-from nevopy.fixed_topology import layers
-from nevopy.fixed_topology import config
+# Base abstract layer
+from nevopy.fixed_topology.layers.base_layer import BaseLayer
+from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
+
+# TensorFlow's layers
+from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
+from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
+from nevopy.fixed_topology.layers.tf_layers import TFDenseLayer
+from nevopy.fixed_topology.layers.tf_layers import TFFlattenLayer
+
+# Mating util functions
 from nevopy.fixed_topology.layers import mating
