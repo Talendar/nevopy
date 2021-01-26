@@ -39,37 +39,50 @@ from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
 
 
 class TensorFlowLayer(BaseLayer):
-    """ Abstract base class for layers that wrap a `TensorFlow` layer.
+    """ Wraps a `TensorFlow` layer.
 
-    When subclassing this class, be sure to call ``super().__ init __()``
-    passing, as named arguments, the same arguments received by the subclass's
-    `` __init__()``. These arguments will be stored in the instance variable
-    ``self._num_layer_kwargs``;
+    This class wraps a `TensorFlow` layer, making it compatible with `NEvoPY's`
+    neuroevolution algorithms. It handles the mutation and reproduction of the
+    `TensorFlow` layer.
 
-    This is necessary because this class implements :meth:`.deep_copy()`. This
-    method is implemented in the base class because it performs, in general, the
-    same actions regardless of the internal details of each subclass.
+    In most cases, there is no need to create subclasses of this class. Doing
+    that to frequently used types of layers, however, may be desirable, since it
+    makes using those types of layers easier (see :class:`.TFConv2DLayer` and
+    :class:`.TFDenseLayer` as examples).
 
-    You'll usually do something like this:
+    When inheriting this class, you'll usually do something like this:
 
         .. code-block:: python
 
-            # TODO: refactor
             class MyTFLayer(TensorFlowLayer):
-                    def __init__(self, config, input_shape,
-                                 some_arg1, some_arg2, **kwargs):
-                        super().__init__(
-                            **{k: v for k, v in locals().items()
-                               if k != "self" and k != "kwargs" and k != "__class__"},
-                            **kwargs,
-                        )
-                        self._tf_layer = tf.keras.layers.AwesomeLayer(some_arg1,
-                                                                      some_arg2,
-                                                                      **kwargs)
-                        if self._input_shape is not None:
-                            self._tf_layer.build(input_shape=self._input_shape)
+                def __init__(self,
+                             arg1, arg2,
+                             activation="relu",
+                             mating_func = mating.exchange_units_mating,
+                             config = None,
+                             input_shape = None,
+                             mutable = True,
+                             **tf_kwargs: Dict[str, Any]) -> None:
+                    super().__init__(
+                        layer_type=tf.keras.layers.SomeKerasLayer,
+                        **{k: v for k, v in locals().items()
+                           if k != "self" and k != "tf_kwargs" and k != "__class__"},
+                        **tf_kwargs,
+                    )
 
     Args:
+        layer_type (Union[str, Type[tf.keras.layers.Layer]]): A reference to the
+            `TensorFlow's` class that represents the layer
+            (:py:class:`tf.keras.layers.Dense`, for example). If it's a string,
+            the appropriate type will be inferred (note that it must be listed
+            in :attr:`.TensorFlowLayer.KERAS_LAYERS`).
+        mating_func (Optional[Callable[[BaseLayer, BaseLayer], BaseLayer]]):
+            Function that mates (sexual reproduction) two layers. It should
+            receive two layers as input and return a new layer (the offspring).
+            You can use one of the pre-built mating functions (see
+            :mod:`.fixed_topology.layers.mating`) or implement your own. If the
+            layer is immutable, this parameter should receive `None` as
+            argument.
         config (Optional[FixedTopologyConfig]): Settings being used in the
             current evolutionary session. If `None`, a config object must be
             assigned to the layer later on, before calling the methods that
@@ -79,8 +92,8 @@ class TensorFlowLayer(BaseLayer):
             be manually specified later or be inferred from an input sample.
         mutable (Optional[bool]): Whether or not the layer can have its weights
             changed (mutation).
-        **tf_kwargs: Named arguments to be passed to the constructor of a
-            subclass of this base class when making a copy of the subclass.
+        **tf_kwargs: Named arguments to be passed to the constructor of the
+            `TensorFlow` layer.
     """
 
     KERAS_LAYERS = {

@@ -23,10 +23,6 @@
 
 """ Implements some mating (sexual reproduction) functions that can be used to
 generate a new neural network layer from two parent layers.
-
-Todo:
-    Make the mating functions compatible with :class:`.BaseLayer`, not just
-    :class:`TensorFlowLayer`.
 """
 
 from typing import List
@@ -39,14 +35,12 @@ from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
 
 def check_weights_compatibility(weight_list1: List[np.ndarray],
                                 weight_list2: List[np.ndarray]):
-    """ TODO
-
-    Args:
-        weight_list1:
-        weight_list2:
+    """ Checks the mating compatibility between two lists of weight matrices.
 
     Raises:
-        IncompatibleLayersError:
+        IncompatibleLayersError: If one or more weight matrices in one of the
+            lists don't have the same shape as the corresponding weight matrices
+            in the other list.
     """
     if len(weight_list1) != len(weight_list2):
         raise IncompatibleLayersError("The layers have weight lists of "
@@ -65,12 +59,42 @@ def check_weights_compatibility(weight_list1: List[np.ndarray],
 
 def exchange_weights_mating(layer1: BaseLayer,
                             layer2: BaseLayer) -> BaseLayer:
-    """
-    TODO
-    """
-    # use tf.reshape(w, [-1]) to flatten and tf.reshape to bring back to the
-    # original shape after exchanging individual weights
+    """ Mates (sexual reproduction) two neural layers by exchanging weights.
 
+    Each of the new layer's weights is randomly inherited, with equal chance,
+    from one of the parent layers.
+
+    Args:
+        layer1 (BaseLayer): An instance of a subclass of :class:`.BaseLayer`.
+        layer2 (BaseLayer): An instance of a subclass of :class:`.BaseLayer`.
+
+    Returns:
+        A new layer that randomly inherits its individual weights from its
+        parent layers.
+
+    Raises:
+        IncompatibleLayersError: If the weight matrices of the two given layers
+            are not of the same shape (i.e., the layers are not compatible for
+            mating).
+    """
+    # Retrieving weights as numpy arrays:
+    weights1 = layer1.weights
+    weights2 = layer2.weights
+
+    # Checking compatibility:
+    check_weights_compatibility(weights1, weights2)
+
+    # Selecting weights for the new layer:
+    new_weights = []
+    for w1, w2 in zip(weights1, weights2):
+        c = np.random.choice([0, 1], size=w1.shape)
+        new_w = np.multiply(c, w1) + np.multiply(1 - c, w2)
+        new_weights.append(new_w)
+
+    # Building the new layer:
+    new_layer = layer1.random_copy()
+    new_layer.weights = new_weights
+    return new_layer
 
 
 def exchange_units_mating(layer1: BaseLayer,
@@ -99,14 +123,14 @@ def exchange_units_mating(layer1: BaseLayer,
             are not of the same shape (i.e., the layers are not compatible for
             mating).
     """
-    # retrieving weights and biases as numpy arrays
+    # Retrieving weights as numpy arrays:
     weights1 = layer1.weights
     weights2 = layer2.weights
 
-    # checking compatibility
+    # Checking compatibility:
     check_weights_compatibility(weights1, weights2)
 
-    # selecting units for the new layer
+    # Selecting units for the new layer:
     new_weights = []
     for w1, w2 in zip(weights1, weights2):
         new_units = []
@@ -115,23 +139,48 @@ def exchange_units_mating(layer1: BaseLayer,
             new_units.append(w[..., i])
         new_weights.append(np.stack(new_units, axis=-1))
 
-    # building new layer and changing its weights
+    # Building the new layer:
     new_layer = layer1.random_copy()
     new_layer.weights = new_weights
 
     return new_layer
 
 
-def sum_and_divide_mating(layer1: BaseLayer,
-                          layer2: BaseLayer) -> BaseLayer:
-    """
-    TODO
+def weights_avg_mating(layer1: BaseLayer,
+                       layer2: BaseLayer) -> BaseLayer:
+    """ Mates (sexual reproduction) two layers by averaging their weights.
+
+    Each of the new layer's weight is the simple average (sum and divide by 2)
+    of the parent layers weights.
 
     Args:
-        layer1:
-        layer2:
+        layer1 (BaseLayer): An instance of a subclass of :class:`.BaseLayer`.
+        layer2 (BaseLayer): An instance of a subclass of :class:`.BaseLayer`.
 
     Returns:
+        A new layer whose weights are the simple average of the parent layers
+        weights.
+
+    Raises:
+        IncompatibleLayersError: If the weight matrices of the two given layers
+            are not of the same shape (i.e., the layers are not compatible for
+            mating).
 
     """
-    raise NotImplementedError()
+    # Retrieving weights as numpy arrays:
+    weights1 = layer1.weights
+    weights2 = layer2.weights
+
+    # Checking compatibility:
+    check_weights_compatibility(weights1, weights2)
+
+    # Calculating new weights:
+    new_weights = []
+    for w1, w2 in zip(weights1, weights2):
+        new_weights.append((w1 + w2) / 2)
+
+    # Building the new layer:
+    new_layer = layer1.random_copy()
+    new_layer.weights = new_weights
+
+    return new_layer

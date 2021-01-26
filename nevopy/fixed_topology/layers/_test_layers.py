@@ -95,7 +95,7 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-        print(f"Mutation avg time: {1000 * deltaT / num_tests}ms\n")
+    print(f"> Mutation time: {1000 * deltaT / num_tests}ms")
 
 
 def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
@@ -117,8 +117,8 @@ def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
     layer.mutable = _mutable
     if verbose:
         print("\n" + "=" * 50)
-        print("Avg immutable layer mutation time: "
-              f"{1000 * deltaT / num_tests}ms\n")
+    print("> Immutable layer mutation time: "
+          f"{1000 * deltaT / num_tests}ms")
 
 
 def test_deep_copy(layer, num_tests=100, verbose=False):
@@ -153,7 +153,7 @@ def test_deep_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-        print(f"Avg deep copy time: {1000 * deltaT / num_tests}ms\n")
+    print(f"> Deep copy time: {1000 * deltaT / num_tests}ms")
 
 
 def test_random_copy(layer, num_tests=100, verbose=False):
@@ -188,7 +188,7 @@ def test_random_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "=" * 50)
-        print(f"Avg random copy time: {1000 * deltaT / num_tests}ms\n")
+    print(f"> Random copy time: {1000 * deltaT / num_tests}ms")
 
 
 def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -243,9 +243,103 @@ def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
         print("\n" + "=" * 50)
         total_units = units_from_p1 + units_from_p2
         print(f"Units from parent 1: {units_from_p1 / total_units:.2%}")
-        print(f"Units from parent 2: {units_from_p2 / total_units:.2%}")
-        print(f"\nAvg mating time: {1000 * mate_deltaT / num_tests}ms")
-        print(f"Avg mutation time: {1000 * mutation_deltaT / num_tests}ms\n")
+        print(f"Units from parent 2: {units_from_p2 / total_units:.2%}\n")
+
+    print(f"> Exchange units mating:\n"
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
+
+
+def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
+    layer1.mating_func = layer2.mating_func = mating.exchange_weights_mating
+    mate_deltaT = mutation_deltaT = 0
+    w_from_p1 = w_from_p2 = 0
+    for t in range(num_tests):
+        if verbose:
+            print("\n" + "#"*50)
+            print(f"----- Test {t} of {num_tests} -----\n")
+
+        # Mutating layers:
+        start_time = timer()
+        layer1.mutate_weights()
+        layer2.mutate_weights()
+        mutation_deltaT += (timer() - start_time) / 2
+
+        # Mating layers:
+        start_time = timer()
+        new_layer = layer1.mate(layer2)
+        mate_deltaT += timer() - start_time
+
+        # Checking individual weights inheritance:
+        for w_new, w_p1, w_p2 in zip(new_layer.weights,
+                                     layer1.weights,
+                                     layer2.weights):
+            assert w_new.shape == w_p1.shape == w_p2.shape
+            for i in range(w_p1.size):
+                if w_new.flat[i] == w_p1.flat[i]:
+                    w_from_p1 += 1
+                    if verbose:
+                        print(f"[{i}] Weight from parent 1 <> "
+                              f"parent = {w_p1.flat[i]}, "
+                              f"child = {w_new.flat[i]}")
+                elif w_new.flat[i] == w_p2.flat[i]:
+                    w_from_p2 += 1
+                    if verbose:
+                        print(f"[{i}] Weight from parent 2 <> "
+                              f"parent = {w_p2.flat[i]}, "
+                              f"child = {w_new.flat[i]}")
+                else:
+                    raise AssertionError(
+                        f"New weight at index {i} doesn't match any of the "
+                        "parents weights at the same index!\n"
+                        f"> New weight = {w_new.flat[i]}\n"
+                        f"> Parent 1 weight = {w_p1.flat[i]}\n"
+                        f"> Parent 2 weight = {w_p2.flat[i]}"
+                    )
+
+    if verbose:
+        print("\n" + "=" * 50)
+        total_w = w_from_p1 + w_from_p2
+        print(f"Weights from parent 1: {w_from_p1 / total_w:.2%}")
+        print(f"Weights from parent 2: {w_from_p2 / total_w:.2%}\n")
+
+    print(f"> Exchange weights mating:\n"
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
+
+
+def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
+    layer1.mating_func = layer2.mating_func = mating.weights_avg_mating
+    mate_deltaT = mutation_deltaT = 0
+    for t in range(num_tests):
+        if verbose:
+            print(f"> Test {t} of {num_tests}.")
+
+        # Mutating layers:
+        start_time = timer()
+        layer1.mutate_weights()
+        layer2.mutate_weights()
+        mutation_deltaT += (timer() - start_time) / 2
+
+        # Mating layers:
+        start_time = timer()
+        new_layer = layer1.mate(layer2)
+        mate_deltaT += timer() - start_time
+
+        # Checking individual weights inheritance:
+        for w_new, w_p1, w_p2 in zip(new_layer.weights,
+                                     layer1.weights,
+                                     layer2.weights):
+            assert w_new.shape == w_p1.shape == w_p2.shape
+            for i in range(w_p1.size):
+                assert w_new.flat[i] == (w_p1.flat[i] + w_p2.flat[i]) / 2
+
+    if verbose:
+        print("\n" + "=" * 50)
+
+    print(f"> Weights averaging mating:\n"
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
 
 
 def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -278,8 +372,9 @@ def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
     layer2.mutable = _mutable2
     if verbose:
         print("\n" + "=" * 50)
-        print("Avg immutable layer valid mating time: "
-              f"{1000 * deltaT / num_tests}ms")
+
+    print("> Immutable layer valid mating time: "
+          f"{1000 * deltaT / num_tests}ms")
 
 
 def run_all_tests(test_layer1, test_layer2):
@@ -287,6 +382,10 @@ def run_all_tests(test_layer1, test_layer2):
         test_mutate_weights(test_layer1, num_tests=100, verbose=False)
         test_exchange_units_mating(test_layer1, test_layer2,
                                    num_tests=100, verbose=False)
+        test_exchange_weights_mating(test_layer1, test_layer2,
+                                     num_tests=100, verbose=False)
+        test_weights_avg_mating(test_layer1, test_layer2,
+                                num_tests=100, verbose=False)
 
     test_deep_copy(test_layer1, num_tests=100, verbose=False)
     test_random_copy(test_layer1, num_tests=100, verbose=False)
@@ -387,17 +486,20 @@ def test_sequential(verbose=False):
 
 
 if __name__ == "__main__":
-    # Conv2D
-    # test_conv2d()
-    # print("\n[CONV2D] Passed all assertions!\n")
+    # Conv2D:
+    print("\n[CONV2D]")
+    test_conv2d()
+    print("[CONV2D] Passed all assertions!")
 
-    # Dense
-    # test_dense()
-    # print("\n[DENSE] Passed all assertions!\n")
+    # Dense:
+    print("\n[DENSE]")
+    test_dense()
+    print("[DENSE] Passed all assertions!")
 
-    # Flatten
-    # test_flatten()
-    # print("\n[FLATTEN] Passed all assertions!\n")
+    # Flatten:
+    print("\n[FLATTEN]")
+    test_flatten()
+    print("[FLATTEN] Passed all assertions!")
 
-    # Sequential layers processing
-    test_sequential(verbose=True)
+    # Sequential layers processing:
+    test_sequential(verbose=False)

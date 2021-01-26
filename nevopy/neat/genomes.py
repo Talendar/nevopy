@@ -1200,7 +1200,7 @@ class FixTopNeatGenome(NeatGenome):
         between the fixed topology layers weights.
         """
         dist = super().distance(other)
-        extra_dist = 0
+        extra_dist = 0.0
         if isinstance(other, FixTopNeatGenome):
             total_weights = 0
             for l1, l2 in zip(self.fito_genome.layers,
@@ -1252,7 +1252,7 @@ class FixTopNeatGenome(NeatGenome):
         return new_genome
 
     def process(self, X: Sequence[float]) -> np.ndarray:
-        """ Feeds the input to the fixed topology genome and uses the outout as
+        """ Feeds the input to the fixed topology genome and uses the output as
         input to the NEAT genome.
         """
         X = reshape(self.fito_genome.process(X), [-1])

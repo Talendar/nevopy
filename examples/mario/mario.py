@@ -23,8 +23,8 @@ import tensorflow as tf
 
 
 #################################### CONFIG ####################################
-GENERATIONS = 500
-POP_SIZE = 200
+GENERATIONS = 50
+POP_SIZE = 150
 IMG_BATCH_SIZE = 4
 FITO_OUTPUT_LEN = 4
 RENDER_FPS = 60
@@ -45,7 +45,7 @@ NEAT_CONFIG = neat.config.NeatConfig(
     weight_perturbation_pc=(0.1, 0.5),
     weight_reset_chance=(0.1, 0.4),
 
-    mass_extinction_threshold=30,
+    mass_extinction_threshold=10,
     maex_improvement_threshold_pc=0.05,
 
     excess_genes_coefficient=2,
@@ -68,7 +68,7 @@ FITO_CONFIG = fixed_topology.config.FixedTopologyConfig(
     new_bias_interval=(-1, 1),
 
     mating_mode="exchange_weights_mating",
-    mass_extinction_threshold=30,
+    mass_extinction_threshold=10,
 )
 ################################################################################
 
