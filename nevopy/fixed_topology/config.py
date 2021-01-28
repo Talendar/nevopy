@@ -50,35 +50,34 @@ class FixedTopologyConfig:
     Args:
         mating_mode (str): How the exchange of genetic material is supposed to
             happen during a sexual reproduction between two genomes. Options:
-            "exchange_weights" and "exchange_layers".
+            "exchange_weights_mating" and "exchange_layers".
+        elitism_count(int): Specifies the amount of individuals (among the
+            fittest) that will be passed unaltered to the next generation.
+        predatism_chance(float): Chance of a newborn genome being "predated"
+            (excluded), in which case a new random genome takes its place in the
+            next generation.
     """
 
     #: Name of the mutation chance attributes (type: Tuple[float, float])
     #:  related to mass extinction.
     __MAEX_KEYS = {"weight_mutation_chance",
                    "weight_perturbation_pc",
-                   "weight_reset_chance",
-                   "bias_mutation_chance",
-                   "bias_perturbation_pc",
-                   "bias_reset_chance"}
+                   "weight_reset_chance"}
 
     def __init__(self,
                  file_pathname=None,
                  # weight mutation
                  weight_mutation_chance=(0.7, 0.9),
-                 weight_perturbation_pc=(0.1, 0.4),
-                 weight_reset_chance=(0.1, 0.3),
+                 weight_perturbation_pc=(0.05, 0.3),
+                 weight_reset_chance=(0.05, 0.3),
                  new_weight_interval=(-1, 1),
-                 # bias mutation
-                 bias_mutation_chance=(0.5, 0.7),
-                 bias_perturbation_pc=(0.1, 0.3),
-                 bias_reset_chance=(0.05, 0.2),
-                 new_bias_interval=(-1, 1),
                  # reproduction
-                 weak_genomes_removal_pc=0.75,
-                 mating_chance=0.75,
-                 mating_mode="exchange_weights",
+                 weak_genomes_removal_pc=0.5,
+                 mating_chance=0.7,
+                 mating_mode="exchange_weights_mating",
                  rank_prob_dist_coefficient=1.75,
+                 elitism_count=2,
+                 predatism_chance=0.1,
                  # mass extinction
                  mass_extinction_threshold=50,
                  maex_improvement_threshold_pc=0.03) -> None:

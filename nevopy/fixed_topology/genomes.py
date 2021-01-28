@@ -39,6 +39,10 @@ class FixedTopologyGenome(BaseGenome):
     topology. The network is defined by its layers (instances of a subclass of
     :class:`.BaseLayer`), specified during the genome's creation.
 
+    Note:
+        The `config` objects of individual layers are forcefully replaced by the
+        `config` object of the genome when its assigned with a new one!
+
     Args:
         layers (List[BaseLayer]): List with the layers of the network (instances
             of a subclass of :class:`.BaseLayer`). It's not required to set the
@@ -48,14 +52,12 @@ class FixedTopologyGenome(BaseGenome):
             object to the layers (it's done automatically when this class is
             instantiated).
         config (Optional[FixedTopologyConfig]): Settings of the current
-            evolutionary session. If `None`, a new instance of
-            :class:`.FixedTopologyConfig` will be used (default settings).
+            evolutionary session. If `None`, a config object must be assigned to
+            this genome latter.
 
     Attributes:
         layers (List[BaseLayer]): List with the layers of the network (instances
             of a subclass of :class:`.BaseLayer`).
-        config (Optional[FixedTopologyConfig]): Settings of the current
-            evolutionary session.
     """
 
     def __init__(self,
@@ -63,21 +65,28 @@ class FixedTopologyGenome(BaseGenome):
                  config: Optional[FixedTopologyConfig] = None) -> None:
         super().__init__()
         self.layers = layers
-        self.config = config if config is not None else FixedTopologyConfig()
-
-        # setting layers config
-        for layer in self.layers:
-            if layer.config is None:
-                layer.config = self.config
-            elif layer.config != self.config:
-                raise RuntimeError("Detected a layer with a different config "
-                                   "object than the one being used by the "
-                                   "genome!")
+        self._config = None
+        self.config = config
 
     @property
     def input_shape(self) -> Tuple[int, ...]:
         """ The input shape expected by the genome's input layer. """
         return self.layers[0].input_shape
+
+    @property
+    def config(self) -> Optional[FixedTopologyConfig]:
+        """ Settings of the current evolutionary session.
+
+        If `None`, a config object hasn't been assigned to this genome yet.
+        """
+        return self._config
+
+    @config.setter
+    def config(self, c) -> None:
+        """ Sets the config object of the genome and all of its layers. """
+        self._config = c
+        for layer in self.layers:
+            layer.config = self._config
 
     def process(self, X: Any) -> Any:
         prev_output = X
@@ -118,9 +127,9 @@ class FixedTopologyGenome(BaseGenome):
         Currently, there are two mating methods available. In the
         `exchange weights` mode, each of the new genome's layers has its weights
         inherited from both parents (the details on how it's done depend on the
-        type of layer; see :meth:`.BaseLayer.mate()`). In the `exchange layers`
-        mode, each of the new genome's layers is an exact copy of a layer from
-        one of the parent genomes. The mating mode to be used is determined by
+        mating function used by the layer). In the `exchange layers` mode, each
+        of the new genome's layers is an exact copy of a layer from one of the
+        parent genomes. The mating mode to be used is determined by
         :class:`.FixedTopologyConfig`.
 
         Args:
@@ -144,7 +153,7 @@ class FixedTopologyGenome(BaseGenome):
         new_layers = []
 
         # exchange weights mode
-        if self.config.mating_mode == "exchange_weights":
+        if self.config.mating_mode == "exchange_weights_mating":
             for layer1, layer2 in zip(self.layers, other.layers):
                 try:
                     new_layers.append(layer1.mate(layer2))

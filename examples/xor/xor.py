@@ -3,8 +3,16 @@ NEvoPY
 todo
 """
 
+import os
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
+import nevopy
 from nevopy import neat
+from nevopy import fixed_topology as fito
 from timeit import default_timer as timer
+import numpy as np
+from tensorflow import expand_dims
 import random
 
 # =============== MAKING XOR DATA ==================
@@ -21,8 +29,8 @@ for num in range(2 ** num_variables):
     for bit in binary[1:]:
         xin.append(int(bit))
         xout ^= int(bit)
-    xor_inputs.append(xin)
-    xor_outputs.append(xout)
+    xor_inputs.append(np.array(xin))
+    xor_outputs.append(np.array(xout))
 # ===================================================
 
 
@@ -36,13 +44,15 @@ def eval_genome(genome: neat.genomes.NeatGenome,
     error = 0
     for i in idx:
         x, y = xor_inputs[i], xor_outputs[i]
-        genome.reset_activations()
-        h = genome.process(x)[0]
+        genome.reset()
+        h = genome.process(expand_dims(x, axis=0))[0].numpy()[0]
+        print(h)
         error += (y - h) ** 2
         if log:
             print(f"IN: {x}  |  OUT: {h}  |  TARGET: {y}")
     if log:
         print(f"\nError: {error}")
+
     return 1/error
 
 
@@ -50,19 +60,27 @@ if __name__ == "__main__":
     runs = 1
     total_time = 0
     pop = history = None
+    base_layers = [
+        fito.layers.TFDenseLayer(32, activation="relu"),
+        fito.layers.TFDenseLayer(1, activation="relu"),
+    ]
 
     for r in range(runs):
         start_time = timer()
-        pop = neat.population.NeatPopulation(
-            size=200,
-            num_inputs=len(xor_inputs[0]),
-            num_outputs=1,
-        )
+        # pop = neat.population.NeatPopulation(
+        #     size=200,
+        #     num_inputs=len(xor_inputs[0]),
+        #     num_outputs=1,
+        # )
+
+        pop = fito.FixedTopologyPopulation(size=100,
+                                           base_layers=base_layers)
+
         history = pop.evolve(generations=100,
                              fitness_function=eval_genome,
                              verbose=2,
                              callbacks=[
-                                 neat.callbacks.FitnessEarlyStopping(
+                                 nevopy.callbacks.FitnessEarlyStopping(
                                      fitness_threshold=1e3,
                                      min_consecutive_generations=3,
                                  )
@@ -78,11 +96,12 @@ if __name__ == "__main__":
     best.visualize()
 
     print("\n" + 20*"=" +
-          f"\nReplaced invalid genomes: {sum(history.invalid_genomes_replaced)}"
+          # f"\nReplaced invalid genomes: {sum(history.invalid_genomes_replaced)}"
           f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s\n")
 
     history.visualize()
+    history.visualize(attrs=["processing_time"])
 
     # print("\n\n\nSaving population...")
     # pop.save("./test/test_pop.pkl")

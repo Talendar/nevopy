@@ -28,7 +28,7 @@ implements the :class:`.NeatPopulation` class, which handles the evolution of a
 population/community of genomes.
 """
 
-from typing import Optional, List, Sequence, Dict, Callable
+from typing import Optional, List, Sequence, Dict, Callable, Any
 
 import pickle
 from pathlib import Path
@@ -39,15 +39,16 @@ from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import Species
-from nevopy.neat.callbacks import (Callback, CompleteStdOutLogger,
-                                   SimpleStdOutLogger, History)
+from nevopy.callbacks import (Callback, CompleteStdOutLogger,
+                              SimpleStdOutLogger, History)
 
 from nevopy import utils
 from nevopy.processing.base_scheduler import ProcessingScheduler
 from nevopy.processing.pool_processing import PoolProcessingScheduler
+from nevopy.base_population import Population
 
 
-class NeatPopulation:
+class NeatPopulation(Population):
     """ Population of individuals (genomes) to be evolved by the NEAT algorithm.
 
     Main class of `NEvoPY's` implementation of the NEAT algorithm. It represents
@@ -126,7 +127,9 @@ class NeatPopulation:
                  base_genome: Optional[NeatGenome] = None,
                  config: Optional[NeatConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
-                 ) -> None:
+    ) -> None:
+        super().__init__(size)
+
         # assertions and config
         if base_genome is None:
             if None in (num_inputs, num_outputs):
@@ -135,10 +138,10 @@ class NeatPopulation:
                     "must specify a number of inputs and a number of "
                     "outputs!")
 
-            self.config = config if config is not None else NeatConfig()
+            self._config = config if config is not None else NeatConfig()
             self._base_genome = NeatGenome(num_inputs=num_inputs,
                                            num_outputs=num_outputs,
-                                           config=self.config)
+                                           config=self._config)
         else:
             if None not in (num_inputs, num_outputs):
                 if (base_genome.num_inputs != num_inputs
@@ -156,22 +159,24 @@ class NeatPopulation:
                                  "does not match the `NeatConfig` object of "
                                  "the base genome!")
 
-            self.config = base_genome.config
+            self._config = base_genome.config
             self._base_genome = base_genome
 
         # others instance variables
-        self._size = size
-        self.stop_evolving = False
-
         self._scheduler = (processing_scheduler
                            if processing_scheduler is not None
                            else NeatPopulation._DEFAULT_SCHEDULER())
 
-        self._id_handler = IdHandler(self._base_genome.num_inputs,
-                                     self._base_genome.num_outputs,
-                                     has_bias=self.config.bias_value is not None)
+        self._id_handler = IdHandler(
+            num_inputs=self._base_genome.num_inputs,
+            num_outputs=self._base_genome.num_outputs,
+            has_bias=self._config.bias_value is not None,
+        )
 
-        self._rank_prob_dist = None            # type: Optional[np.ndarray]
+        self._cached_rank_prob_dist = utils.rank_prob_dist(
+            size=self._size,
+            coefficient=self._config.rank_prob_dist_coefficient,
+        )
         self._invalid_genomes_replaced = None  # type: Optional[int]
         self._mass_extinction_counter = 0
 
@@ -193,24 +198,25 @@ class NeatPopulation:
         new_sp.random_representative()
         self.species = {new_sp.id: new_sp}
 
-    def fittest(self) -> NeatGenome:
-        """ Returns the most fit genome in the population. """
-        return self.genomes[int(np.argmax([g.fitness for g in self.genomes]))]
+    @property
+    def config(self) -> Any:
+        return self._config
 
     def evolve(self,
                generations: int,
                fitness_function: Callable[[NeatGenome], float],
                callbacks: Optional[List[Callback]] = None,
-               verbose: int = 2) -> History:
+               verbose: int = 2,
+               **kwargs) -> History:
         """ Evolves the population of genomes using the NEAT algorithm.
 
         Args:
             generations (int): Number of generations for the algorithm to run. A
                 generation is completed when all the population's genomes have
                 been processed and reproduction and speciation has occurred.
-            fitness_function (Callable[[NeatGenome], float]): Fitness function to
-                be used to evaluate the fitness of individual genomes. It must
-                receive a genome as input and produce a float (the genome's
+            fitness_function (Callable[[NeatGenome], float]): Fitness function
+                to be used to evaluate the fitness of individual genomes. It
+                must receive a genome as input and produce a float (the genome's
                 fitness) as output.
             callbacks (Optional[List[Callback]]): List with instances of
                 :class:`.Callback` that will be called during the evolutionary
@@ -239,9 +245,6 @@ class NeatPopulation:
 
         for cb in callbacks:
             cb.population = self
-
-        # caching the rank-selection probability distribution
-        self._calc_prob_dist()
 
         # resetting improvement record
         self._last_improvement = 0
@@ -275,42 +278,49 @@ class NeatPopulation:
             # counting max number of hidden connections in one genome
             self.__max_hidden_connections = np.max([
                 len([c for c in g.connections
-                     if c.enabled and (c.from_node.type == NodeGene.Type.HIDDEN
-                                       or c.to_node.type == NodeGene.Type.HIDDEN)
+                     if (c.enabled
+                         and (c.from_node.type == NodeGene.Type.HIDDEN
+                              or c.to_node.type == NodeGene.Type.HIDDEN))
                      ])
                 for g in self.genomes
             ])
 
             # callback: on_fitness_calculated
+            avg_fitness = self.average_fitness()
             for cb in callbacks:
-                cb.on_fitness_calculated(best, self.__max_hidden_nodes,
-                                         self.__max_hidden_connections)
+                cb.on_fitness_calculated(
+                    best_fitness=best.fitness,
+                    avg_fitness=avg_fitness,
+                    max_hidden_nodes=self.__max_hidden_nodes,
+                    max_hidden_connections=self.__max_hidden_connections
+                )
 
             # checking improvements
             improv_diff = best.fitness - self._past_best_fitness
-            improv_min_pc = self.config.maex_improvement_threshold_pc
+            improv_min_pc = self._config.maex_improvement_threshold_pc
             if improv_diff >= abs(self._past_best_fitness * improv_min_pc):
                 self._mass_extinction_counter = 0
                 self._past_best_fitness = best.fitness
             else:
                 self._mass_extinction_counter += 1
-            self.config.update_mass_extinction(self._mass_extinction_counter)
+            self._config.update_mass_extinction(self._mass_extinction_counter)
 
             # callback: on_mass_extinction_counter_updated
             for cb in callbacks:
                 cb.on_mass_extinction_counter_updated(
-                    self._mass_extinction_counter)
+                    self._mass_extinction_counter
+                )
 
             # checking mass extinction
             if (self._mass_extinction_counter
-                    >= self.config.mass_extinction_threshold):
+                    >= self._config.mass_extinction_threshold):
                 # callback: on_mass_extinction_start
                 for cb in callbacks:
                     cb.on_mass_extinction_start()
 
                 # mass extinction
                 self._mass_extinction_counter = 0
-                self.genomes = [best] + [self._random_genome_with_extras()
+                self.genomes = [best] + [self._random_genome_with_extras()  # type: ignore
                                          for _ in range(self._size - 1)]
                 assert len(self.genomes) == self._size
             else:
@@ -323,7 +333,9 @@ class NeatPopulation:
 
             # callback: on_speciation_start
             for cb in callbacks:
-                cb.on_speciation_start(self._invalid_genomes_replaced)
+                cb.on_speciation_start(
+                    invalid_genoems_replaced=self._invalid_genomes_replaced,
+                )
 
             # speciation
             self.speciation(generation=generation_num)
@@ -359,14 +371,14 @@ class NeatPopulation:
 
         # adding hidden nodes
         max_hnodes = (self.__max_hidden_nodes
-                      + self.config.random_genome_bonus_nodes)
+                      + self._config.random_genome_bonus_nodes)
         if max_hnodes > 0:
             for _ in range(np.random.randint(low=0, high=(max_hnodes + 1))):
                 new_genome.add_random_hidden_node(self._id_handler)
 
         # adding random connections
         max_hcons = (self.__max_hidden_connections
-                     + self.config.random_genome_bonus_connections)
+                     + self._config.random_genome_bonus_connections)
         if max_hcons > 0:
             for _ in range(np.random.randint(low=0, high=(max_hcons + 1))):
                 new_genome.add_random_connection(self._id_handler)
@@ -401,10 +413,10 @@ class NeatPopulation:
         g1 = np.random.choice(species.members, p=rank_prob_dist)
 
         # mating / cross-over
-        if utils.chance(self.config.mating_chance):
+        if utils.chance(self._config.mating_chance):
             # interspecific
             if (len(self.species) > 1
-                    and utils.chance(self.config.interspecies_mating_chance)):
+                    and utils.chance(self._config.interspecies_mating_chance)):
                 g2 = np.random.choice([g for g in self.genomes
                                        if g.species_id != species.id])
             # intraspecific
@@ -416,25 +428,25 @@ class NeatPopulation:
             baby = g1.deep_copy()
 
         # enable connection mutation
-        if utils.chance(self.config.enable_connection_mutation_chance):
+        if utils.chance(self._config.enable_connection_mutation_chance):
             baby.enable_random_connection()
 
         # weight mutation
-        if utils.chance(self.config.weight_mutation_chance):
+        if utils.chance(self._config.weight_mutation_chance):
             baby.mutate_weights()
 
         # new connection mutation
-        if utils.chance(self.config.new_connection_mutation_chance):
+        if utils.chance(self._config.new_connection_mutation_chance):
             baby.add_random_connection(self._id_handler)
 
         # new node mutation
-        if utils.chance(self.config.new_node_mutation_chance):
+        if utils.chance(self._config.new_node_mutation_chance):
             baby.add_random_hidden_node(self._id_handler)
 
         # checking genome validity
-        valid_out = (not self.config.infanticide_output_nodes
+        valid_out = (not self._config.infanticide_output_nodes
                      or baby.valid_out_nodes())
-        valid_in = (not self.config.infanticide_input_nodes
+        valid_in = (not self._config.infanticide_input_nodes
                     or baby.valid_in_nodes())
 
         # genome is valid
@@ -445,23 +457,8 @@ class NeatPopulation:
         self._invalid_genomes_replaced += 1
         return self._random_genome_with_extras()
 
-    def _calc_prob_dist(self) -> None:
-        """
-        Calculates the probability distribution that associates, to each genome
-        in a species, the probability of reproducing.
-        """
-        alpha = self.config.rank_prob_dist_coefficient
-        self._rank_prob_dist = np.zeros(len(self.genomes))
-
-        self._rank_prob_dist[0] = 1 - 1 / alpha
-        for i in range(1, len(self.genomes)):
-            p = self._rank_prob_dist[i - 1] / alpha
-            if p < 1e-9:
-                break
-            self._rank_prob_dist[i] = p
-
     def reproduction(self) -> None:
-        """ Handles the reproduction of the population's genomes
+        """ Handles the reproduction of the population's genomes.
 
         This method implements the reproduction mechanism described in the
         original paper of the NEAT algorithm :cite:`stanley:ec02`.
@@ -488,19 +485,16 @@ class NeatPopulation:
                             reverse=True)
 
             # preserving the most fit individual
-            if len(sp.members) >= self.config.species_elitism_threshold:
+            if len(sp.members) >= self._config.species_elitism_threshold:
                 new_pop.append(sp.members[0])
 
             # removing the least fit individuals
-            r = int(len(sp.members) * self.config.weak_genomes_removal_pc)
+            r = int(len(sp.members) * self._config.weak_genomes_removal_pc)
             if 0 < r < len(sp.members):
                 r = len(sp.members) - r
                 for g in sp.members[r:]:
                     self.genomes.remove(g)
                 sp.members = sp.members[:r]
-
-        # todo: disallow members of species that haven't been improving to
-        #  reproduce
 
         # calculating the number of children for each species
         offspring_count = self.offspring_proportion(
@@ -511,7 +505,7 @@ class NeatPopulation:
         self._invalid_genomes_replaced = 0
         for sp in self.species.values():
             # reproduction probabilities (rank-based selection)
-            prob = self._rank_prob_dist[:len(sp.members)]
+            prob = self._cached_rank_prob_dist[:len(sp.members)]
             prob_sum = np.sum(prob)
 
             if abs(prob_sum - 1) > 1e-8:
@@ -528,8 +522,8 @@ class NeatPopulation:
         self.genomes = new_pop
 
         # checking if the innovation ids should be reset
-        if (self.config.reset_innovations_period is not None
-                and self._id_handler.reset_counter > self.config.reset_innovations_period):
+        if (self._config.reset_innovations_period is not None
+                and self._id_handler.reset_counter > self._config.reset_innovations_period):
             self._id_handler.reset()
         self._id_handler.reset_counter += 1
 
@@ -599,7 +593,7 @@ class NeatPopulation:
         Args:
             generation (int): Current generation number.
         """
-        extinction_threshold = self.config.species_no_improvement_limit
+        extinction_threshold = self._config.species_no_improvement_limit
 
         # checking improvements and resetting members
         removed_sids = []
@@ -624,7 +618,7 @@ class NeatPopulation:
             self.species.pop(sid)
 
         # assigning genomes to species
-        dist_threshold = self.config.species_distance_threshold
+        dist_threshold = self._config.species_distance_threshold
         for genome in self.genomes:
             chosen_species = None
 

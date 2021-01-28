@@ -38,7 +38,7 @@ Attributes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Sequence, TypeVar, Optional, Callable
+from typing import Sequence, TypeVar, Optional, Callable, List
 
 
 TProcItem = TypeVar("TProcItem")
@@ -65,7 +65,7 @@ class ProcessingScheduler(ABC):
     def run(self,
             items: Sequence[TProcItem],
             func: Optional[Callable[[TProcItem], TProcResult]],
-    ) -> Sequence[TProcResult]:
+    ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
@@ -88,11 +88,9 @@ class ProcessingScheduler(ABC):
                 simple function.
 
         Returns:
-            A :py:class:`Sequence` (usually a list) containing the results of
-            the processing of each item. It is guaranteed that the ordering of
-            the items in the returned list follows the order in which the items
-            are yielded by the iterable passed as argument. This means that if
-            the argument  passed to `items` is a :py:class:`Sequence`, the order
-            of the results will match the order of the sequence.
+            A list containing the results of the processing of each item. It is
+            guaranteed that the ordering of the items in the returned list
+            follows the order in which the items are yielded by the iterable
+            passed as argument.
         """
         raise NotImplementedError()

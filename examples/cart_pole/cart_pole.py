@@ -1,4 +1,5 @@
 import gym
+from nevopy.callbacks import FitnessEarlyStopping
 from nevopy import neat
 from nevopy import utils
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     history = pop.evolve(generations=50,
                          fitness_function=evaluate,
                          callbacks=[
-                             neat.callbacks.FitnessEarlyStopping(
+                             FitnessEarlyStopping(
                                  fitness_threshold=500,
                                  min_consecutive_generations=3,
                              )

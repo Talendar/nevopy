@@ -30,4 +30,3 @@ from nevopy.neat import population
 from nevopy.neat import id_handler
 from nevopy.neat import species
 from nevopy.neat import config
-from nevopy.neat import callbacks

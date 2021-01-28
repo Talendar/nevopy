@@ -22,7 +22,6 @@
 # ==============================================================================
 
 """ Implements a processing scheduler that uses the `ray` framework.
-
 By using `ray` (https://github.com/ray-project/ray), the scheduler is able to
 implement parallel processing, either on a single machine or on a cluster.
 """
@@ -36,28 +35,23 @@ from typing import List, Optional, Sequence, Callable, Dict, Set
 
 class RayProcessingScheduler(ProcessingScheduler):
     """ Scheduler that uses `ray` to implement parallel processing.
-
     Ray is an open source framework that provides a simple, universal API for
     building distributed applications. This scheduler uses it to implement
     parallel processing. It's possible to either run `ray` on a single machine
     or on a cluster. For more information about the `ray` framework, checkout
     the project's GitHub page: https://github.com/ray-project/ray.
-
     It's possible to view the `ray's` dashboard at http://127.0.0.1:8265. It
     contains useful information about the distribution of work and usage of
     resources by `ray`.
-
     When this class is instantiated, a new `ray` runtime is created. You should
     close existing `ray` runtimes before creating a new `ray` scheduler, to
     avoid possible conflicts. If, for some reason, you want to use a currently
     running `ray` runtime instead of creating a new one, pass `True` as argument
     to `ignore_reinit_error`.
-
     This class is, basically, a simple `wrapper` for `ray`. If you're an
     advanced user and this scheduler doesn't meet your needs, it's recommended
     that you implement your own scheduler by inheriting
     :class:`.ProcessingScheduler`.
-
     Args:
         address (Optional[str]): The address of the Ray cluster to connect to.
             If this address is not provided, then this command will start Redis,
@@ -73,15 +67,11 @@ class RayProcessingScheduler(ProcessingScheduler):
             each raylet. By default, this is set based on detected GPUs. If you
             are using TensorFlow, it's recommended for you to execute the
             following piece of code before importing the module:
-
                 .. code-block:: python
-
                     import os
                     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-
             This will prevent individual TensorFlow's sessions from allocating
             the entire GPU memory available.
-
         worker_gpu_frac (Optional[float]): Minimum fraction of a GPU a worker
             needs in order to use it. If there isn't enough GPU resources
             available for a worker when a task is assigned to it, it will not
@@ -112,7 +102,11 @@ class RayProcessingScheduler(ProcessingScheduler):
                  num_cpus=self._num_cpus,
                  num_gpus=num_gpus,
                  **kwargs)
-        self._num_gpus = ray.available_resources()["GPU"]
+        try:
+            self._num_gpus = ray.available_resources()["GPU"]
+        except KeyError:
+            self._num_gpus = 0
+
         self._worker_gpu_frac = (worker_gpu_frac if worker_gpu_frac is not None
                                  else self._num_gpus / self._num_cpus)
 
@@ -125,10 +119,8 @@ class RayProcessingScheduler(ProcessingScheduler):
             func: Callable[[TProcItem], TProcResult],
     ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
-
         Main function of the scheduler. Call it to make the scheduler manage the
         parallel processing of a batch of items using `ray`.
-
         Args:
             items (Sequence[TProcItem]): Sequence containing the items to be
                 processed.
@@ -141,7 +133,6 @@ class RayProcessingScheduler(ProcessingScheduler):
                 possible to use Python's :mod:`functools.partial` or to just
                 wrap it with a simple function. The callable doesn't need to be
                 annotated with `ray.remote`, this is handled for you.
-
         Returns:
             A list containing the results of the processing of each item. It is
             guaranteed that the ordering of the items in the returned list
@@ -196,5 +187,4 @@ class RayProcessingScheduler(ProcessingScheduler):
 def _func_wrapper(func: Callable[[TProcItem], TProcResult],
                   item: TProcItem) -> TProcResult:
     """ Wrapper function to be used by `ray`. """
-    # os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
     return func(item)
