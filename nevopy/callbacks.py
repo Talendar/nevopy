@@ -229,7 +229,7 @@ class CompleteStdOutLogger(Callback):
         ]
 
         self._past_best_fitness = best_fitness
-        self._past_avg_fitness = best_fitness
+        self._past_avg_fitness = avg_fitness
 
     def on_mass_extinction_counter_updated(self,
                                            mass_extinction_counter: int,

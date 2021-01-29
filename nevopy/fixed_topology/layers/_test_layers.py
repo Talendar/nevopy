@@ -46,6 +46,9 @@ config = FixedTopologyConfig(  # weight mutation
 
 def test_mutate_weights(layer, num_tests=100, verbose=False):
     deltaT = 0
+    mutated_weights_pc = 0
+    reset_weights_pc = 0
+
     for _ in range(num_tests):
         test_info = {}
         weights_old = layer.weights
@@ -60,37 +63,85 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
             if verbose:
                 print(f"\n[WEIGHT MATRIX AT INDEX {w_num}]")
 
+            mutate_idx = test_info[f'w{w_num}_mutate_idx']
+            perturbation = test_info[f"w{w_num}_perturbation"] - 1
+            assert len(mutate_idx) == len(perturbation)
+
+            if len(mutate_idx) > 0:
+                mutate_idx, perturbation = (
+                    np.array(list(t))
+                    for t in zip(
+                        *sorted(zip(test_info[f'w{w_num}_mutate_idx'],
+                                    test_info[f"w{w_num}_perturbation"] - 1))
+                    )
+                )
+
+            reset_idx = test_info[f'w{w_num}_reset_idx']
             diff_pc = np.divide(w_new - w_old, w_old,
-                                out=np.full_like(w_old, fill_value=-123456),
+                                out=np.full_like(w_old, fill_value=None),
                                 where=w_old != 0)
+
+            mutated_pc = len(mutate_idx) / w_old.size
+            reset_pc = len(reset_idx) / w_old.size
+
+            mutated_weights_pc += mutated_pc / len(weights_old)
+            reset_weights_pc += reset_pc / len(weights_old)
+
             count_reset = 0
+            count_pert = 0
             for i in range(w_old.size):
                 d_real = diff_pc.flat[i]
-                if d_real == -123456:
-                    continue
-
-                d_calc = (test_info[f"w{w_num}_perturbation"].numpy() - 1).flat[i]
-
                 if verbose:
                     print(f"[ABS CHANGE] {w_old.flat[i]:.5f} "
                           f"-> {w_new.flat[i]:.5f}  <>  "
-                          f"[% CHANGE] real = {d_real:.2%} | "
-                          f"calc = {d_calc:.2%}  <>  "
-                          f"Reset: {i in test_info[f'w{w_num}_reset_idx']}")
+                          f"Reset: {i in reset_idx} | "
+                          f"Mutate: {i in mutate_idx}"
+                          f"  <>  real = {d_real:.2%}", end="")
+
+                if i not in mutate_idx:
+                    if verbose:
+                        print()
+
+                    if i not in reset_idx:
+                        assert w_new.flat[i] == w_old.flat[i]
+                    else:
+                        assert w_new.flat[i] != w_old.flat[i]
+
+                    if not np.isnan(d_real):
+                        assert d_real == 0 or i in reset_idx
+
+                    continue
+
+                d_calc = perturbation.flat[count_pert]
+                count_pert += 1
+
+                if verbose:
+                    print(f" | calc = {d_calc:.2%}")
+
+                if np.isnan(d_real):
+                    continue
 
                 if abs(d_real - d_calc) > 1e-5:
-                    if i in test_info[f"w{w_num}_reset_idx"]:
+                    if i in reset_idx:
                         count_reset += 1
                         continue
+                    print(perturbation)
                     raise RuntimeError("Incorrect weight value!")
-            assert count_reset <= len(test_info[f"w{w_num}_reset_idx"])
+
+            assert count_reset <= len(reset_idx)
+            assert count_pert == len(mutate_idx)
+
             if verbose:
-                print(f"Reset weights idx: "
-                      f"{test_info[f'w{w_num}_reset_idx']}\n\n")
+                print(f"\nMutated weights idx: {mutate_idx}")
+                print(f"Reset weights idx: {reset_idx}")
+                print(f"Mutation pc: {mutated_pc:.2%}")
+                print(f"Reset pc: {reset_pc:.2%}\n\n")
 
     if verbose:
         print("\n" + "="*50)
     print(f"> Mutation time: {1000 * deltaT / num_tests}ms")
+    print(f"> Mutated weights pc: {mutated_weights_pc / num_tests:.2%}")
+    print(f"> Reset weights pc: {reset_weights_pc / num_tests:.2%}")
 
 
 def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
@@ -390,7 +441,7 @@ def run_all_tests(test_layer1, test_layer2):
 
 
 def test_conv2d():
-    input_shape = (1, 128, 128, 3)
+    input_shape = (1, 256, 256, 3)
     test_layer1 = TensorFlowLayer(filters=64,
                                   kernel_size=(3, 3),
                                   layer_type=tf.keras.layers.Conv2D,

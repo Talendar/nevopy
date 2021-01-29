@@ -34,20 +34,20 @@ if __name__ == "__main__":
     best = pop.fittest()
 
     print("\nEvaluation (100 episodes):")
-    print(f". Random agent score: {evaluate(None, eps=100)}")
-    print(f". Evolved agent: {evaluate(best, eps=100)}")
+    print(f". Random genome score: {evaluate(None, eps=100)}")
+    print(f". Evolved genome: {evaluate(best, eps=100)}")
 
     while True:
         try:
             key = int(input("\nEvolution complete!\n"
-                            "   [0] Visualize random agent\n"
-                            "   [1] Visualize evolved agent\n"
+                            "   [0] Visualize random genome\n"
+                            "   [1] Visualize evolved genome\n"
                             "   [2] Exit\n"
                             "Choose an option: "))
             if key == 0:
-                print(f"\nRandom agent: {evaluate(None, eps=1, visualize=True)}")
+                print(f"\nRandom genome: {evaluate(None, eps=1, visualize=True)}")
             elif key == 1:
-                print(f"\nEvolved agent: {evaluate(best, eps=1, visualize=True)}")
+                print(f"\nEvolved genome: {evaluate(best, eps=1, visualize=True)}")
             elif key == 2:
                 break
             else:

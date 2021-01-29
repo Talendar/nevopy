@@ -251,8 +251,8 @@ class FixedTopologyPopulation(Population):
         baby = p1.mate(p2) if p2 is not None else p1.deep_copy()
 
         # Mutation:
-        if p2 is None or utils.chance(baby.config.weight_mutation_chance):
-            baby.mutate_weights()
+        # if p2 is None or utils.chance(baby.config.weight_mutation_chance):
+        baby.mutate_weights()
 
         return baby
 
@@ -294,11 +294,13 @@ class FixedTopologyPopulation(Population):
 
         # Choosing mating partners:
         offspring_count = self.size - len(new_pop)
-        parents1 = np.random.choice(
-            self.genomes,
-            size=offspring_count,
-            p=self._cached_rank_prob_dist[:len(self.genomes)],
-        )
+        prob_dist = self._cached_rank_prob_dist[:len(self.genomes)]
+        if abs(1 - prob_dist.sum()) < 1e8:
+            prob_dist = prob_dist / prob_dist.sum()
+
+        parents1 = np.random.choice(self.genomes,
+                                    size=offspring_count,
+                                    p=prob_dist)
 
         mating_chance = self._config.mating_chance
         parents2 = np.random.choice(

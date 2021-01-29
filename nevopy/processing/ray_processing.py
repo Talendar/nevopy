@@ -38,23 +38,28 @@ _logger = logging.getLogger(__name__)
 
 class RayProcessingScheduler(ProcessingScheduler):
     """ Scheduler that uses `ray` to implement parallel processing.
+
     Ray is an open source framework that provides a simple, universal API for
     building distributed applications. This scheduler uses it to implement
     parallel processing. It's possible to either run `ray` on a single machine
     or on a cluster. For more information about the `ray` framework, checkout
     the project's GitHub page: https://github.com/ray-project/ray.
+
     It's possible to view the `ray's` dashboard at http://127.0.0.1:8265. It
     contains useful information about the distribution of work and usage of
     resources by `ray`.
+
     When this class is instantiated, a new `ray` runtime is created. You should
     close existing `ray` runtimes before creating a new `ray` scheduler, to
     avoid possible conflicts. If, for some reason, you want to use a currently
     running `ray` runtime instead of creating a new one, pass `True` as argument
     to `ignore_reinit_error`.
+
     This class is, basically, a simple `wrapper` for `ray`. If you're an
     advanced user and this scheduler doesn't meet your needs, it's recommended
     that you implement your own scheduler by inheriting
     :class:`.ProcessingScheduler`.
+
     Args:
         address (Optional[str]): The address of the Ray cluster to connect to.
             If this address is not provided, then this command will start Redis,
@@ -70,9 +75,12 @@ class RayProcessingScheduler(ProcessingScheduler):
             each raylet. By default, this is set based on detected GPUs. If you
             are using TensorFlow, it's recommended for you to execute the
             following piece of code before importing the module:
+
                 .. code-block:: python
+
                     import os
                     os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+
             This will prevent individual TensorFlow's sessions from allocating
             the entire GPU memory available.
         worker_gpu_frac (Optional[float]): Minimum fraction of a GPU a worker
@@ -122,8 +130,10 @@ class RayProcessingScheduler(ProcessingScheduler):
             func: Callable[[TProcItem], TProcResult],
     ) -> List[TProcResult]:
         """ Processes the given items and returns a result.
+
         Main function of the scheduler. Call it to make the scheduler manage the
         parallel processing of a batch of items using `ray`.
+
         Args:
             items (Sequence[TProcItem]): Sequence containing the items to be
                 processed.

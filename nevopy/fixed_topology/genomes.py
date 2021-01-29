@@ -63,6 +63,12 @@ class FixedTopologyGenome(BaseGenome):
         config (Optional[FixedTopologyConfig]): Settings of the current
             evolutionary session. If `None`, a config object must be assigned to
             this genome latter.
+        input_shape (Optional[Tuple[int, ...]]): Shape of the inputs that will
+            be fed to the genome. If a value is specified, the genome's layers
+            are built (they have their weights initialized). If `None`, an
+            input shape will be inferred later when an input is fed to the
+            genome (note, however, that the weights won't be initialized until
+            it occurs).
 
     Attributes:
         layers (List[BaseLayer]): List with the layers of the network (instances
@@ -89,7 +95,7 @@ class FixedTopologyGenome(BaseGenome):
                                  "layer!")
 
     @property
-    def input_shape(self) -> Tuple[int, ...]:
+    def input_shape(self) -> Optional[Tuple[int, ...]]:
         """ The input shape expected by the genome's input layer. """
         return self.layers[0].input_shape
 
@@ -144,13 +150,13 @@ class FixedTopologyGenome(BaseGenome):
         Implements the sexual reproduction between a pair of genomes. The new
         genome inherits information from both parents.
 
-        Currently, there are two mating methods available. In the
-        `exchange weights` mode, each of the new genome's layers has its weights
-        inherited from both parents (the details on how it's done depend on the
-        mating function used by the layer). In the `exchange layers` mode, each
-        of the new genome's layers is an exact copy of a layer from one of the
-        parent genomes. The mating mode to be used is determined by
-        :class:`.FixedTopologyConfig`.
+        Currently available mating modes:
+
+            * :meth:`nevopy.fixed_topology.layers.mating.exchange_weights_mating`;
+            * :meth:`nevopy.fixed_topology.layers.mating.exchange_units_mating`;
+            * :meth:`nevopy.fixed_topology.layers.mating.weights_avg_mating`.
+
+        The mating mode of a layer is specified during its instantiation.
 
         Args:
             other (Any): The second genome . If it's not compatible for mating

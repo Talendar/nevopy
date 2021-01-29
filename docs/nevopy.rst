@@ -30,6 +30,22 @@ nevopy.base\_genome module
    :undoc-members:
    :show-inheritance:
 
+nevopy.base\_population module
+------------------------------
+
+.. automodule:: nevopy.base_population
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+nevopy.callbacks module
+-----------------------
+
+.. automodule:: nevopy.callbacks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 nevopy.utils module
 -------------------
 

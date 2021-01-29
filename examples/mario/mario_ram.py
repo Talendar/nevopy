@@ -21,14 +21,14 @@ import numpy as np
 
 
 #################################### CONFIG ####################################
-GENERATIONS = 300
+GENERATIONS = 50
 POP_SIZE = 100
 LAYERS = [
-    TFDenseLayer(units=64,
+    TFDenseLayer(units=128,
                  activation="relu",
                  mating_func=mating.weights_avg_mating,
                  mutable=True),
-    TFDenseLayer(units=64,
+    TFDenseLayer(units=128,
                  activation="relu",
                  mating_func=mating.weights_avg_mating,
                  mutable=True),
@@ -44,19 +44,19 @@ DELTA_X_IDLE_THRESHOLD = 5
 LIVES = 1
 CONFIG = FixedTopologyConfig(
     # weight mutation
-    weight_mutation_chance=(0.7, 0.9),
-    weight_perturbation_pc=(0.05, 0.3),
-    weight_reset_chance=(0.05, 0.3),
-    new_weight_interval=(-1, 1),
+    weight_mutation_chance=(0.3, 0.8),
+    weight_perturbation_pc=(0.02, 0.3),
+    weight_reset_chance=(0.01, 0.2),
+    new_weight_interval=(-2, 2),
     # reproduction
     weak_genomes_removal_pc=0.5,
-    mating_chance=0.7,
+    mating_chance=0.8,
     mating_mode="exchange_weights_mating",
     rank_prob_dist_coefficient=1.8,
     elitism_count=2,
-    predatism_chance=0.15,
+    predatism_chance=0.1,
     # mass extinction
-    mass_extinction_threshold=15,
+    mass_extinction_threshold=20,
     maex_improvement_threshold_pc=0.05,
 )
 ################################################################################
@@ -105,7 +105,7 @@ def evaluate(genome, max_steps=MAX_STEPS, visualize=False):
             time.sleep(1 / RENDER_FPS)
 
         if genome is not None:
-            ram = np.expand_dims(env.unwrapped.ram, axis=0)
+            ram = np.expand_dims(env.unwrapped.ram, axis=0) / 255
             action = np.argmax(genome.process(ram).numpy()[0])
         else:
             action = env.action_space.sample()
@@ -181,8 +181,8 @@ if __name__ == "__main__":
         key = int(input("\n\n< Learning Mario with NEvoPY >\n"
                         "   [1] New population\n"
                         "   [2] Load population\n"  
-                        "   [3] Visualize best agent\n"
-                        "   [4] Visualize random agent\n"
+                        "   [3] Visualize best genome\n"
+                        "   [4] Visualize random genome\n"
                         "   [0] Exit\n"
                         "Choose an option: "))
         print("\n")
@@ -215,7 +215,7 @@ if __name__ == "__main__":
                 _cached_imgs = []
                 _CACHE_IMGS = True
                 f = evaluate(best, visualize=True)
-                print(f"Evolved agent: {f}")
+                print(f"Evolved genome: {f}")
                 video()
                 _CACHE_IMGS = False
         # visualize random
@@ -223,7 +223,7 @@ if __name__ == "__main__":
             _cached_imgs = []
             _CACHE_IMGS = True
             f = evaluate(None, visualize=True)
-            print(f"Random agent: {f}")
+            print(f"Random genome: {f}")
             video()
             _CACHE_IMGS = False
         # exit

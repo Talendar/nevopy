@@ -67,13 +67,13 @@ class FixedTopologyConfig:
     def __init__(self,
                  file_pathname=None,
                  # weight mutation
-                 weight_mutation_chance=(0.7, 0.9),
-                 weight_perturbation_pc=(0.05, 0.3),
-                 weight_reset_chance=(0.05, 0.3),
-                 new_weight_interval=(-1, 1),
+                 weight_mutation_chance=(0.3, 0.8),
+                 weight_perturbation_pc=(0.03, 0.3),
+                 weight_reset_chance=(0.03, 0.3),
+                 new_weight_interval=(-2, 2),
                  # reproduction
                  weak_genomes_removal_pc=0.5,
-                 mating_chance=0.7,
+                 mating_chance=0.8,
                  mating_mode="exchange_weights_mating",
                  rank_prob_dist_coefficient=1.75,
                  elitism_count=2,

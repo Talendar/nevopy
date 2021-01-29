@@ -190,12 +190,13 @@ class TensorFlowLayer(BaseLayer):
         new_layer.weights = self.weights
         return new_layer
 
+    # noinspection PyUnboundLocalVariable
     def mutate_weights(self, _test_info=None) -> None:
         """ Randomly mutates the weights of the layer's connections.
 
-        Each weight will be perturbed by an amount defined in the settings of
-        the current evolutionary session. Each weight also has a chance of being
-        reset (a new random value is assigned to it).
+        Each weight has a chance to be perturbed by a predefined amount or to be
+        reset. The probabilities are obtained from the settings of the current
+        evolutionary session.
 
         If the layer is immutable, nothing happens (the layer's weights remain
         unchanged).
@@ -211,34 +212,49 @@ class TensorFlowLayer(BaseLayer):
 
         new_weights = []
         for i, w in enumerate(self.weights):
-            # weight perturbation
-            w_perturbation = tf.random.uniform(
-                shape=w.shape,
-                minval=1 - self.config.weight_perturbation_pc,
-                maxval=1 + self.config.weight_perturbation_pc,
-            )
-            w = tf.math.multiply(w, w_perturbation).numpy()
+            old_shape = w.shape
 
-            # weight reset
-            num_w_reset = np.random.binomial(w.size,
-                                             self.config.weight_reset_chance)
-            if num_w_reset > 0:
-                w_reset_idx = np.random.randint(0, w.size, size=num_w_reset)
-                w.flat[w_reset_idx] = np.random.uniform(
+            # Mutating weights:
+            num_mutate = np.random.binomial(w.size,
+                                            self.config.weight_mutation_chance)
+            if num_mutate > 0:
+                w_perturbation = np.random.uniform(
+                    low=1 - self.config.weight_perturbation_pc,
+                    high=1 + self.config.weight_perturbation_pc,
+                    size=num_mutate,
+                )
+                mutate_idx = np.random.choice(range(w.size),
+                                              size=num_mutate,
+                                              replace=False)
+                w.flat[mutate_idx] = np.multiply(w.flat[mutate_idx],
+                                                 w_perturbation)
+
+            # Resetting weights:
+            num_reset = np.random.binomial(w.size,
+                                           self.config.weight_reset_chance)
+            if num_reset > 0:
+                reset_idx = np.random.choice(range(w.size),
+                                             size=num_reset,
+                                             replace=False)
+                w.flat[reset_idx] = np.random.uniform(
                     low=self.config.new_weight_interval[0],
                     high=self.config.new_weight_interval[1],
-                    size=num_w_reset,
+                    size=num_reset,
                 )
 
-            # saving weight matrix
+            # Saving weight matrix:
+            assert w.shape == old_shape
             new_weights.append(w)
 
-            # test info
+            # Test/debug info:
             if _test_info is not None:
-                _test_info[f"w{i}_perturbation"] = w_perturbation
-                # noinspection PyUnboundLocalVariable
-                _test_info[f"w{i}_reset_idx"] = (w_reset_idx if num_w_reset > 0
-                                                 else [])
+                _test_info[f"w{i}_perturbation"] = (w_perturbation
+                                                    if num_mutate > 0
+                                                    else np.array([]))
+                _test_info[f"w{i}_mutate_idx"] = (mutate_idx if num_mutate > 0
+                                                  else np.array([]))
+                _test_info[f"w{i}_reset_idx"] = (reset_idx if num_reset > 0
+                                                 else np.array([]))
 
         # setting new weights and biases
         self.weights = new_weights

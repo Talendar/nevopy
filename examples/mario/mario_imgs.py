@@ -229,8 +229,8 @@ if __name__ == "__main__":
         key = int(input("\n\n< Learning Mario with NEvoPY >\n"
                         "   [1] New population\n"
                         "   [2] Load population\n"  
-                        "   [3] Visualize best agent\n"
-                        "   [4] Visualize random agent\n"
+                        "   [3] Visualize best genome\n"
+                        "   [4] Visualize random genome\n"
                         "   [0] Exit\n"
                         "Choose an option: "))
         print("\n")
@@ -263,7 +263,7 @@ if __name__ == "__main__":
                 _SIMPLIFIED_IMGS_CACHE = []
                 _CACHE_IMGS = True
                 f = evaluate(best, visualize=True)
-                print(f"Evolved agent: {f}")
+                print(f"Evolved genome: {f}")
                 video()
                 _CACHE_IMGS = False
         # visualize random
@@ -271,7 +271,7 @@ if __name__ == "__main__":
             _SIMPLIFIED_IMGS_CACHE = []
             _CACHE_IMGS = True
             f = evaluate(None, visualize=True)
-            print(f"Random agent: {f}")
+            print(f"Random genome: {f}")
             video()
             _CACHE_IMGS = False
         # exit
