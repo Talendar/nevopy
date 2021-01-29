@@ -294,7 +294,7 @@ class TFDenseLayer(TensorFlowLayer):
                  activation=None,
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
-                 ] = mating.exchange_units_mating,
+                 ] = mating.exchange_weights_mating,
                  config: Optional[FixedTopologyConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = True,

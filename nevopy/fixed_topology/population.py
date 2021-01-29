@@ -25,10 +25,9 @@
 TODO
 """
 
-from typing import Optional, List, Callable, Sequence, Tuple, cast
+from typing import Optional, List, Callable, Sequence, Tuple
 import numpy as np
 
-from nevopy.fixed_topology.layers.base_layer import BaseLayer
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.processing.base_scheduler import ProcessingScheduler
@@ -36,6 +35,9 @@ from nevopy.processing.ray_processing import RayProcessingScheduler
 from nevopy.callbacks import Callback, History, CompleteStdOutLogger
 from nevopy.base_population import Population
 from nevopy import utils
+
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class FixedTopologyPopulation(Population):
@@ -45,21 +47,19 @@ class FixedTopologyPopulation(Population):
 
     def __init__(self,
                  size: int,
-                 base_layers: Optional[List[BaseLayer]] = None,
-                 base_genome: Optional[List[FixedTopologyGenome]] = None,
+                 base_genome: FixedTopologyGenome,
                  config: Optional[FixedTopologyConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
     ) -> None:
         super().__init__(size)
 
         # Base genome:
-        if not ((base_genome is None) ^ (base_layers is None)):
-            raise ValueError("You must specify either a base genome or a list "
-                             "with base layers to the population!")
-
-        self._base_genome = (base_genome if base_genome is not None
-                             else FixedTopologyGenome(layers=base_layers))
-        self._base_genome = cast(FixedTopologyGenome, self._base_genome)
+        self._base_genome = base_genome
+        if self._base_genome.input_shape is None:
+            raise ValueError("The base genome's input shape has not been "
+                             "defined! Pass an input shape to the genome's "
+                             "constructor or feed a sample input to the "
+                             "genome.")
 
         # Config:
         self._config = config if config is not None else FixedTopologyConfig()
@@ -69,7 +69,7 @@ class FixedTopologyPopulation(Population):
             raise ValueError("The base genome was assigned a different config "
                              "object than the one used by the population!")
 
-        self._base_genome.config = config
+        self._base_genome.config = self._config
 
         # Processing scheduler:
         self._scheduler = (processing_scheduler
@@ -200,8 +200,11 @@ class FixedTopologyPopulation(Population):
                 # The whole population (except for the best genome) is replaced
                 # by new random genomes.
                 self._mass_extinction_counter = 0
-                self.genomes = [best] + [self._base_genome.random_copy()  # type: ignore
+                self.genomes = [best] + [self._base_genome.random_copy()
                                          for _ in range(self._size - 1)]
+                assert len(self.genomes) == self.size, ("The number of genomes "
+                                                        "doesn't match the "
+                                                        "population's size!")
             # REPRODUCTION:
             else:
                 # CALLBACK: on_reproduction_start
@@ -264,26 +267,36 @@ class FixedTopologyPopulation(Population):
         new_pop = []  # type: List[FixedTopologyGenome]
         self.genomes.sort(key=lambda genome: genome.fitness,
                           reverse=True)
-        # todo: make sure this is sorted
+
+        # DEBUG:
+        _logger.debug(f"[REPRODUCTION] Sorted genomes ({len(self.genomes)}): "
+                      f"{[g.fitness for g in self.genomes]}")
 
         # Elitism:
         # (preserves the fittest genomes)
         for i in range(min(self._config.elitism_count, self._size)):
             new_pop.append(self.genomes[i])
 
+        # DEBUG:
+        _logger.debug(f"[REPRODUCTION] Preserved genomes ({len(new_pop)}): "
+                      f"{[g.fitness for g in new_pop]}")
+
         # Reverse elitism:
         # (excludes the least fit genomes)
         rmv_count = int(self._config.weak_genomes_removal_pc * self._size)
         if rmv_count > 0:
             self.genomes = self.genomes[:-rmv_count]
-            # todo: make sure this is working
+
+        # DEBUG:
+        _logger.debug(f"[REPRODUCTION] Sorted genomes after reverse elitism "
+                      f"({len(self.genomes)}): "
+                      f"{[g.fitness for g in self.genomes]}")
 
         # Choosing mating partners:
-        # todo: check
-        size = len(self.genomes)
+        offspring_count = self.size - len(new_pop)
         parents1 = np.random.choice(
             self.genomes,
-            size=size,
+            size=offspring_count,
             p=self._cached_rank_prob_dist[:len(self.genomes)],
         )
 
@@ -291,8 +304,18 @@ class FixedTopologyPopulation(Population):
         parents2 = np.random.choice(
             # If `None`, only parent 1 will be considered (asexual reproduction)
             [None] + self.genomes,  # type: ignore
-            size=size,
-            p=([1 - mating_chance] + [mating_chance / size] * size),
+            size=offspring_count,
+            p=([1 - mating_chance]
+               + [mating_chance / len(self.genomes)] * len(self.genomes)),
+        )
+
+        # DEBUG:
+        # noinspection PyUnresolvedReferences, PyComparisonWithNone
+        asexual_count = (parents2 == None).sum()
+        _logger.debug(
+            f"[REPRODUCTION] Mating: "
+            f"{(offspring_count - asexual_count) / offspring_count:0.2%} | "
+            f"Binary fission: {asexual_count / offspring_count:0.2%}"
         )
 
         # Selecting prey:
@@ -300,8 +323,11 @@ class FixedTopologyPopulation(Population):
         # born through reproduction)
         predatism_chance = self._config.predatism_chance
         predate = np.random.choice([True, False],
-                                   size=size,
+                                   size=offspring_count,
                                    p=[predatism_chance, 1 - predatism_chance])
+
+        # DEBUG
+        _logger.debug(f"[REPRODUCTION] Preys (predatism): {predate.sum()}")
 
         # Generating offspring:
         # todo: is this worth parallelizing?
@@ -313,7 +339,10 @@ class FixedTopologyPopulation(Population):
 
         new_pop += babies
         self.genomes = new_pop
-        return (predate == True).sum()
+
+        assert len(self.genomes) == self.size, ("The number of genomes doesn't "
+                                                "match the population's size!")
+        return predate.sum()
 
 
 

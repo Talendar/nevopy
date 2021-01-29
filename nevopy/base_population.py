@@ -79,3 +79,51 @@ class Population(ABC, Generic[TGenome]):
     def average_fitness(self) -> float:
         """ Returns the average fitness of the population's genomes. """
         return np.mean([g.fitness for g in self.genomes])
+
+    # def save(self, abs_path: str) -> None:
+    #     """ Saves the population on the absolute path provided.
+    #
+    #     This method uses :py:mod:`pickle` to save the genome. The processing
+    #     scheduler used by the population won't be saved (a new one will have to
+    #     be assigned to the population when it's loaded again).
+    #
+    #     Args:
+    #         abs_path (str): Absolute path of the saving file. If the given path
+    #             doesn't end with the suffix ".pkl", it will be automatically
+    #             added to it.
+    #     """
+    #     p = Path(abs_path)
+    #     if not p.suffixes:
+    #         p = Path(str(abs_path) + ".pkl")
+    #     p.parent.mkdir(parents=True, exist_ok=True)
+    #
+    #     scheduler_cache = self._scheduler
+    #     self._scheduler = None
+    #     with open(str(p), "wb") as out_file:
+    #         pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
+    #
+    #     self._scheduler = scheduler_cache
+    #
+    # @staticmethod
+    # def load(abs_path: str,
+    #          scheduler: Optional[ProcessingScheduler] = None,
+    # ) -> "NeatPopulation":
+    #     """ Loads the population from the given absolute path.
+    #
+    #     This method uses :py:mod:`pickle` to load the genome.
+    #
+    #     Args:
+    #         abs_path (str): Absolute path of the saved ".pkl" file.
+    #         scheduler (Optional[ProcessingScheduler]): Processing scheduler to
+    #             be used by the population. If `None`, the default one will be
+    #             used.
+    #
+    #     Returns:
+    #         The loaded population.
+    #     """
+    #     with open(abs_path, "rb") as in_file:
+    #         pop = pickle.load(in_file)
+    #
+    #     pop._scheduler = (scheduler if scheduler is not None
+    #                       else NeatPopulation._DEFAULT_SCHEDULER())
+    #     return pop

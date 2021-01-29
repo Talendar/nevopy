@@ -32,6 +32,9 @@ from nevopy.processing.base_scheduler import (ProcessingScheduler,
                                               TProcItem, TProcResult)
 from typing import List, Optional, Sequence, Callable, Dict, Set
 
+import logging
+_logger = logging.getLogger(__name__)
+
 
 class RayProcessingScheduler(ProcessingScheduler):
     """ Scheduler that uses `ray` to implement parallel processing.
@@ -110,9 +113,9 @@ class RayProcessingScheduler(ProcessingScheduler):
         self._worker_gpu_frac = (worker_gpu_frac if worker_gpu_frac is not None
                                  else self._num_gpus / self._num_cpus)
 
-        print(f"Ray's Resources: CPUs: {self._num_cpus}  |  "
-              f"GPUs: {self._num_gpus}  |  "
-              f"GPU frac: {self._worker_gpu_frac:.4f}")
+        _logger.info(f"Ray's Resources: CPUs: {self._num_cpus}  |  "
+                     f"GPUs: {self._num_gpus}  |  "
+                     f"GPU frac: {self._worker_gpu_frac:.4f}")
 
     def run(self,
             items: Sequence[TProcItem],
@@ -179,7 +182,8 @@ class RayProcessingScheduler(ProcessingScheduler):
                 idx += 1
 
         # returning results
-        assert len(items) == len(results_dict)
+        assert len(items) == len(results_dict), ("The number of results do not "
+                                                 "match the number of items!")
         return [results_dict[i] for i in sorted(results_dict)]
 
 

@@ -26,10 +26,19 @@ networks with a fixed topology.
 """
 
 from typing import Any, List, Optional, Tuple
-from nevopy.base_genome import BaseGenome, IncompatibleGenomesError
-from nevopy.fixed_topology.layers import BaseLayer, IncompatibleLayersError
-from nevopy.fixed_topology.config import FixedTopologyConfig
 import numpy as np
+
+from nevopy.base_genome import BaseGenome, IncompatibleGenomesError
+from nevopy.fixed_topology.layers import (BaseLayer, IncompatibleLayersError,
+                                          TensorFlowLayer)
+from nevopy.fixed_topology.config import FixedTopologyConfig
+
+from tensorflow.keras.utils import plot_model as keras_plot_model
+from tensorflow.keras.models import Sequential as KerasSequential
+from PIL import Image
+
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class FixedTopologyGenome(BaseGenome):
@@ -62,11 +71,22 @@ class FixedTopologyGenome(BaseGenome):
 
     def __init__(self,
                  layers: List[BaseLayer],
-                 config: Optional[FixedTopologyConfig] = None) -> None:
+                 config: Optional[FixedTopologyConfig] = None,
+                 input_shape: Optional[Tuple[int, ...]] = None) -> None:
         super().__init__()
         self.layers = layers
         self._config = None
         self.config = config
+
+        if input_shape is not None:
+            if layers[0].input_shape is None:
+                _logger.info(" Feeding test data to genome in order to build "
+                             f"its layers (input shape: {input_shape})")
+                self.process(np.zeros(shape=input_shape))
+            elif layers[0].input_shape != input_shape:
+                raise ValueError("The input shape passed as argument doesn't "
+                                 "match the input shape of the genome's first "
+                                 "layer!")
 
     @property
     def input_shape(self) -> Tuple[int, ...]:
@@ -176,3 +196,29 @@ class FixedTopologyGenome(BaseGenome):
 
         return FixedTopologyGenome(layers=new_layers,
                                    config=self.config)
+
+    def visualize(self, show=True, to_file="genome.png", **kwargs):
+        """ TODO
+
+        Todo:
+            Make it possible to visualize neurons and connections.
+
+        Returns:
+
+        """
+        # Checking compatibility:
+        for layer in self.layers:
+            if not isinstance(layer, TensorFlowLayer):
+                raise ValueError("The genome has incompatible layers! "
+                                 "Currently, it's only possible to visualize "
+                                 "TensorFlow's layers.")
+
+        # Building keras model and visualizing it:
+        # noinspection PyUnresolvedReferences
+        model = KerasSequential(layers=[layer.tf_layer
+                                        for layer in self.layers])
+        model(np.zeros(shape=self.input_shape))
+        keras_plot_model(model, show_shapes=True, to_file=to_file, **kwargs)
+
+        if show:
+            Image.open(to_file).show()

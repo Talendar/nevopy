@@ -5,25 +5,33 @@ todo
 
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import nevopy
 from nevopy import neat
 from nevopy import fixed_topology as fito
+
 from timeit import default_timer as timer
 import numpy as np
-from tensorflow import expand_dims
-import random
+from tensorflow import reshape
+
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
+ALGORITHM = "neat"  # "neat" or "fixed_topology"
+MAX_GENERATIONS = 100
+FITNESS_THRESHOLD = 1e3
+NUM_VARIABLES = 2
+
 
 # =============== MAKING XOR DATA ==================
-num_variables = 2
-assert num_variables > 1
-
+assert NUM_VARIABLES > 1
 xor_inputs = []
 xor_outputs = []
 
-for num in range(2 ** num_variables):
-    binary = bin(num)[2:].zfill(num_variables)
+for num in range(2 ** NUM_VARIABLES):
+    binary = bin(num)[2:].zfill(NUM_VARIABLES)
     xin = [int(binary[0])]
     xout = int(binary[0])
     for bit in binary[1:]:
@@ -31,57 +39,79 @@ for num in range(2 ** num_variables):
         xout ^= int(bit)
     xor_inputs.append(np.array(xin))
     xor_outputs.append(np.array(xout))
+
+xor_inputs = np.array(xor_inputs)
+xor_outputs = np.array(xor_outputs)
 # ===================================================
 
 
-def eval_genome(genome: neat.genomes.NeatGenome,
-                shuffle=True,
-                log=False) -> float:
-    idx = list(range(len(xor_inputs)))
-    if shuffle:
-        random.shuffle(idx)
-
+def eval_neat_genome(genome: neat.genomes.NeatGenome,
+                     log=False) -> float:
+    idx = np.random.permutation(len(xor_inputs))
     error = 0
-    for i in idx:
-        x, y = xor_inputs[i], xor_outputs[i]
+    for x, y in zip(xor_inputs[idx], xor_outputs[idx]):
         genome.reset()
-        h = genome.process(expand_dims(x, axis=0))[0].numpy()[0]
-        print(h)
+
+        h = genome.process(x)[0]
         error += (y - h) ** 2
+
         if log:
             print(f"IN: {x}  |  OUT: {h}  |  TARGET: {y}")
+
     if log:
         print(f"\nError: {error}")
 
-    return 1/error
+    return 1 / error
+
+
+def eval_fito_genome(genome: neat.genomes.FixedTopologyGenome,
+                     log=False) -> float:
+    idx = np.random.permutation(len(xor_inputs))
+    H = genome.process(xor_inputs[idx])
+    H = reshape(H, [-1]).numpy()
+    error = ((H - xor_outputs[idx]) ** 2).sum()
+
+    if log:
+        for x, y, h in zip(xor_inputs[idx], xor_outputs[idx], H):
+            print(f"IN: {x}  |  OUT: {h}  |  TARGET: {y}")
+        print(f"\nError: {error}")
+
+    return 1 / error
 
 
 if __name__ == "__main__":
     runs = 1
     total_time = 0
     pop = history = None
-    base_layers = [
-        fito.layers.TFDenseLayer(32, activation="relu"),
-        fito.layers.TFDenseLayer(1, activation="relu"),
-    ]
+
+    if ALGORITHM == "fixed_topology":
+        base_genome = fito.FixedTopologyGenome(
+            layers=[fito.layers.TFDenseLayer(32, activation="relu"),
+                    fito.layers.TFDenseLayer(1, activation="relu")],
+            input_shape=xor_inputs.shape,
+        )
+        func = eval_fito_genome
+    else:
+        func = eval_neat_genome
 
     for r in range(runs):
         start_time = timer()
-        # pop = neat.population.NeatPopulation(
-        #     size=200,
-        #     num_inputs=len(xor_inputs[0]),
-        #     num_outputs=1,
-        # )
+        if ALGORITHM == "neat":
+            pop = neat.population.NeatPopulation(
+                size=200,
+                num_inputs=len(xor_inputs[0]),
+                num_outputs=1,
+            )
+        else:
+            pop = fito.FixedTopologyPopulation(size=100,
+                                               base_genome=base_genome)
 
-        pop = fito.FixedTopologyPopulation(size=100,
-                                           base_layers=base_layers)
-
-        history = pop.evolve(generations=100,
-                             fitness_function=eval_genome,
+        history = pop.evolve(generations=MAX_GENERATIONS,
+                             fitness_function=func,
                              verbose=2,
                              callbacks=[
                                  nevopy.callbacks.FitnessEarlyStopping(
-                                     fitness_threshold=1e3,
+                                     fitness_threshold=FITNESS_THRESHOLD,
                                      min_consecutive_generations=3,
                                  )
                              ])
@@ -91,13 +121,11 @@ if __name__ == "__main__":
 
     best = pop.fittest()
     print()
-    eval_genome(best, log=True)
-    # print(best.info())
+    func(best, log=True)
     best.visualize()
 
-    print("\n" + 20*"=" +
-          # f"\nReplaced invalid genomes: {sum(history.invalid_genomes_replaced)}"
-          f"\nTotal time: {total_time}s"
+    print("\n" + 20 * "=")
+    print(f"\nTotal time: {total_time}s"
           f"\nAvg. time: {total_time / runs}s\n")
 
     history.visualize()
@@ -112,6 +140,6 @@ if __name__ == "__main__":
     # pop = nevopy.neat.population.NeatPopulation.load("./test/test_pop.pkl")
     # print(pop.info())
     # best = pop.fittest()
-    # eval_genome(best, log=True)
+    # eval_neat_genome(best, log=True)
     # print(best.info())
     # best.visualize()
