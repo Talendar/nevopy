@@ -24,15 +24,14 @@
 """ Imports core names of :mod:`nevopy.fixed_topology`.
 """
 
-from nevopy.fixed_topology import genomes
+# Genomes
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 
-from nevopy.fixed_topology import config
-from nevopy.fixed_topology.config import FixedTopologyConfig
-
-from nevopy.fixed_topology import population
+# Population
 from nevopy.fixed_topology.population import FixedTopologyPopulation
 
-from nevopy.fixed_topology import layers
-from nevopy.fixed_topology.layers import mating
+# Config
+from nevopy.fixed_topology.config import FixedTopologyConfig
 
+# Layers
+from nevopy.fixed_topology import layers

@@ -10,6 +10,7 @@ Subpackages
    nevopy.fixed_topology
    nevopy.neat
    nevopy.processing
+   nevopy.utils
 
 Submodules
 ----------
@@ -42,14 +43,6 @@ nevopy.callbacks module
 -----------------------
 
 .. automodule:: nevopy.callbacks
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-nevopy.utils module
--------------------
-
-.. automodule:: nevopy.utils
    :members:
    :undoc-members:
    :show-inheritance:

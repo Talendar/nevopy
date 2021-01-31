@@ -50,7 +50,7 @@ class FixedTopologyConfig:
     Args:
         mating_mode (str): How the exchange of genetic material is supposed to
             happen during a sexual reproduction between two genomes. Options:
-            "exchange_weights_mating" and "exchange_layers".
+            "weights_mating" and "exchange_layers".
         elitism_count(int): Specifies the amount of individuals (among the
             fittest) that will be passed unaltered to the next generation.
         predatism_chance(float): Chance of a newborn genome being "predated"
@@ -67,14 +67,14 @@ class FixedTopologyConfig:
     def __init__(self,
                  file_pathname=None,
                  # weight mutation
-                 weight_mutation_chance=(0.3, 0.8),
+                 weight_mutation_chance=(0.4, 0.8),
                  weight_perturbation_pc=(0.03, 0.3),
                  weight_reset_chance=(0.03, 0.3),
                  new_weight_interval=(-2, 2),
                  # reproduction
                  weak_genomes_removal_pc=0.5,
                  mating_chance=0.8,
-                 mating_mode="exchange_weights_mating",
+                 mating_mode="weights_mating",
                  rank_prob_dist_coefficient=1.75,
                  elitism_count=2,
                  predatism_chance=0.1,

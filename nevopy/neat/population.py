@@ -29,16 +29,13 @@ population/community of genomes.
 """
 
 from typing import Optional, List, Sequence, Dict, Callable, Any
-
-import pickle
-from pathlib import Path
 import numpy as np
 
 from nevopy.neat.genomes import NeatGenome
 from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
-from nevopy.neat.species import Species
+from nevopy.neat.species import NeatSpecies
 from nevopy.callbacks import (Callback, CompleteStdOutLogger,
                               SimpleStdOutLogger, History)
 
@@ -110,7 +107,7 @@ class NeatPopulation(Population):
     Attributes:
         config (NeatConfig): The settings of the evolutionary process.
         genomes (Sequence[Genome]): List with the population's genomes.
-        species (List[Species]): List with the currently alive species in the
+        species (List[NeatSpecies]): List with the currently alive species in the
             population.
         stop_evolving (bool): At the start of every generation,
             :meth:`.evolve()` checks if this variable is set to `True`. If it
@@ -118,7 +115,7 @@ class NeatPopulation(Population):
     """
 
     #: Default processing scheduler used by instances of this class.
-    _DEFAULT_SCHEDULER = PoolProcessingScheduler
+    DEFAULT_SCHEDULER = PoolProcessingScheduler
 
     def __init__(self,
                  size: int,
@@ -128,7 +125,12 @@ class NeatPopulation(Population):
                  config: Optional[NeatConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
     ) -> None:
-        super().__init__(size)
+        super().__init__(size=size,
+                         processing_scheduler=(
+                             processing_scheduler
+                             if processing_scheduler is not None
+                             else NeatPopulation.DEFAULT_SCHEDULER())
+                         )
 
         # assertions and config
         if base_genome is None:
@@ -163,10 +165,6 @@ class NeatPopulation(Population):
             self._base_genome = base_genome
 
         # others instance variables
-        self._scheduler = (processing_scheduler
-                           if processing_scheduler is not None
-                           else NeatPopulation._DEFAULT_SCHEDULER())
-
         self._id_handler = IdHandler(
             num_inputs=self._base_genome.num_inputs,
             num_outputs=self._base_genome.num_outputs,
@@ -190,8 +188,8 @@ class NeatPopulation(Population):
         self.genomes = [self._base_genome.random_copy() for _ in range(size)]
 
         # creating pioneer species
-        new_sp = Species(species_id=self._id_handler.next_species_id(),
-                         generation=0)
+        new_sp = NeatSpecies(species_id=self._id_handler.next_species_id(),
+                             generation=0)
         new_sp.members = self.genomes[:]
         for m in new_sp.members:
             m.species_id = new_sp.id
@@ -259,7 +257,7 @@ class NeatPopulation(Population):
                 cb.on_generation_start(generation_num, generations)
 
             # calculating fitness
-            fitness_results = self._scheduler.run(
+            fitness_results = self.scheduler.run(
                 items=self.genomes,
                 func=fitness_function
             )  # type: Sequence[float]
@@ -386,7 +384,7 @@ class NeatPopulation(Population):
         return new_genome
 
     def generate_offspring(self,
-                           species: Species,
+                           species: NeatSpecies,
                            rank_prob_dist: Sequence) -> NeatGenome:
         """ Generates a new genome from one or more genomes of the species.
 
@@ -401,7 +399,7 @@ class NeatPopulation(Population):
             | . Creating a new random hidden node.
 
         Args:
-            species (Species): Species from which the offspring will be
+            species (NeatSpecies): Species from which the offspring will be
                 generated.
             rank_prob_dist (Sequence): Sequence (usually a numpy array)
                 containing the chances of each of the species genomes being the
@@ -631,8 +629,8 @@ class NeatPopulation(Population):
             # creating a new species, if needed
             if chosen_species is None:
                 sid = self._id_handler.next_species_id()
-                chosen_species = Species(species_id=sid,
-                                         generation=generation)
+                chosen_species = NeatSpecies(species_id=sid,
+                                             generation=generation)
                 chosen_species.representative = genome
                 self.species[chosen_species.id] = chosen_species
 
@@ -646,54 +644,6 @@ class NeatPopulation(Population):
                 self.species.pop(sp.id)
             else:
                 sp.random_representative()
-
-    def save(self, abs_path: str) -> None:
-        """ Saves the population on the absolute path provided.
-
-        This method uses :py:mod:`pickle` to save the genome. The processing
-        scheduler used by the population won't be saved (a new one will have to
-        be assigned to the population when it's loaded again).
-
-        Args:
-            abs_path (str): Absolute path of the saving file. If the given path
-                doesn't end with the suffix ".pkl", it will be automatically
-                added to it.
-        """
-        p = Path(abs_path)
-        if not p.suffixes:
-            p = Path(str(abs_path) + ".pkl")
-        p.parent.mkdir(parents=True, exist_ok=True)
-
-        scheduler_cache = self._scheduler
-        self._scheduler = None
-        with open(str(p), "wb") as out_file:
-            pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
-
-        self._scheduler = scheduler_cache
-
-    @staticmethod
-    def load(abs_path: str,
-             scheduler: Optional[ProcessingScheduler] = None,
-    ) -> "NeatPopulation":
-        """ Loads the population from the given absolute path.
-
-        This method uses :py:mod:`pickle` to load the genome.
-
-        Args:
-            abs_path (str): Absolute path of the saved ".pkl" file.
-            scheduler (Optional[ProcessingScheduler]): Processing scheduler to
-                be used by the population. If `None`, the default one will be
-                used.
-
-        Returns:
-            The loaded population.
-        """
-        with open(abs_path, "rb") as in_file:
-            pop = pickle.load(in_file)
-
-        pop._scheduler = (scheduler if scheduler is not None
-                          else NeatPopulation._DEFAULT_SCHEDULER())
-        return pop
 
     def info(self) -> str:
         """

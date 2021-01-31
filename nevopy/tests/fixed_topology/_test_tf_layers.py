@@ -27,6 +27,7 @@
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
+from nevopy.tests import test_utils
 from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
 from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
@@ -139,7 +140,7 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-    print(f"> Mutation time: {1000 * deltaT / num_tests}ms")
+    print(f"> Mutation time: {1000 * deltaT / num_tests:.4f}ms")
     print(f"> Mutated weights pc: {mutated_weights_pc / num_tests:.2%}")
     print(f"> Reset weights pc: {reset_weights_pc / num_tests:.2%}")
 
@@ -164,7 +165,7 @@ def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
     if verbose:
         print("\n" + "=" * 50)
     print("> Immutable layer mutation time: "
-          f"{1000 * deltaT / num_tests}ms")
+          f"{1000 * deltaT / num_tests:.4f}ms")
 
 
 def test_deep_copy(layer, num_tests=100, verbose=False):
@@ -187,7 +188,7 @@ def test_deep_copy(layer, num_tests=100, verbose=False):
             assert (w_new == w_old).all()
 
         # Checking if outputs are equal
-        for _ in range(20):
+        for _ in range(3):
             random_input = tf.random.uniform(shape=layer.input_shape)
             y_new = new_layer(random_input).numpy()
             y_old = layer(random_input).numpy()
@@ -199,7 +200,7 @@ def test_deep_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-    print(f"> Deep copy time: {1000 * deltaT / num_tests}ms")
+    print(f"> Deep copy time: {1000 * deltaT / num_tests:.4f}ms")
 
 
 def test_random_copy(layer, num_tests=100, verbose=False):
@@ -222,7 +223,7 @@ def test_random_copy(layer, num_tests=100, verbose=False):
             assert not (w_old == w_new).all()
 
         # Checking if outputs are different
-        for _ in range(20):
+        for _ in range(3):
             random_input = tf.random.uniform(shape=layer.input_shape)
             y_new = new_layer(random_input).numpy()
             y_old = layer(random_input).numpy()
@@ -234,7 +235,7 @@ def test_random_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "=" * 50)
-    print(f"> Random copy time: {1000 * deltaT / num_tests}ms")
+    print(f"> Random copy time: {1000 * deltaT / num_tests:.4f}ms")
 
 
 def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -292,8 +293,8 @@ def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
         print(f"Units from parent 2: {units_from_p2 / total_units:.2%}\n")
 
     print(f"> Exchange units mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
 
 
 def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -350,8 +351,8 @@ def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
         print(f"Weights from parent 2: {w_from_p2 / total_w:.2%}\n")
 
     print(f"> Exchange weights mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
 
 
 def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -384,8 +385,8 @@ def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
         print("\n" + "=" * 50)
 
     print(f"> Weights averaging mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests}ms")
+          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
 
 
 def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
@@ -420,35 +421,68 @@ def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
         print("\n" + "=" * 50)
 
     print("> Immutable layer valid mating time: "
-          f"{1000 * deltaT / num_tests}ms")
+          f"{1000 * deltaT / num_tests:.4f}ms")
+
+
+def test_save_and_load(layer, num_tests=10, pkl=True):
+    saving_time = loading_time = file_size = 0
+    for _ in range(num_tests):
+        file_name = f"../.temp/saved_layer_{int(1e6 * timer())}"
+
+        start_time = timer()
+        layer.save(file_name)
+        saving_time += timer() - start_time
+
+        file_size += os.path.getsize(file_name + ".pkl" if pkl else "")
+
+        start_time = timer()
+        loaded_layer = TensorFlowLayer.load(file_name)
+        loading_time += timer() - start_time
+
+        for w0, w1 in zip(layer.weights, loaded_layer.weights):
+            assert w0.shape == w1.shape
+            assert (w0 == w1).all()
+
+        for _ in range(3):
+            test_input = tf.random.uniform(shape=layer.input_shape)
+            h0, h1 = layer(test_input), loaded_layer(test_input)
+            assert (h0.numpy() == h1.numpy()).all()
+
+    print(f"> Saving time: {1000 * saving_time / num_tests:.4f}ms")
+    print(f"> Loading time: {1000 * loading_time / num_tests:.4f}ms")
+    print(f"> File size: {file_size / (num_tests * 1024):.2f}KB")
+
+    w_kb = np.sum([w.nbytes for w in layer.weights]) / 1024
+    print(f"> Weights size: {w_kb:.2f}KB")
 
 
 def run_all_tests(test_layer1, test_layer2):
     if test_layer1.mutable:
-        test_mutate_weights(test_layer1, num_tests=100, verbose=False)
+        test_mutate_weights(test_layer1, num_tests=10, verbose=False)
         test_exchange_units_mating(test_layer1, test_layer2,
-                                   num_tests=100, verbose=False)
+                                   num_tests=10, verbose=False)
         test_exchange_weights_mating(test_layer1, test_layer2,
-                                     num_tests=100, verbose=False)
+                                     num_tests=10, verbose=False)
         test_weights_avg_mating(test_layer1, test_layer2,
-                                num_tests=100, verbose=False)
+                                num_tests=10, verbose=False)
 
-    test_deep_copy(test_layer1, num_tests=100, verbose=False)
-    test_random_copy(test_layer1, num_tests=100, verbose=False)
+    test_deep_copy(test_layer1, num_tests=10, verbose=False)
+    test_random_copy(test_layer1, num_tests=10, verbose=False)
     test_immutable_layer_mating(test_layer1, test_layer2,
-                                num_tests=100, verbose=False)
-    test_immutable_layer_mutation(test_layer1, num_tests=100, verbose=False)
+                                num_tests=10, verbose=False)
+    test_immutable_layer_mutation(test_layer1, num_tests=10, verbose=False)
+    test_save_and_load(test_layer1, num_tests=10)
 
 
 def test_conv2d():
-    input_shape = (1, 256, 256, 3)
-    test_layer1 = TensorFlowLayer(filters=64,
+    input_shape = (4, 256, 256, 3)
+    test_layer1 = TensorFlowLayer(filters=128,
                                   kernel_size=(3, 3),
                                   layer_type=tf.keras.layers.Conv2D,
                                   mating_func=mating.exchange_units_mating,
                                   config=config,
                                   input_shape=input_shape)
-    test_layer2 = TFConv2DLayer(filters=64,
+    test_layer2 = TFConv2DLayer(filters=128,
                                 kernel_size=(3, 3),
                                 config=config,
                                 input_shape=input_shape)
@@ -456,14 +490,14 @@ def test_conv2d():
 
 
 def test_dense():
-    input_shape = (512, 128)
-    test_layer1 = TensorFlowLayer(units=64,
+    input_shape = (32, 1024)
+    test_layer1 = TensorFlowLayer(units=128,
                                   activation="relu",
                                   layer_type=tf.keras.layers.Dense,
                                   mating_func=mating.exchange_units_mating,
                                   config=config,
                                   input_shape=input_shape)
-    test_layer2 = TensorFlowLayer(units=64,
+    test_layer2 = TensorFlowLayer(units=128,
                                   activation="relu",
                                   layer_type=tf.keras.layers.Dense,
                                   mating_func=mating.exchange_units_mating,
@@ -493,6 +527,8 @@ def test_flatten():
                 and (rand_out == orig_out).all()
                 and (child_out == orig_out).all())
         assert len(orig_out.shape) == 2 and orig_out.shape[1] == (32*64*100)
+
+    test_save_and_load(flatten_layer)
 
 
 def test_sequential(verbose=False):
@@ -532,6 +568,8 @@ def test_sequential(verbose=False):
 
 
 if __name__ == "__main__":
+    test_utils.clear_temp()
+
     # Conv2D:
     print("\n[CONV2D]")
     test_conv2d()
@@ -549,3 +587,5 @@ if __name__ == "__main__":
 
     # Sequential layers processing:
     test_sequential(verbose=False)
+
+    test_utils.clear_temp()

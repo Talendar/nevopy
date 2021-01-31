@@ -32,9 +32,7 @@ neuroevolutionary algorithms in `NEvoPY`.
 
 from abc import ABC, abstractmethod
 from typing import Any
-
-import pickle
-from pathlib import Path
+from nevopy.utils import pickle_save, pickle_load
 
 
 class BaseGenome(ABC):
@@ -143,7 +141,7 @@ class BaseGenome(ABC):
                 ``other`` is incompatible with the current genome (`self`).
         """
 
-    def save(self, abs_path: str) -> None:
+    def save(self, abs_path: str, **kwargs) -> None:
         """ Saves the genome to the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to save the genome.
@@ -153,16 +151,10 @@ class BaseGenome(ABC):
                 doesn't end with the suffix ".pkl", it will be automatically
                 added.
         """
-        p = Path(abs_path)
-        if not p.suffixes:
-            p = Path(str(abs_path) + ".pkl")
-        p.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(str(p), "wb") as out_file:
-            pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
+        pickle_save(self, abs_path)
 
     @classmethod
-    def load(cls, abs_path: str) -> "BaseGenome":
+    def load(cls, abs_path: str, **kwargs) -> "BaseGenome":
         """ Loads the genome from the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to load the genome.
@@ -173,8 +165,7 @@ class BaseGenome(ABC):
         Returns:
             The loaded genome.
         """
-        with open(abs_path, "rb") as in_file:
-            return pickle.load(in_file)
+        return pickle_load(abs_path)
 
 
 class InvalidInputError(Exception):

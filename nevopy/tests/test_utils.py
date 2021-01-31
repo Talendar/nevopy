@@ -21,10 +21,12 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Imports core names of :mod:`nevopy.processing`.
+""" Utility functions used for tests..
 """
 
-from nevopy.processing.base_scheduler import ProcessingScheduler
-from nevopy.processing.pool_processing import PoolProcessingScheduler
-from nevopy.processing.ray_processing import RayProcessingScheduler
-from nevopy.processing.serial_processing import SerialProcessingScheduler
+import os
+
+
+def clear_temp():
+    for f in os.listdir("../.temp"):
+        os.remove(os.path.join("../.temp", f))

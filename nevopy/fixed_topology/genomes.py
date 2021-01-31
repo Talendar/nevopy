@@ -150,7 +150,7 @@ class FixedTopologyGenome(BaseGenome):
         Implements the sexual reproduction between a pair of genomes. The new
         genome inherits information from both parents.
 
-        Currently available mating modes:
+        Currently available mating modes for individual layers:
 
             * :meth:`nevopy.fixed_topology.layers.mating.exchange_weights_mating`;
             * :meth:`nevopy.fixed_topology.layers.mating.exchange_units_mating`;
@@ -179,7 +179,7 @@ class FixedTopologyGenome(BaseGenome):
         new_layers = []
 
         # exchange weights mode
-        if self.config.mating_mode == "exchange_weights_mating":
+        if self.config.mating_mode == "weights_mating":
             for layer1, layer2 in zip(self.layers, other.layers):
                 try:
                     new_layers.append(layer1.mate(layer2))
@@ -203,14 +203,22 @@ class FixedTopologyGenome(BaseGenome):
         return FixedTopologyGenome(layers=new_layers,
                                    config=self.config)
 
-    def visualize(self, show=True, to_file="genome.png", **kwargs):
-        """ TODO
+    def visualize(self,
+                  show: bool = True,
+                  to_file: str = "genome.png",
+                  **kwargs):
+        """ Visualization tool for visualizing the genome's neural network.
+
+        This currently only works with genome's that uses TensorFlow layers.
 
         Todo:
             Make it possible to visualize neurons and connections.
 
-        Returns:
-
+        Attributes:
+            show (bool): Whether to show the generated image or not.
+            to_file (str): Path in which the image file will be saved to.
+            **kwargs: Optional named arguments to be passed to
+                :py:func:`tensorflow.keras.utils.plot_model`.
         """
         # Checking compatibility:
         for layer in self.layers:
@@ -221,7 +229,7 @@ class FixedTopologyGenome(BaseGenome):
 
         # Building keras model and visualizing it:
         # noinspection PyUnresolvedReferences
-        model = KerasSequential(layers=[layer.tf_layer
+        model = KerasSequential(layers=[layer.tf_layer  # type: ignore
                                         for layer in self.layers])
         model(np.zeros(shape=self.input_shape))
         keras_plot_model(model, show_shapes=True, to_file=to_file, **kwargs)

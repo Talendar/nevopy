@@ -754,39 +754,6 @@ class NeatGenome(BaseGenome):
                 # raise ConnectionExistsError()
         return new_gen
 
-    def save(self, abs_path: str) -> None:
-        """ Saves the genome to the given absolute path.
-
-        This method uses :py:mod:`pickle` to save the genome.
-
-        Args:
-            abs_path (str): Absolute path of the saving file. If the given path
-                doesn't end with the suffix ".pkl", it will be automatically
-                added.
-        """
-        p = Path(abs_path)
-        if not p.suffixes:
-            p = Path(str(abs_path) + ".pkl")
-        p.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(str(p), "wb") as out_file:
-            pickle.dump(self, out_file, pickle.HIGHEST_PROTOCOL)
-
-    @classmethod
-    def load(cls, abs_path: str) -> "NeatGenome":
-        """ Loads the genome from the given absolute path.
-
-        This method uses :py:mod:`pickle` to load the genome.
-
-        Args:
-            abs_path (str): Absolute path of the saved ".pkl" file.
-
-        Returns:
-            The loaded genome.
-        """
-        with open(abs_path, "rb") as in_file:
-            return pickle.load(in_file)
-
     def info(self) -> str:
         """
         Returns a string with the genome's nodes activations and connections.

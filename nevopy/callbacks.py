@@ -23,15 +23,14 @@
 
 """ Defines a base interface for all callbacks and implements simple callbacks.
 
-In the context of :mod:`nevopy.neat`, callbacks are utilities called at certain
-points during the evolution of a population. They are a powerful tool to
-customize the behavior of an evolutionary session of the NEAT algorithm.
+For NEvoPY, callbacks are utilities called at certain points during the
+evolution of a population. They are a powerful tool to customize the behavior of
+a neuroevolutionary algorithm.
 
 Example:
 
     To implement your own callback, simply create a class that inherits from
-    :class:`.Callback` and pass an instance of it to
-    :meth:`.neat.population.NeatPopulation.evolve()`.
+    :class:`.Callback` and pass an instance of it to :meth:`.Population.evolve`.
 
     .. code-block:: python
 
@@ -43,15 +42,15 @@ Example:
                 print(f"Starting generation {current_generation} of "
                       f"{max_generations}.")
 
-        pop.evolve(generations=100,
-                   fitness_function=my_func,
-                   callbacks=[MyCallback()])
+        # ...
+
+        population.evolve(generations=100,
+                          fitness_function=my_func,
+                          callbacks=[MyCallback()])
 """
 
 from typing import Optional, List, Dict, Union, Tuple, Callable, Any
 from abc import ABC
-
-import nevopy
 from nevopy import utils
 
 import matplotlib.pyplot as plt
@@ -59,22 +58,28 @@ from columnar import columnar
 from click import style
 from timeit import default_timer as timer
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from nevopy.base_population import Population
+
 
 class Callback(ABC):
     """ Abstract base class used to build new callbacks.
 
     This class defines the general structure of the callbacks used by `NEvoPY's`
-    neuroevolution algorithms.
+    neuroevolution algorithms. It's not required for a subclass to implement all
+    the methods of this class (you can implement only those that will be useful
+    for your case).
 
     Attributes:
         population (Population): Reference to the instance of a subclass of
-            :class:`.neat.population.Population` being evolved by one of
-            `NEvoPY's` neuroevolution algorithm.
+            :class:`.Population` being evolved by one of `NEvoPY's`
+            neuroevolution algorithms.
     """
 
     def __init__(self) -> None:
         self.population = None \
-            # type: Optional["nevopy.base_population.Population"]
+            # type: Optional["Population"]
 
     def on_generation_start(self,
                             current_generation: int,
@@ -93,19 +98,15 @@ class Callback(ABC):
                               best_fitness: float,
                               avg_fitness: float,
                               **kwargs) -> None:
-        """ Called right after the fitness of the population's genomes and the
-        maximum number of hidden nodes and hidden connections in the population
+        """ Called right after the fitness values of the population's genomes
         are calculated.
 
         Subclasses should override this method for any actions to run.
 
         Args:
-            best_genome (NeatGenome): The most fit genome of the generation.
-            max_hidden_nodes (int): Maximum number of hidden nodes found in a
-                genome in the population.
-            max_hidden_connections (int): Maximum number of hidden connections
-                (connections involving at least one hidden node) found in a
-                genome in the population.
+            best_fitness (float): Fitness of the fittest genome in the
+                population.
+            avg_fitness (float): Average fitness of the population's genomes.
         """
 
     def on_mass_extinction_counter_updated(self,
@@ -121,12 +122,13 @@ class Callback(ABC):
         """
 
     def on_mass_extinction_start(self, **kwargs) -> None:
-        """ Called when at the beginning of a mass extinction event.
+        """ Called at the beginning of a mass extinction event.
 
         Subclasses should override this method for any actions to run.
 
         Note:
-            When this is called, :meth:`on_reproduction_start()` is not called.
+            When this is called, :meth:`on_reproduction_start()` is usually
+            not called (depends on the algorithm).
         """
 
     def on_reproduction_start(self, **kwargs) -> None:
@@ -135,21 +137,18 @@ class Callback(ABC):
         Subclasses should override this method for any actions to run.
 
         Note:
-            When this is called, :meth:`on_mass_extinction_start()` is not
-            called.
+            When this is called, :meth:`on_mass_extinction_start()` is usually
+            not called (depends on the algorithm).
         """
 
     def on_speciation_start(self, **kwargs) -> None:
         """ Called at the beginning of the speciation process.
 
         Called after the reproduction or mass extinction have occurred and
-        immediately before the speciation process.
+        immediately before the speciation process. If the neuroevolution
+        algorithm doesn't implement speciation, this method won't be called.
 
         Subclasses should override this method for any actions to run.
-
-        Args:
-            invalid_genomes_replaced (int): Number of invalid genomes replaced
-                during the reproduction step.
         """
 
     def on_generation_end(self,
@@ -303,15 +302,24 @@ class CompleteStdOutLogger(Callback):
 
 
 class SimpleStdOutLogger(Callback):
-    """
-    TODO
+    """ Callback that prints minimal info to the standard output.
+
+    Todo:
+        Implementation.
     """
 
 
 class History(Callback):
     """ Callback that records events during the evolutionary process.
 
-    TODO
+    Besides the regular attributes in the methods signature, the caller can also
+    pass other attributes through "kwargs". All the attributes passed to the
+    methods will have they value stored in the :attr:`.history` dictionary.
+
+    Attributes:
+        history (Dict[str, List[Any]]): Dictionary that maps an attribute's name
+            to a list with the attribute's values along the evolutionary
+            process.
     """
 
     def __init__(self):
@@ -467,12 +475,18 @@ class FitnessEarlyStopping(Callback):
 
 
 class PopulationCheckpoint(Callback):
-    """
-    TODO
+    """ Saves the state of the population (checkpoints) at different moments of
+    the evolutionary process.
+
+    Todo:
+        Implementation.
     """
 
 
 class BestGenomeCheckpoint(Callback):
-    """
-    TODO
+    """ Saves the best genome of the population (checkpoint) at different
+    moments of the evolutionary process.
+
+    Todo:
+        Implementation.
     """

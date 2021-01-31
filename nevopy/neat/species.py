@@ -21,7 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Implements the :class:`.Species` class.
+""" Implements the :class:`.NeatSpecies` class.
 """
 
 from typing import Optional, List
@@ -29,7 +29,7 @@ import numpy as np
 from nevopy.neat.genomes import NeatGenome
 
 
-class Species:
+class NeatSpecies:
     """ Represents a species within NEAT's evolutionary environment.
 
     Args:

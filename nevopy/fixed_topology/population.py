@@ -25,7 +25,7 @@
 TODO
 """
 
-from typing import Optional, List, Callable, Sequence, Tuple
+from typing import Optional, List, Callable, Sequence, Tuple, Type
 import numpy as np
 
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
@@ -45,13 +45,21 @@ class FixedTopologyPopulation(Population):
     TODO
     """
 
+    #: Default processing scheduler used by instances of this class.
+    DEFAULT_SCHEDULER = RayProcessingScheduler
+
     def __init__(self,
                  size: int,
                  base_genome: FixedTopologyGenome,
                  config: Optional[FixedTopologyConfig] = None,
                  processing_scheduler: Optional[ProcessingScheduler] = None,
     ) -> None:
-        super().__init__(size)
+        super().__init__(size=size,
+                         processing_scheduler=(
+                             processing_scheduler
+                             if processing_scheduler is not None
+                             else FixedTopologyPopulation.DEFAULT_SCHEDULER())
+                         )
 
         # Base genome:
         self._base_genome = base_genome
@@ -70,11 +78,6 @@ class FixedTopologyPopulation(Population):
                              "object than the one used by the population!")
 
         self._base_genome.config = self._config
-
-        # Processing scheduler:
-        self._scheduler = (processing_scheduler
-                           if processing_scheduler is not None
-                           else RayProcessingScheduler())
 
         # Basic instance variables:
         self._mass_extinction_counter = 0
@@ -154,7 +157,7 @@ class FixedTopologyPopulation(Population):
                 cb.on_generation_start(generation_num, generations)
 
             # Calculating and assigning FITNESS:
-            fitness_results = self._scheduler.run(
+            fitness_results = self.scheduler.run(
                 items=self.genomes,
                 func=fitness_function
             )  # type: Sequence[float]
@@ -333,7 +336,7 @@ class FixedTopologyPopulation(Population):
 
         # Generating offspring:
         # todo: is this worth parallelizing?
-        babies = self._scheduler.run(
+        babies = self.scheduler.run(
             items=[(p1, p2, False) if not predate[i] else (p1, None, True)
                    for i, (p1, p2) in enumerate(zip(parents1, parents2))],
             func=FixedTopologyPopulation.generate_offspring,

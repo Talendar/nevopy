@@ -28,6 +28,9 @@ from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set
 from abc import ABCMeta, abstractmethod
 
 import os
+import pickle
+from pathlib import Path
+
 import numpy as np
 import click
 from click import style
@@ -55,6 +58,45 @@ def chance(p: float) -> bool:
         A randomly chosen boolean value (`True` or `False`).
     """
     return np.random.uniform(low=0, high=1) < p
+
+
+def pickle_save(obj: Any, abs_path: str) -> None:
+    """ Saves the given object to the given absolute path.
+
+    Simple wrapper around the `pickle` package.
+
+    Args:
+        obj (Any): Object to be saved.
+        abs_path (str): Absolute path of the saving file. If the given path
+            doesn't end with the suffix ".pkl", it will be automatically
+            added.
+    """
+    p = Path(abs_path)
+    if not p.suffixes:
+        p = Path(str(abs_path) + ".pkl")
+    p.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(str(p), "wb") as out_file:
+        pickle.dump(obj, out_file, pickle.HIGHEST_PROTOCOL)
+
+
+def pickle_load(abs_path: str) -> Any:
+    """ Loads an object from the given absolute path.
+
+    Simple wrapper around the `pickle` package.
+
+    Args:
+        abs_path (str): Absolute path of the saved ".pkl" file.
+
+    Returns:
+        The loaded object.
+    """
+    p = Path(abs_path)
+    if not p.suffixes:
+        p = Path(str(abs_path) + ".pkl")
+
+    with open(p, "rb") as in_file:
+        return pickle.load(in_file)
 
 
 def align_lists(lists: Iterable[List[_T]],
@@ -142,7 +184,12 @@ def make_table_row(name: str,
                    positive_color: str = "green",
                    negative_color: str = "red",
                    neutral_color: str = "white") -> List[str]:
-    """ Makes a row for a `columnar` table. """
+    """ Makes a row for a `columnar` table.
+
+    Information in the row: name of the attribute; current value of the
+    attribute; past value of the attribute; how much the attribute increased
+    (absolute and percentage).
+    """
     inc = f"{current - past:{inc_format}}"
     if colors:
         inc = style(inc, fg=(positive_color if current > past

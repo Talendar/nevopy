@@ -28,6 +28,7 @@ used by fixed-topology neuroevolution algorithms.
 from abc import ABC, abstractmethod
 from typing import Any, Tuple, Optional, List
 from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.utils import pickle_save, pickle_load
 from numpy import ndarray
 
 
@@ -176,6 +177,32 @@ class BaseLayer(ABC):
             IncompatibleLayersError: If the layer passed as argument to
                 ``other`` is incompatible with the current layer (`self`).
         """
+
+    def save(self, abs_path: str, **kwargs) -> None:
+        """ Saves the layer on the absolute path provided.
+
+        This method uses, by default, :py:mod:`pickle` to save the layer.
+
+        Args:
+            abs_path (str): Absolute path of the saving file. If the given path
+                doesn't end with the suffix ".pkl", it will be automatically
+                added to it.
+        """
+        pickle_save(self, abs_path)
+
+    @classmethod
+    def load(cls, abs_path: str, **kwargs) -> "BaseLayer":
+        """ Loads the layer from the given absolute path.
+
+        This method uses, by default, :py:mod:`pickle` to load the layer.
+
+        Args:
+            abs_path (str): Absolute path of the saved ".pkl" file.
+
+        Returns:
+            The loaded layer.
+        """
+        return pickle_load(abs_path)
 
 
 class IncompatibleLayersError(Exception):
