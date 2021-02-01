@@ -28,28 +28,28 @@ phenotype). In this implementation, there is no distinction between a genome and
 the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
-from typing import Optional, Sequence, Dict, Set, Any, cast
+from typing import Any, cast, Dict, Optional, Sequence, Tuple, List
 
-import pickle
-from pathlib import Path
-
+# pylint: disable=wrong-import-position
 import numpy as np
-np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
+np.warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+# pylint: enable=wrong-import-position
+
+import matplotlib.pyplot as plt
+import networkx as nx
+from tensorflow import reshape
 
 import nevopy.activations as activations
 import nevopy.utils as utils
 from nevopy.base_genome import BaseGenome
 from nevopy.base_genome import InvalidInputError
 from nevopy.base_genome import IncompatibleGenomesError
-
-from nevopy.neat.genes import *
+from nevopy.neat.genes import align_connections
+from nevopy.neat.genes import ConnectionGene
+from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
-
-import matplotlib.pyplot as plt
-import networkx as nx
-from tensorflow import reshape
 
 
 class NeatGenome(BaseGenome):
@@ -130,25 +130,29 @@ class NeatGenome(BaseGenome):
                 NodeGene(node_id=node_counter,
                          node_type=NodeGene.Type.INPUT,
                          activation_func=activations.linear,
-                         initial_activation=self.config.initial_node_activation,)
+                         initial_activation=self.config.initial_node_activation)
             )
             node_counter += 1
 
         # init bias node
         if self.config.bias_value is not None:
-            self._bias_node = NodeGene(node_id=node_counter,
-                                       node_type=NodeGene.Type.BIAS,
-                                       activation_func=activations.linear,
-                                       initial_activation=self.config.bias_value)
+            self._bias_node = NodeGene(
+                node_id=node_counter,
+                node_type=NodeGene.Type.BIAS,
+                activation_func=activations.linear,
+                initial_activation=self.config.bias_value,
+            )
             node_counter += 1
 
         # init output nodes
         connection_counter = 0
         for _ in range(num_outputs):
-            out_node = NodeGene(node_id=node_counter,
-                                node_type=NodeGene.Type.OUTPUT,
-                                activation_func=self._output_activation,
-                                initial_activation=self.config.initial_node_activation)
+            out_node = NodeGene(
+                node_id=node_counter,
+                node_type=NodeGene.Type.OUTPUT,
+                activation_func=self._output_activation,
+                initial_activation=self.config.initial_node_activation,
+            )
             self._output_nodes.append(out_node)
             node_counter += 1
 
@@ -204,9 +208,6 @@ class NeatGenome(BaseGenome):
                 \\delta = c_1 \\cdot \\frac{E}{N} + c_2 \\cdot \\frac{D}{N} \\
                     + c_3 \\cdot W
             :label: distance
-
-        Todo:
-            Test this method.
 
         Args:
             other (NeatGenome): The other genome (an instance of
@@ -475,12 +476,12 @@ class NeatGenome(BaseGenome):
                     dest_node=copied_nodes[c.to_node.id],
                     enabled=c.enabled,
                     weight=c.weight if not random_weights else None)
-            except ConnectionExistsError:
+            except ConnectionExistsError as e:
                 cons = [f"[{con.id}] {con.from_node.id}->{con.to_node.id} "
                         f"({con.enabled})" for con in self.connections]
                 raise ConnectionExistsError(
                     "Connection exists error when duplicating parent.\n"
-                    f"Source node's connections: {cons}")
+                    f"Source node's connections: {cons}") from e
 
         return new_genome
 
@@ -547,7 +548,7 @@ class NeatGenome(BaseGenome):
             n.activate(zsum)
         return n.activation
 
-    def process(self, X: Sequence[float]) -> np.ndarray:
+    def process(self, x: Sequence[float]) -> np.ndarray:
         """ Feeds the given input to the neural network.
 
         In this implementation, there is no distinction between a genome and
@@ -561,7 +562,7 @@ class NeatGenome(BaseGenome):
             least one of the network's output nodes won't be processed.
 
         Args:
-            X (Sequence[float]): A sequence object (like a list or numpy array)
+            x (Sequence[float]): A sequence object (like a list or numpy array)
                 containing the inputs to be fed to the neural network input
                 nodes. It represents a single training sample. The value in the
                 index `i` of `X` will be fed to the :math:`i^{th}` input node
@@ -576,16 +577,16 @@ class NeatGenome(BaseGenome):
             InvalidInputError: If the number of elements in `X` doesn't match
                 the number of input nodes in the network.
         """
-        if len(X) != len(self._input_nodes):
+        if len(x) != len(self._input_nodes):
             raise InvalidInputError(
                 "The input size must match the number of input nodes in the "
                 f"network! Expected input of length {len(self._input_nodes)} "
-                f"but got {len(X)}."
+                f"but got {len(x)}."
             )
 
         # preparing input nodes
-        for n, x in zip(self._input_nodes, X):
-            n.activate(x)
+        for in_node, value in zip(self._input_nodes, x):
+            in_node.activate(value)
 
         # resetting activated nodes dict
         self._activated_nodes = {
@@ -750,7 +751,7 @@ class NeatGenome(BaseGenome):
                 # nodes appears in different generations and are assigned,
                 # because of that, different IDs.
                 pass
-                # __debug_mating(genes, c, self, other, new_gen)
+                # _debug_mating(genes, c, self, other, new_gen)
                 # raise ConnectionExistsError()
         return new_gen
 
@@ -789,7 +790,8 @@ class NeatGenome(BaseGenome):
                 (default unit).
             node_size (int): Size of the drawn nodes, in `points**2` (the area
                 of each node). See the parameter ``s`` of
-                `matplotlib.axes.Axes.scatter <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+                `matplotlib.axes.Axes.scatter
+                <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
                 for more information.
             pad_width_pc (float): Percentage of the figure's width to be
                 reserved for padding in each of the figure's border.
@@ -853,7 +855,7 @@ class NeatGenome(BaseGenome):
                 next_x = origin + 2*node_size
                 space_x = (width - 4*node_size) / num_cols
                 h_nodes = np.array(self.hidden_nodes)
-                for i, node_list in enumerate(np.array_split(h_nodes, num_cols)):
+                for node_list in np.array_split(h_nodes, num_cols):
                     insert_nodes_col(x=next_x + space_x/2,
                                      nodes=node_list)
                     next_x += space_x
@@ -895,7 +897,8 @@ class NeatGenome(BaseGenome):
         currently available layouts are:
 
         * All the standard `NetworkX's` layouts available in this
-          `link <https://networkx.org/documentation/latest/reference/drawing.html#module-networkx.drawing.layout>`_;
+          `link
+          <https://networkx.org/documentation/latest/reference/drawing.html#module-networkx.drawing.layout>`_;
         * The `graphviz` layout; it's really good, but to use it you must
           have `Graphviz-Dev` and `pygraphviz` installed on your machine;
         * The `columns` layout (used by default), implemented exclusively for
@@ -927,7 +930,8 @@ class NeatGenome(BaseGenome):
             figsize (Tuple[int, int]): Size of the matplotlib figure.
             node_size (int): Size of the drawn nodes, in `points**2` (the area
                 of each node). Default size is 300. See the parameter ``s`` of
-                `matplotlib.axes.Axes.scatter <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+                `matplotlib.axes.Axes.scatter
+                <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
                 for more information.
             pad (int): The image's padding (distance between the figure of the
                 network and the image's border).
@@ -960,9 +964,9 @@ class NeatGenome(BaseGenome):
                                "set to False!")
 
         # config and start
-        plt.rcParams['axes.facecolor'] = background_color
-        G = nx.MultiDiGraph()
-        G.add_nodes_from([n.id for n in self.nodes()])
+        plt.rcParams["axes.facecolor"] = background_color
+        graph = nx.MultiDiGraph()
+        graph.add_nodes_from([n.id for n in self.nodes()])
         plt.figure(figsize=figsize)
 
         if layout_kwargs is None:
@@ -972,15 +976,17 @@ class NeatGenome(BaseGenome):
         edges_labels = {}
         for c in self.connections:
             if c.enabled:
-                G.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
+                graph.add_edge(c.from_node.id, c.to_node.id, weight=c.weight)
                 edges_labels[(c.from_node.id, c.to_node.id)] = c.id
 
         # selecting layout
         if layout_name == "graphviz":
             try:
+                # pylint: disable=import-outside-toplevel
+                # pylint: disable=unused-import
                 import pygraphviz
                 from networkx.drawing.nx_agraph import graphviz_layout
-            except ModuleNotFoundError:
+            except ModuleNotFoundError as e:
                 raise ModuleNotFoundError(
                     "Couldn't find the package `pygraphviz`!\nTo draw the "
                     "genome's neural network, this package is required. To "
@@ -991,44 +997,45 @@ class NeatGenome(BaseGenome):
                     "\t~$ sudo apt-get install -y graphviz-dev\n"
                     "After installing `Graphviz`, just use pip to install "
                     "`pygraphviz` and you're all set:\n"
-                    "\t~$ pip install pygraphviz")
+                    "\t~$ pip install pygraphviz") from e
 
             if "prog" not in layout_kwargs:
                 layout_kwargs["prog"] = "dot"
             if "args" not in layout_kwargs:
                 layout_kwargs["args"] = "-Grankdir=LR"
-            pos = graphviz_layout(G, **layout_kwargs)
+            pos = graphviz_layout(graph, **layout_kwargs)
 
         elif layout_name == "columns":
             pos = self.columns_graph_layout(*figsize, node_size,
                                             **layout_kwargs)
         else:
             nx_layout_func = getattr(nx, layout_name)
-            pos = nx_layout_func(G, **layout_kwargs)
+            pos = nx_layout_func(graph, **layout_kwargs)
 
         # plotting
-        nx.draw_networkx_nodes(G, pos=pos,
+        nx.draw_networkx_nodes(graph, pos=pos,
                                nodelist=[n.id for n in self._input_nodes],
                                node_size=[node_size] * len(self._input_nodes),
-                               node_color=input_color, label='Input nodes')
-        nx.draw_networkx_nodes(G, pos=pos,
+                               node_color=input_color, label="Input nodes")
+        nx.draw_networkx_nodes(graph, pos=pos,
                                nodelist=[n.id for n in self._output_nodes],
                                node_size=[node_size] * len(self._output_nodes),
-                               node_color=output_color, label='Output nodes')
-        nx.draw_networkx_nodes(G, pos=pos,
+                               node_color=output_color, label="Output nodes")
+        nx.draw_networkx_nodes(graph, pos=pos,
                                nodelist=[n.id for n in self.hidden_nodes],
                                node_size=[node_size] * len(self.hidden_nodes),
-                               node_color=hidden_color, label='Hidden nodes')
+                               node_color=hidden_color, label="Hidden nodes")
 
         if self._bias_node is not None:
-            nx.draw_networkx_nodes(G, pos=pos,
+            nx.draw_networkx_nodes(graph, pos=pos,
                                    nodelist=[self._bias_node.id],
                                    node_size=[node_size],
-                                   node_color=bias_color, label='Bias node')
+                                   node_color=bias_color, label="Bias node")
 
-        if G.number_of_edges() > 0:
+        if graph.number_of_edges() > 0:
             # calculating edges colors
-            edges_weights = list(nx.get_edge_attributes(G, "weight").values())
+            edges_weights = list(nx.get_edge_attributes(graph,
+                                                        "weight").values())
             if len(edges_weights) == 1:
                 edges_colors = [(1, 0.5, 0, 1)]
             else:
@@ -1038,20 +1045,24 @@ class NeatGenome(BaseGenome):
                                 for w in edges_weights]
 
             # drawing edges
-            nx.draw_networkx_edges(G, pos=pos, edge_color=edges_colors,
-                                   connectionstyle=f"arc3, rad={edge_curviness}")
+            nx.draw_networkx_edges(
+                graph,
+                pos=pos,
+                edge_color=edges_colors,
+                connectionstyle=f"arc3, rad={edge_curviness}"
+            )
 
         if edges_ids:
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=edges_labels,
+            nx.draw_networkx_edge_labels(graph, pos, edge_labels=edges_labels,
                                          font_color=edge_id_color)
 
         if nodes_ids:
-            nx.draw_networkx_labels(G, pos,
+            nx.draw_networkx_labels(graph, pos,
                                     labels={k.id: k.id
                                             for k in self.nodes()},
                                     font_size=10,
                                     font_color=node_id_color,
-                                    font_family='sans-serif')
+                                    font_family="sans-serif")
         if legends:
             plt.legend(facecolor=legend_box_color, borderpad=0.8,
                        labelspacing=0.5)
@@ -1064,7 +1075,7 @@ class NeatGenome(BaseGenome):
             plt.show(block=block_thread)
 
 
-def __debug_mating(genes, c, gen1, gen2, new_gen):
+def _debug_mating(genes, c, gen1, gen2, new_gen):
     """ Used to debug the "mate_genomes" function. """
     alignment_info = ""
     for gene1, gene2 in zip(*genes):
@@ -1080,20 +1091,20 @@ def __debug_mating(genes, c, gen1, gen2, new_gen):
             "\n"
         )
 
+    p1_cons = [(con.from_node.id, con.to_node.id, con.enabled)
+               for con in gen1.connections]
+    p2_cons = [(con.from_node.id, con.to_node.id, con.enabled)
+               for con in gen2.connections]
+    child_cons = [(con.from_node.id, con.to_node.id, con.enabled)
+                  for con in new_gen.connections]
+
     print(
         "\n\n" + 50 * "#" + "\n\n"
         f"Error while adding the connection {c.from_node.id, c.to_node.id} "
-        f"to a new child node generated by mating."
-        "\n"
-        f"Parent 1's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen1.connections]}"
-        "\n"
-        f"Parent 2's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in gen2.connections]}"
-        "\n"
-        f"Child's connections: "
-        f"{[(con.from_node.id, con.to_node.id, con.enabled) for con in new_gen.connections]}"
-        "\n"
+        f"to a new child node generated by mating.\n"
+        f"Parent 1's connections: {p1_cons}\n"
+        f"Parent 2's connections: {p2_cons}\n"
+        f"Child's connections: {child_cons}\n"
         f"Genes alignment: \n{alignment_info}\n"
     )
 
@@ -1185,7 +1196,9 @@ class FixTopNeatGenome(NeatGenome):
     def mutate_weights(self) -> None:
         super().mutate_weights()
         if self.fito_genome.config.maex_counter != self.config.maex_counter:
-            self.fito_genome.config.update_mass_extinction(self.config.maex_counter)
+            self.fito_genome.config.update_mass_extinction(
+                self.config.maex_counter,
+            )
         self.fito_genome.mutate_weights()
 
     def simple_copy(self) -> "FixTopNeatGenome":
@@ -1218,21 +1231,22 @@ class FixTopNeatGenome(NeatGenome):
         new_genome.fito_genome = self.fito_genome.deep_copy()
         return new_genome
 
-    def process(self, X: Sequence[float]) -> np.ndarray:
+    def process(self, x: Sequence[float]) -> np.ndarray:
         """ Feeds the input to the fixed topology genome and uses the output as
         input to the NEAT genome.
         """
-        X = reshape(self.fito_genome.process(X), [-1])
-        return super().process(X)
+        x = reshape(self.fito_genome.process(x), [-1])
+        return super().process(x)
 
     def mate(self, other: NeatGenome) -> NeatGenome:
         new_genome = super().mate(other)
         if self.fito_genome.config.maex_counter != self.config.maex_counter:
-            self.fito_genome.config.update_mass_extinction(self.config.maex_counter)
+            self.fito_genome.config.update_mass_extinction(
+                self.config.maex_counter
+            )
 
         if isinstance(other, FixTopNeatGenome):
             new_genome = cast(FixTopNeatGenome, new_genome)
             new_genome.fito_genome = self.fito_genome.mate(other.fito_genome)
 
         return new_genome
-

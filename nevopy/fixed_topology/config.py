@@ -60,33 +60,35 @@ class FixedTopologyConfig:
 
     #: Name of the mutation chance attributes (type: Tuple[float, float])
     #:  related to mass extinction.
-    __MAEX_KEYS = {"weight_mutation_chance",
+    __MAEX_KEYS = {"mutation_chance",
+                   "weight_mutation_chance",
                    "weight_perturbation_pc",
                    "weight_reset_chance"}
 
     def __init__(self,
                  file_pathname=None,
                  # weight mutation
-                 weight_mutation_chance=(0.4, 0.8),
-                 weight_perturbation_pc=(0.03, 0.3),
-                 weight_reset_chance=(0.03, 0.3),
+                 mutation_chance=(0.6, 0.9),
+                 weight_mutation_chance=(0.5, 1),
+                 weight_perturbation_pc=(0.07, 0.5),
+                 weight_reset_chance=(0.07, 0.5),
                  new_weight_interval=(-2, 2),
                  # reproduction
                  weak_genomes_removal_pc=0.5,
-                 mating_chance=0.8,
+                 mating_chance=0.75,
                  mating_mode="weights_mating",
                  rank_prob_dist_coefficient=1.75,
-                 elitism_count=2,
+                 elitism_count=3,
                  predatism_chance=0.1,
                  # mass extinction
-                 mass_extinction_threshold=50,
+                 mass_extinction_threshold=25,
                  maex_improvement_threshold_pc=0.03) -> None:
         values = locals()
         values.pop("self")
         values.pop("file_pathname")
 
         if file_pathname is not None:
-            raise NotImplemented  # todo: implementation
+            raise NotImplemented  # TODO: implementation
 
         self.__dict__.update(values)
 

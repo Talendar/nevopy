@@ -21,28 +21,78 @@
 # SOFTWARE.
 # ==============================================================================
 
+""" Implementation of a genetic algorithm that evolves a population of
+fixed-topology neural networks (genomes).
 """
-TODO
-"""
-
-from typing import Optional, List, Callable, Sequence, Tuple, Type
-import numpy as np
-
-from nevopy.fixed_topology.genomes import FixedTopologyGenome
-from nevopy.fixed_topology.config import FixedTopologyConfig
-from nevopy.processing.base_scheduler import ProcessingScheduler
-from nevopy.processing.ray_processing import RayProcessingScheduler
-from nevopy.callbacks import Callback, History, CompleteStdOutLogger
-from nevopy.base_population import Population
-from nevopy import utils
 
 import logging
+from typing import Callable, List, Optional, Sequence, Tuple
+
+import numpy as np
+
+from nevopy.utils import utils
+from nevopy.base_population import Population
+from nevopy.callbacks import Callback
+from nevopy.callbacks import History
+from nevopy.callbacks import CompleteStdOutLogger
+from nevopy.callbacks import SimpleStdOutLogger
+from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.fixed_topology.genomes import FixedTopologyGenome
+from nevopy.processing.base_scheduler import ProcessingScheduler
+from nevopy.processing.ray_processing import RayProcessingScheduler
+
 _logger = logging.getLogger(__name__)
 
 
 class FixedTopologyPopulation(Population):
-    """
-    TODO
+    """ Population of fixed-topology neural networks (genomes) to be evolved.
+
+    This class implements a genetic algorithm and uses it to evolve a population
+    of fixed-topology neural networks (genomes). It's the classic approach to
+    neuroevolution. Each genome is an instance of :class:`FixedTopologyGenome`.
+
+    Example:
+
+        .. code-block:: python
+
+            def fitness_func(genome):
+                \"\"\"
+                Function that takes a genome as input and returns the genome's
+                fitness (a float) as output.
+                \"\"\"
+                # ...
+
+
+            # Genome that's gonna serve as a model for your population:
+            base_genome = FixedTopologyGenome(
+                layers=[TFDenseLayer(32, activation="relu"),
+                        TFDenseLayer(1, activation="sigmoid")],
+                input_shape=my_input_shape,  # shape of your input samples
+            )
+
+            # Creating and evolving a population:
+            population = FixedTopologyPopulation(size=100,
+                                                 base_genome=base_genome)
+            history = population.evolve(generations=100,
+                                        fitness_function=fitness_func)
+
+            # Visualizing the progression of the population's fitness:
+            history.visualize()
+
+            # Retrieving and visualizing the fittest genome of the population:
+            best_genome = population.fittest()
+            best_genome.visualize()
+
+    Args:
+        size (int): Number of genomes (constant) in the population.
+        base_genome (FixedTopologyGenome): Instance of
+            :class:`FixedTopologyGenome` that will serve as a model/base for all
+            the population's genomes.
+        config (Optional[FixedTopologyConfig]): The settings of the evolutionary
+            process. If `None`, the default settings will be used.
+        processing_scheduler (Optional[ProcessingScheduler]): Processing
+            scheduler to be used by the population. If `None`, a new instance of
+            :class:`RayProcessingScheduler` will be used as scheduler.
     """
 
     #: Default processing scheduler used by instances of this class.
@@ -102,11 +152,13 @@ class FixedTopologyPopulation(Population):
                fitness_function: Callable[[FixedTopologyGenome], float],
                callbacks: Optional[List[Callback]] = None,
                verbose: int = 2,
-               **kwargs) -> History:
-        """ Evolves the population of fixed topology genomes.
+               **kwargs,  # pylint: disable=unused-argument
+    ) -> History:
+        """ Evolves the population of fixed-topology neural networks (genomes).
 
-        Todo:
-            Callbacks.
+        Main method of this class. It contains the main loop of the genetic
+        algorithm used to evolve the population of fixed-topology neural
+        networks (genomes)
 
         Args:
             generations (int): Number of generations for the algorithm to run. A
@@ -123,7 +175,7 @@ class FixedTopologyPopulation(Population):
                 :class:`.SimpleStdOutLogger` might also be included, depending
                 on the value passed to the `verbose` param.
             verbose (int): Verbose level (logging on stdout). Options: 0 (no
-                verbose), 1 (light verbose) and 2 (heavy verbose). TODO
+                verbose), 1 (light verbose) and 2 (heavy verbose).
 
         Returns:
             A :class:`.History` object containing useful information recorded
@@ -138,8 +190,8 @@ class FixedTopologyPopulation(Population):
 
         if verbose >= 2:
             callbacks.append(CompleteStdOutLogger())
-        # elif verbose == 1:
-        #     callbacks.append(SimpleStdOutLogger())
+        elif verbose == 1:
+            callbacks.append(SimpleStdOutLogger())
 
         for cb in callbacks:
             cb.population = self
@@ -236,13 +288,22 @@ class FixedTopologyPopulation(Population):
     def generate_offspring(args: Tuple[FixedTopologyGenome,
                                        Optional[FixedTopologyGenome], bool],
     ) -> FixedTopologyGenome:
-        """ TODO
+        """ Given one or two genomes (parents), generates a new genome.
 
         Args:
-            args:
+            args (Tuple[FixedTopologyGenome,
+                Optional[FixedTopologyGenome], bool]): Tuple containing a
+                genome in its first index another genome or `None` in its second
+                index and a bool in its third index. The bool indicates whether
+                predatism will occur or not. If it's `True`, then the new genome
+                will be randomly generated. If the second index is another
+                genome, then the new genome will be generated by mating the two
+                given genomes (sexual reproduction). If its `None`, the new
+                genome will be a mutated copy (asexual reproduction / binary
+                fission) of the genome in the first index
 
         Returns:
-
+            A new genome.
         """
         p1, p2, predate = args
 
@@ -254,15 +315,17 @@ class FixedTopologyPopulation(Population):
         baby = p1.mate(p2) if p2 is not None else p1.deep_copy()
 
         # Mutation:
-        # if p2 is None or utils.chance(baby.config.weight_mutation_chance):
-        baby.mutate_weights()
+        if p2 is None or utils.chance(baby.config.mutation_chance):
+            baby.mutate_weights()
 
         return baby
 
     def reproduction(self) -> int:
         """ Handles the reproduction of the population's genomes.
 
-        TODO
+        Genomes will higher fitness have a higher chance of leaving offspring
+        to the next generation. If elitism is activated, one or more of the
+        fittest genomes will be "carried" unchanged to the next generation.
 
         Returns:
             Number of predated individuals (replaced by a random genome).
@@ -316,7 +379,8 @@ class FixedTopologyPopulation(Population):
 
         # DEBUG:
         # noinspection PyUnresolvedReferences, PyComparisonWithNone
-        asexual_count = (parents2 == None).sum()
+        asexual_count = (parents2 == None).sum() \
+            # pylint: disable=singleton-comparison
         _logger.debug(
             f"[REPRODUCTION] Mating: "
             f"{(offspring_count - asexual_count) / offspring_count:0.2%} | "
@@ -335,7 +399,6 @@ class FixedTopologyPopulation(Population):
         _logger.debug(f"[REPRODUCTION] Preys (predatism): {predate.sum()}")
 
         # Generating offspring:
-        # todo: is this worth parallelizing?
         babies = self.scheduler.run(
             items=[(p1, p2, False) if not predate[i] else (p1, None, True)
                    for i, (p1, p2) in enumerate(zip(parents1, parents2))],
@@ -348,6 +411,3 @@ class FixedTopologyPopulation(Population):
         assert len(self.genomes) == self.size, ("The number of genomes doesn't "
                                                 "match the population's size!")
         return predate.sum()
-
-
-

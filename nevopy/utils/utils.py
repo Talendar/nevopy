@@ -24,17 +24,15 @@
 """ This module implements useful utility functions.
 """
 
-from typing import Optional, List, TypeVar, Callable, Any, Iterable, Set
-from abc import ABCMeta, abstractmethod
-
 import os
 import pickle
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
+from typing import Any, Callable, Iterable, List, Optional, Set, TypeVar
 
-import numpy as np
 import click
+import numpy as np
 from click import style
-
 
 #: `TypeVar` indicating an undefined type
 _T = TypeVar("_T")
@@ -223,6 +221,7 @@ def is_jupyter_notebook() -> bool:
         otherwise.
     """
     try:
+        # pylint: disable=import-outside-toplevel
         from IPython import get_ipython
         if get_ipython() is None:
             return False
@@ -240,6 +239,7 @@ def clear_output() -> None:
     if "PYCHARM_HOSTED" in os.environ:
         print("\n" * 15)
     elif is_jupyter_notebook():
+        # pylint: disable=import-outside-toplevel
         from IPython.display import clear_output as jupyter_clear
         jupyter_clear(wait=True)
     else:

@@ -24,9 +24,10 @@
 """ Implements a simple wrapper for the serial processing of items.
 """
 
-from nevopy.processing.base_scheduler import (ProcessingScheduler,
-                                              TProcItem, TProcResult)
-from typing import List, Sequence, Callable
+from typing import Callable, List, Sequence
+
+from nevopy.processing.base_scheduler import ProcessingScheduler
+from nevopy.processing.base_scheduler import TProcItem, TProcResult
 
 
 class SerialProcessingScheduler(ProcessingScheduler):
@@ -39,8 +40,7 @@ class SerialProcessingScheduler(ProcessingScheduler):
 
     def run(self,
             items: Sequence[TProcItem],
-            func: Callable[[TProcItem], TProcResult],
-    ) -> List[TProcResult]:
+            func: Callable[[TProcItem], TProcResult]) -> List[TProcResult]:
         """ Sequentially processes the input items.
 
         Args:
@@ -59,8 +59,6 @@ class SerialProcessingScheduler(ProcessingScheduler):
             A list containing the results of the processing of each item. It is
             guaranteed that the ordering of the items in the returned list
             follows the order in which the items are yielded by the iterable
-            passed as argument. This means that if the argument  passed to
-            `items` is a :py:class:`Sequence`, the order of the results will
-            match the order of the sequence.
+            passed as argument.
         """
         return [func(item) for item in items]

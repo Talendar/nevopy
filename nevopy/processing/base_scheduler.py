@@ -23,11 +23,11 @@
 
 """ Defines a common interface for processing schedulers.
 
-This module contains a base model for a process scheduler, the entity
-responsible for managing the computation of the fitness of a population in
-`nevopy's` algorithms. Schedulers allow the implementation of the computation
-methods (like the use of serial or parallel processing) to be separated from the
-implementation of the neuroevolutionary algorithms.
+This module contains a base model for a processing scheduler, the entity
+responsible for managing the computation of a population's fitness in `NEvoPY's`
+algorithms. Schedulers allow the implementation of the computation methods (like
+the use of serial or parallel processing) to be separated from the
+implementation of the neuroevolution algorithms.
 
 Attributes:
     TProcItem (TypeVar): :py:class:`TypeVar` indicating an item to be scheduled
@@ -38,8 +38,7 @@ Attributes:
 """
 
 from abc import ABC, abstractmethod
-from typing import Sequence, TypeVar, Optional, Callable, List
-
+from typing import Callable, List, Optional, Sequence, TypeVar
 
 TProcItem = TypeVar("TProcItem")
 TProcResult = TypeVar("TProcResult")
@@ -48,12 +47,12 @@ TProcResult = TypeVar("TProcResult")
 class ProcessingScheduler(ABC):
     """ Defines a common interface for processing schedulers.
 
-    In `nevopy`, a processing scheduler is responsible for managing the
+    In `NEvoPY`, a processing scheduler is responsible for managing the
     computation of the fitness of a population of individuals being evolved.
     This abstract class defines a common interface for processing schedulers
     used by different algorithms. Schedulers allow the implementation of the
     computation methods (like the use of serial or parallel processing) to be
-    separated from the implementation of the neuroevolutionary algorithms.
+    separated from the implementation of the neuroevolution algorithms.
 
     Implementing your own processing scheduler is useful when you want to
     customize the computation of the population's fitness. You can, for example,

@@ -24,19 +24,22 @@
 """ Tests the implementation in :mod:`.fixed_topology.genome`.
 """
 
+# pylint: disable=wrong-import-position
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
+# pylint: enable=wrong-import-position
+from timeit import default_timer as timer
 
+import numpy as np
+import tensorflow as tf
+
+from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.layers import TFConv2DLayer
 from nevopy.fixed_topology.layers import TFFlattenLayer
 from nevopy.fixed_topology.layers import TFDenseLayer
-from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.tests import test_utils
-
-import tensorflow as tf
-import numpy as np
-from timeit import default_timer as timer
 
 
 config = FixedTopologyConfig(  # weight mutation
@@ -58,12 +61,12 @@ def test_processing_and_mutation(genome, num_tests=5, verbose=False):
         layers_weights = [layer.weights for layer in genome.layers]
 
         if past_layers_weights is not None:
-            for i, (w_list0, w_list1) in enumerate(zip(past_layers_weights,
+            for l_num, (w_list0, w_list1) in enumerate(zip(past_layers_weights,
                                                        layers_weights)):
                 for w0, w1 in zip(w_list0, w_list1):
-                    if genome.layers[i].mutable:
+                    if genome.layers[l_num].mutable:
                         if verbose:
-                            print(f"[L{i}] Mutable layer.")
+                            print(f"[L{l_num}] Mutable layer.")
                             # print(f"w0 = \n{w0}\n\n")
                             # print(f"w1 = \n{w1}\n\n")
 
@@ -71,7 +74,7 @@ def test_processing_and_mutation(genome, num_tests=5, verbose=False):
                             assert not (w0 == w1).all()
                     else:
                         if verbose:
-                            print(f"[L{i}] Immutable layer.")
+                            print(f"[L{l_num}] Immutable layer.")
                         assert (w0 == w1).all()
 
         past_layers_weights = layers_weights
@@ -87,7 +90,7 @@ def test_processing_and_mutation(genome, num_tests=5, verbose=False):
             print("Processing input...")
 
         for _ in range(3):
-            data = tf.random.uniform(genome.input_shape)
+            data = tf.random.uniform(genome.input_shape, dtype=float)
             r1, r2 = genome.process(data).numpy(), genome(data).numpy()
             assert (r1 == r2).all()
 
@@ -134,7 +137,7 @@ def test_deep_copy(genome, num_tests=10):
                 assert (w_new == w_old).all()
 
         for _ in range(3):
-            data = tf.random.uniform(genome.input_shape)
+            data = tf.random.uniform(genome.input_shape, dtype=float)
             r_new, r_old = new_genome(data).numpy(), genome(data).numpy()
             assert (r_new == r_old).all()
 
@@ -214,7 +217,8 @@ def test_save_and_load(genome, num_tests=10):
                 weights_size += w0.nbytes / 1024
 
         for _ in range(3):
-            test_input = tf.random.uniform(shape=genome.input_shape)
+            test_input = tf.random.uniform(shape=genome.input_shape,
+                                           dtype=float)
             h0, h1 = genome(test_input), loaded_genome(test_input)
             assert (h0.numpy() == h1.numpy()).all()
 

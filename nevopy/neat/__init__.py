@@ -24,20 +24,20 @@
 """ Imports core names of :mod:`nevopy.neat`.
 """
 
-# Population
-from nevopy.neat.population import NeatPopulation
-
-# Genomes
-from nevopy.neat.genomes import NeatGenome
-from nevopy.neat.genomes import FixTopNeatGenome
-
-# Genes
-from nevopy.neat.genes import NodeGene
-from nevopy.neat.genes import ConnectionGene
-from nevopy.neat.genes import align_connections
-
 # Config
 from nevopy.neat.config import NeatConfig
+
+# Genes
+from nevopy.neat.genes import align_connections
+from nevopy.neat.genes import ConnectionGene
+from nevopy.neat.genes import NodeGene
+
+# Genomes
+from nevopy.neat.genomes import FixTopNeatGenome
+from nevopy.neat.genomes import NeatGenome
+
+# Population
+from nevopy.neat.population import NeatPopulation
 
 # Species
 from nevopy.neat.species import NeatSpecies

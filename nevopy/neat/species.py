@@ -21,11 +21,13 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Implements the :class:`.NeatSpecies` class.
+""" Implementation of the :class:`.NeatSpecies` class.
 """
 
-from typing import Optional, List
+from typing import List, Optional
+
 import numpy as np
+
 from nevopy.neat.genomes import NeatGenome
 
 

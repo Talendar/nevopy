@@ -4,14 +4,6 @@ nevopy.neat package
 Submodules
 ----------
 
-nevopy.neat.callbacks module
-----------------------------
-
-.. automodule:: nevopy.neat.callbacks
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 nevopy.neat.config module
 -------------------------
 

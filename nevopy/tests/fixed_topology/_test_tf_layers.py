@@ -24,19 +24,23 @@
 """ Tests the implementation in :mod:`.fixed_topology.layers`.
 """
 
+# pylint: disable=wrong-import-position
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
-
-from nevopy.tests import test_utils
-from nevopy.fixed_topology.config import FixedTopologyConfig
-from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
-from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
-from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
-from nevopy.fixed_topology.layers import mating
-
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
+# pylint: enable=wrong-import-position
 from timeit import default_timer as timer
+
 import numpy as np
 import tensorflow as tf
+
+from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.fixed_topology.layers import mating
+from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
+from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
+from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
+from nevopy.tests import test_utils
+
 
 config = FixedTopologyConfig(  # weight mutation
                              weight_mutation_chance=(0.7, 0.9),
@@ -46,7 +50,7 @@ config = FixedTopologyConfig(  # weight mutation
 
 
 def test_mutate_weights(layer, num_tests=100, verbose=False):
-    deltaT = 0
+    mutation_time = 0
     mutated_weights_pc = 0
     reset_weights_pc = 0
 
@@ -56,7 +60,7 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
 
         start_time = timer()
         layer.mutate_weights(_test_info=test_info)
-        deltaT += timer() - start_time
+        mutation_time += timer() - start_time
 
         weights_new = layer.weights
 
@@ -64,7 +68,7 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
             if verbose:
                 print(f"\n[WEIGHT MATRIX AT INDEX {w_num}]")
 
-            mutate_idx = test_info[f'w{w_num}_mutate_idx']
+            mutate_idx = test_info[f"w{w_num}_mutate_idx"]
             perturbation = test_info[f"w{w_num}_perturbation"] - 1
             assert len(mutate_idx) == len(perturbation)
 
@@ -72,12 +76,12 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
                 mutate_idx, perturbation = (
                     np.array(list(t))
                     for t in zip(
-                        *sorted(zip(test_info[f'w{w_num}_mutate_idx'],
+                        *sorted(zip(test_info[f"w{w_num}_mutate_idx"],
                                     test_info[f"w{w_num}_perturbation"] - 1))
                     )
                 )
 
-            reset_idx = test_info[f'w{w_num}_reset_idx']
+            reset_idx = test_info[f"w{w_num}_reset_idx"]
             diff_pc = np.divide(w_new - w_old, w_old,
                                 out=np.full_like(w_old, fill_value=None),
                                 where=w_old != 0)
@@ -91,7 +95,8 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
             count_reset = 0
             count_pert = 0
             for i in range(w_old.size):
-                d_real = diff_pc.flat[i]
+                d_real = diff_pc.flat[i] \
+                    # pylint: disable=unsubscriptable-object
                 if verbose:
                     print(f"[ABS CHANGE] {w_old.flat[i]:.5f} "
                           f"-> {w_new.flat[i]:.5f}  <>  "
@@ -140,42 +145,42 @@ def test_mutate_weights(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-    print(f"> Mutation time: {1000 * deltaT / num_tests:.4f}ms")
+    print(f"> Mutation time: {1000 * mutation_time / num_tests:.4f}ms")
     print(f"> Mutated weights pc: {mutated_weights_pc / num_tests:.2%}")
     print(f"> Reset weights pc: {reset_weights_pc / num_tests:.2%}")
 
 
 def test_immutable_layer_mutation(layer, num_tests=100, verbose=False):
-    _mutable = layer.mutable
+    mutable = layer.mutable
     layer.mutable = False
 
-    deltaT = 0
+    mutation_time = 0
     for _ in range(num_tests):
         old_weights = layer.weights
 
         start_time = timer()
         layer.mutate_weights()
-        deltaT += timer() - start_time
+        mutation_time += timer() - start_time
 
         new_weights = layer.weights
         for w_new, w_old in zip(new_weights, old_weights):
             assert (w_new == w_old).all()
 
-    layer.mutable = _mutable
+    layer.mutable = mutable
     if verbose:
         print("\n" + "=" * 50)
     print("> Immutable layer mutation time: "
-          f"{1000 * deltaT / num_tests:.4f}ms")
+          f"{1000 * mutation_time / num_tests:.4f}ms")
 
 
 def test_deep_copy(layer, num_tests=100, verbose=False):
-    deltaT = 0
+    dc_time = 0
     for _ in range(num_tests):
         layer.mutate_weights()
 
         start_time = timer()
         new_layer = layer.deep_copy()
-        deltaT += timer() - start_time
+        dc_time += timer() - start_time
 
         # Checking if weights are equal
         for w_new, w_old in zip(new_layer.weights, layer.weights):
@@ -189,7 +194,8 @@ def test_deep_copy(layer, num_tests=100, verbose=False):
 
         # Checking if outputs are equal
         for _ in range(3):
-            random_input = tf.random.uniform(shape=layer.input_shape)
+            random_input = tf.random.uniform(shape=layer.input_shape,
+                                             dtype=float)
             y_new = new_layer(random_input).numpy()
             y_old = layer(random_input).numpy()
 
@@ -200,17 +206,17 @@ def test_deep_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "="*50)
-    print(f"> Deep copy time: {1000 * deltaT / num_tests:.4f}ms")
+    print(f"> Deep copy time: {1000 * dc_time / num_tests:.4f}ms")
 
 
 def test_random_copy(layer, num_tests=100, verbose=False):
-    deltaT = 0
+    rc_time = 0
     for _ in range(num_tests):
         layer.mutate_weights()
 
         start_time = timer()
         new_layer = layer.random_copy()
-        deltaT += timer() - start_time
+        rc_time += timer() - start_time
 
         # Checking if weights are different
         for w_old, w_new in zip(layer.weights, new_layer.weights):
@@ -224,7 +230,8 @@ def test_random_copy(layer, num_tests=100, verbose=False):
 
         # Checking if outputs are different
         for _ in range(3):
-            random_input = tf.random.uniform(shape=layer.input_shape)
+            random_input = tf.random.uniform(shape=layer.input_shape,
+                                             dtype=float)
             y_new = new_layer(random_input).numpy()
             y_old = layer(random_input).numpy()
 
@@ -235,12 +242,12 @@ def test_random_copy(layer, num_tests=100, verbose=False):
 
     if verbose:
         print("\n" + "=" * 50)
-    print(f"> Random copy time: {1000 * deltaT / num_tests:.4f}ms")
+    print(f"> Random copy time: {1000 * rc_time / num_tests:.4f}ms")
 
 
 def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
     layer1.mating_func = layer2.mating_func = mating.exchange_units_mating
-    mate_deltaT = mutation_deltaT = 0
+    mating_time = mutation_time = 0
     units_from_p1 = units_from_p2 = 0
     for t in range(num_tests):
         if verbose:
@@ -251,12 +258,12 @@ def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
         start_time = timer()
         layer1.mutate_weights()
         layer2.mutate_weights()
-        mutation_deltaT += (timer() - start_time) / 2
+        mutation_time += (timer() - start_time) / 2
 
         # Mating layers
         start_time = timer()
         new_layer = layer1.mate(layer2)
-        mate_deltaT += timer() - start_time
+        mating_time += timer() - start_time
 
         # Checking units inheritance
         for w_new, w_p1, w_p2 in zip(new_layer.weights,
@@ -293,13 +300,13 @@ def test_exchange_units_mating(layer1, layer2, num_tests=100, verbose=False):
         print(f"Units from parent 2: {units_from_p2 / total_units:.2%}\n")
 
     print(f"> Exchange units mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
+          f"\t. Mating time: {1000 * mating_time / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_time / num_tests:.4f}ms")
 
 
 def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
     layer1.mating_func = layer2.mating_func = mating.exchange_weights_mating
-    mate_deltaT = mutation_deltaT = 0
+    mating_time = mutation_time = 0
     w_from_p1 = w_from_p2 = 0
     for t in range(num_tests):
         if verbose:
@@ -310,12 +317,12 @@ def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
         start_time = timer()
         layer1.mutate_weights()
         layer2.mutate_weights()
-        mutation_deltaT += (timer() - start_time) / 2
+        mutation_time += (timer() - start_time) / 2
 
         # Mating layers:
         start_time = timer()
         new_layer = layer1.mate(layer2)
-        mate_deltaT += timer() - start_time
+        mating_time += timer() - start_time
 
         # Checking individual weights inheritance:
         for w_new, w_p1, w_p2 in zip(new_layer.weights,
@@ -351,13 +358,13 @@ def test_exchange_weights_mating(layer1, layer2, num_tests=100, verbose=False):
         print(f"Weights from parent 2: {w_from_p2 / total_w:.2%}\n")
 
     print(f"> Exchange weights mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
+          f"\t. Mating time: {1000 * mating_time / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_time / num_tests:.4f}ms")
 
 
 def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
     layer1.mating_func = layer2.mating_func = mating.weights_avg_mating
-    mate_deltaT = mutation_deltaT = 0
+    mating_time = mutation_time = 0
     for t in range(num_tests):
         if verbose:
             print(f"> Test {t} of {num_tests}.")
@@ -366,12 +373,12 @@ def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
         start_time = timer()
         layer1.mutate_weights()
         layer2.mutate_weights()
-        mutation_deltaT += (timer() - start_time) / 2
+        mutation_time += (timer() - start_time) / 2
 
         # Mating layers:
         start_time = timer()
         new_layer = layer1.mate(layer2)
-        mate_deltaT += timer() - start_time
+        mating_time += timer() - start_time
 
         # Checking individual weights inheritance:
         for w_new, w_p1, w_p2 in zip(new_layer.weights,
@@ -385,22 +392,22 @@ def test_weights_avg_mating(layer1, layer2, num_tests=100, verbose=False):
         print("\n" + "=" * 50)
 
     print(f"> Weights averaging mating:\n"
-          f"\t. Mating time: {1000 * mate_deltaT / num_tests:.4f}ms\n"
-          f"\t. Mutation time: {1000 * mutation_deltaT / num_tests:.4f}ms")
+          f"\t. Mating time: {1000 * mating_time / num_tests:.4f}ms\n"
+          f"\t. Mutation time: {1000 * mutation_time / num_tests:.4f}ms")
 
 
 def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
-    _mutable1 = layer1.mutable
-    _mutable2 = layer2.mutable
+    mutable1 = layer1.mutable
+    mutable2 = layer2.mutable
 
-    deltaT = 0
+    mating_time = 0
     for _ in range(num_tests):
         # Valid mating
         layer1.mutable = layer2.mutable = False
         start_time = timer()
         new_layer1 = layer1.mate(layer2)
         new_layer2 = layer2.mate(layer1)
-        deltaT += (timer() - start_time) / 2
+        mating_time += (timer() - start_time) / 2
 
         for old, new in [(layer1, new_layer1), (layer2, new_layer2)]:
             for w_old, w_new in zip(old.weights, new.weights):
@@ -415,13 +422,13 @@ def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
         except IncompatibleLayersError:
             pass
 
-    layer1.mutable = _mutable1
-    layer2.mutable = _mutable2
+    layer1.mutable = mutable1
+    layer2.mutable = mutable2
     if verbose:
         print("\n" + "=" * 50)
 
     print("> Immutable layer valid mating time: "
-          f"{1000 * deltaT / num_tests:.4f}ms")
+          f"{1000 * mating_time / num_tests:.4f}ms")
 
 
 def test_save_and_load(layer, num_tests=10, pkl=True):
@@ -444,7 +451,7 @@ def test_save_and_load(layer, num_tests=10, pkl=True):
             assert (w0 == w1).all()
 
         for _ in range(3):
-            test_input = tf.random.uniform(shape=layer.input_shape)
+            test_input = tf.random.uniform(shape=layer.input_shape, dtype=float)
             h0, h1 = layer(test_input), loaded_layer(test_input)
             assert (h0.numpy() == h1.numpy()).all()
 
@@ -516,7 +523,7 @@ def test_flatten():
         rc = flatten_layer.random_copy()
         child = flatten_layer.mate(rc)
 
-        test_input = tf.random.uniform(shape=[16, 32, 64, 100])
+        test_input = tf.random.uniform(shape=[16, 32, 64, 100], dtype=float)
         orig_out = flatten_layer(test_input).numpy()
         deep_out = dc(test_input).numpy()
         rand_out = rc(test_input).numpy()
@@ -558,7 +565,7 @@ def test_sequential(verbose=False):
     ]
 
     for n in range(10):
-        out = tf.random.uniform(shape=[3, 256, 256, 3])
+        out = tf.random.uniform(shape=[3, 256, 256, 3], dtype=float)
         for layer in layers:
             out = layer(out)
 

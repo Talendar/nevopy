@@ -32,7 +32,9 @@ neuroevolutionary algorithms in `NEvoPY`.
 
 from abc import ABC, abstractmethod
 from typing import Any
-from nevopy.utils import pickle_save, pickle_load
+
+from nevopy.utils.utils import pickle_load
+from nevopy.utils.utils import pickle_save
 
 
 class BaseGenome(ABC):
@@ -69,11 +71,11 @@ class BaseGenome(ABC):
         self.fitness = 0.0
 
     @abstractmethod
-    def process(self, X: Any) -> Any:
+    def process(self, x: Any) -> Any:
         """ Feeds the given input to the neural network encoded by the genome.
 
         Args:
-            X (Any): The input(s) to be fed to the neural network encoded by the
+            x (Any): The input(s) to be fed to the neural network encoded by the
                 genome. Usually a `NumPy ndarray` or a `TensorFlow tensor`.
 
         Returns:
@@ -85,9 +87,9 @@ class BaseGenome(ABC):
                 shape expected by the network.
         """
 
-    def __call__(self, X: Any) -> Any:
+    def __call__(self, x: Any) -> Any:
         """ Wraps a call to :meth:`.process`. """
-        return self.process(X)
+        return self.process(x)
 
     @abstractmethod
     def reset(self) -> None:
@@ -129,7 +131,7 @@ class BaseGenome(ABC):
         equal proportion)
 
         Args:
-            other (Any): The second genome . If it's not compatible for mating
+            other (Any): The second genome. If it's not compatible for mating
                 with the current genome (`self`), an exception will be raised.
 
         Returns:
@@ -141,7 +143,7 @@ class BaseGenome(ABC):
                 ``other`` is incompatible with the current genome (`self`).
         """
 
-    def save(self, abs_path: str, **kwargs) -> None:
+    def save(self, abs_path: str) -> None:
         """ Saves the genome to the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to save the genome.
@@ -154,7 +156,7 @@ class BaseGenome(ABC):
         pickle_save(self, abs_path)
 
     @classmethod
-    def load(cls, abs_path: str, **kwargs) -> "BaseGenome":
+    def load(cls, abs_path: str) -> "BaseGenome":
         """ Loads the genome from the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to load the genome.

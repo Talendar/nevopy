@@ -21,17 +21,17 @@
 # SOFTWARE.
 # ==============================================================================
 
-"""
-TODO
+""" Implementation of the base abstract class that defines a population of
+genomes, each of which encodes a neural network.
 """
 
-from typing import Any, Optional, Callable, List, TypeVar, Generic, Type
 from abc import ABC, abstractmethod
+from typing import Any, Callable, Generic, List, Optional, Type, TypeVar
 
 import numpy as np
+
 import nevopy as ne
 from nevopy.processing.base_scheduler import ProcessingScheduler
-
 
 TGenome = TypeVar("TGenome", bound="ne.base_genome.BaseGenome")
 
@@ -116,7 +116,7 @@ class Population(ABC, Generic[TGenome]):
         """ Returns the average fitness of the population's genomes. """
         return np.mean([g.fitness for g in self.genomes])
 
-    def save(self, abs_path: str, **kwargs) -> None:
+    def save(self, abs_path: str) -> None:
         """ Saves the population on the absolute path provided.
 
         This method uses, by default, :py:mod:`pickle` to save the population.
@@ -137,7 +137,6 @@ class Population(ABC, Generic[TGenome]):
     def load(cls,
              abs_path: str,
              scheduler: Optional[ProcessingScheduler] = None,
-             **kwargs,
     ) -> "Population":
         """ Loads the population from the given absolute path.
 
@@ -153,6 +152,7 @@ class Population(ABC, Generic[TGenome]):
             The loaded population.
         """
         pop = ne.utils.pickle_load(abs_path)
+        # pylint: disable=not-callable
         pop.scheduler = (scheduler if scheduler is not None
                          else cls.DEFAULT_SCHEDULER())
         return pop

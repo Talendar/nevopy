@@ -49,18 +49,23 @@ Example:
                           callbacks=[MyCallback()])
 """
 
-from typing import Optional, List, Dict, Union, Tuple, Callable, Any
+import logging
+import os
 from abc import ABC
-from nevopy import utils
+from datetime import datetime
+from timeit import default_timer as timer
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
-from columnar import columnar
 from click import style
-from timeit import default_timer as timer
+from columnar import columnar
 
-from typing import TYPE_CHECKING
+from nevopy.utils import utils  # pylint: disable=wrong-import-position
 if TYPE_CHECKING:
     from nevopy.base_population import Population
+
+_logger = logging.getLogger(__name__)
 
 
 class Callback(ABC):
@@ -196,6 +201,7 @@ class CompleteStdOutLogger(Callback):
         self.colored_text = colored_text
         self._past_best_fitness = 0.0
         self._past_avg_fitness = 0.0
+        self._past_mutation = 0.0
         self._past_weight_mutation = 0.0
         self._past_weight_perturbation = 0.0
         self._table = None  # type: Optional[List[List[str]]]
@@ -224,7 +230,7 @@ class CompleteStdOutLogger(Callback):
                                  past=self._past_best_fitness),
             utils.make_table_row(name="Avg population\nfitness",
                                  current=avg_fitness,
-                                 past=self._past_avg_fitness)
+                                 past=self._past_avg_fitness),
         ]
 
         self._past_best_fitness = best_fitness
@@ -243,6 +249,17 @@ class CompleteStdOutLogger(Callback):
                                     else "red"), bold=(pc >= 0.66))
         print(f". Mass extinction counter: {ct} / {ct_max}")
         self._summary_msg += f". Mass extinction counter: {ct} / {ct_max}"
+
+        try:
+            mutation_chance = self.population.config.mutation_chance
+            self._table.append(utils.make_table_row(name="Mutation chance",
+                                                    current=mutation_chance,
+                                                    past=self._past_mutation,
+                                                    show_inc_pc=False,
+                                                    inc_format="+0.2%"))
+            self._past_mutation = mutation_chance
+        except AttributeError:
+            pass
 
         weight_mutation = self.population.config.weight_mutation_chance
         weight_perturbation = self.population.config.weight_perturbation_pc
@@ -264,11 +281,11 @@ class CompleteStdOutLogger(Callback):
 
     def on_mass_extinction_start(self, **kwargs) -> None:
         msg = ". Mass extinction in progress... "
-        msg = style(msg, fg='red', bold=True) if self.colored_text else msg
+        msg = style(msg, fg="red", bold=True) if self.colored_text else msg
         print(f"{msg}", end="")
 
-        msg = '. Mass extinction occurred!'
-        msg = style(msg, fg='red', bold=True) if self.colored_text else msg
+        msg = ". Mass extinction occurred!"
+        msg = style(msg, fg="red", bold=True) if self.colored_text else msg
         self._summary_msg += "\n" + msg
 
     def on_reproduction_start(self, **kwargs) -> None:
@@ -302,11 +319,35 @@ class CompleteStdOutLogger(Callback):
 
 
 class SimpleStdOutLogger(Callback):
-    """ Callback that prints minimal info to the standard output.
+    """ Callback that prints minimal info to the standard output. """
 
-    Todo:
-        Implementation.
-    """
+    def on_generation_start(self,
+                            current_generation: int,
+                            max_generations: int,
+                            **kwargs) -> None:
+        print("\n\n"
+              f"[{(current_generation + 1) / max_generations:.2%}] "
+              f"Generation {current_generation + 1} of {max_generations}.")
+
+    def on_fitness_calculated(self,
+                              best_fitness: float,
+                              avg_fitness: float,
+                              **kwargs) -> None:
+        print(f"  . Best fitness: {best_fitness:.2f}")
+        print(f"  . Avg. population fitness: {avg_fitness:.2f}")
+
+    def on_mass_extinction_counter_updated(self,
+                                           mass_extinction_counter: int,
+                                           **kwargs) -> None:
+        print(f"  . Mass extinction counter: {mass_extinction_counter}/"
+              f"{self.population.config.mass_extinction_threshold}")
+
+    def on_mass_extinction_start(self, **kwargs) -> None:
+        print("  . Mass extinction in progress!")
+
+    def on_evolution_end(self, total_generations: int, **kwargs) -> None:
+        print("\n" + "_" * 40)
+        print(f"Evolution ended after {total_generations + 1} generations.")
 
 
 class History(Callback):
@@ -365,10 +406,13 @@ class History(Callback):
     def on_mass_extinction_counter_updated(self,
                                            mass_extinction_counter: int,
                                            **kwargs) -> None:
+        weight_mutation_chance = self.population.config.weight_mutation_chance
+        weight_perturbation_pc = self.population.config.weight_perturbation_pc
+
         self._update_history(
             mass_extinction_counter=mass_extinction_counter,
-            weight_mutation_chance=self.population.config.weight_mutation_chance,
-            weight_perturbation_pc=self.population.config.weight_perturbation_pc,
+            weight_mutation_chance=weight_mutation_chance,
+            weight_perturbation_pc=weight_perturbation_pc,
             **kwargs,
         )
 
@@ -410,7 +454,7 @@ class History(Callback):
                 y-axis.
         """
         generations = range(len(self.history["best_fitness"]))
-        if type(attrs) is str and attrs == "all":
+        if isinstance(attrs, str) and attrs == "all":
             attrs = tuple(self.history.keys())
 
         plt.figure(figsize=figsize)
@@ -474,19 +518,61 @@ class FitnessEarlyStopping(Callback):
             self.stopped_generation = current_generation
 
 
-class PopulationCheckpoint(Callback):
-    """ Saves the state of the population (checkpoints) at different moments of
-    the evolutionary process.
-
-    Todo:
-        Implementation.
-    """
-
-
 class BestGenomeCheckpoint(Callback):
     """ Saves the best genome of the population (checkpoint) at different
     moments of the evolutionary process.
 
-    Todo:
-        Implementation.
+    Args:
+        output_path(str): Path of the output files.
+        min_improvement_pc (float): Minimum improvement (percentage) in the
+            population's best fitness, since the last checkpoint, necessary for
+            a new checkpoint.
+        file_prefix (Optional[str]): Optional prefix for the saved files. If
+            `None`, the current date and time will be used as prefix.
+
+    Attributes:
+        output_path(str): Path of the output files.
+        min_improvement_pc (float): Minimum improvement (percentage) in the
+            population's best fitness, since the last checkpoint, necessary for
+            a new checkpoint.
+        file_prefix (Optional[str]): Optional prefix for the saved files.
     """
+
+    def __init__(self,
+                 output_path: str,
+                 min_improvement_pc: float,
+                 file_prefix: Optional[str] = None) -> None:
+        super().__init__()
+        self.output_path = output_path
+        self.min_improvement_pc = min_improvement_pc
+        self.file_prefix = (file_prefix if file_prefix is not None
+                            else datetime.today().strftime("%Y-%m-%d-%H-%M-%S"))
+        self._past_best_fitness = None  # type: Optional[float]
+        self._count = 1
+
+    def on_fitness_calculated(self,
+                              best_fitness: float,
+                              avg_fitness: float,
+                              **kwargs) -> None:
+        if self._past_best_fitness is not None:
+            diff = best_fitness - self._past_best_fitness
+            improvement_pc = (diff / self._past_best_fitness
+                              if self._past_best_fitness != 0 else float("inf"))
+            if improvement_pc >= self.min_improvement_pc:
+                genome = self.population.fittest()
+                path = os.path.join(
+                    self.output_path,
+                    f"{self.file_prefix}_genome_checkpoint{self._count}"
+                )
+
+                genome.save(path)
+                _logger.info(
+                    "[CHECKPOINT] Best fitness improved from "
+                    f"{self._past_best_fitness:.2f} to {best_fitness:.2f} "
+                    f"({improvement_pc:.2%}). Best genome saved to: {path}"
+                )
+
+                self._count += 1
+                self._past_best_fitness = best_fitness
+        else:
+            self._past_best_fitness = best_fitness

@@ -21,28 +21,30 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Implements the main mechanisms of the NEAT algorithm.
+""" Implementation of the main mechanisms of the NEAT algorithm.
 
 This is the main module of `NEvoPY's` implementation of the NEAT algorithm. It
 implements the :class:`.NeatPopulation` class, which handles the evolution of a
-population/community of genomes.
+population/community of NEAT genomes.
 """
 
-from typing import Optional, List, Sequence, Dict, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Sequence
+
 import numpy as np
 
-from nevopy.neat.genomes import NeatGenome
-from nevopy.neat.genes import NodeGene
+from nevopy.utils import utils
+from nevopy.base_population import Population
+from nevopy.callbacks import Callback
+from nevopy.callbacks import CompleteStdOutLogger
+from nevopy.callbacks import History
+from nevopy.callbacks import SimpleStdOutLogger
 from nevopy.neat.config import NeatConfig
+from nevopy.neat.genes import NodeGene
+from nevopy.neat.genomes import NeatGenome
 from nevopy.neat.id_handler import IdHandler
 from nevopy.neat.species import NeatSpecies
-from nevopy.callbacks import (Callback, CompleteStdOutLogger,
-                              SimpleStdOutLogger, History)
-
-from nevopy import utils
 from nevopy.processing.base_scheduler import ProcessingScheduler
 from nevopy.processing.pool_processing import PoolProcessingScheduler
-from nevopy.base_population import Population
 
 
 class NeatPopulation(Population):
@@ -53,7 +55,8 @@ class NeatPopulation(Population):
     NEAT's case, is actually "community" (group of populations of two or more
     different species) rather than "population" (subset of individuals of one
     species), since NEAT divides its genomes into species. However, to maintain
-    consistency with the neuroevolution literature, the population term is used.
+    consistency with the neuroevolution literature, the term "population" is
+    used.
 
     To use NEAT, most users will need to use only this class. It's main method,
     :meth:`.evolve()`, starts the evolutionary process. By providing a
@@ -69,7 +72,7 @@ class NeatPopulation(Population):
 
     Example:
 
-        Suppose you have already defined a function called `calc_fitness` that
+        Suppose you have already defined a function called `fitness_func` that
         takes a genome as input and calculates its fitness. If the networks
         take 10 input values and outputs 3 values, here is how you can proceed
         to create and evolve a population of 100 genomes using the default
@@ -77,14 +80,26 @@ class NeatPopulation(Population):
 
         .. code-block:: python
 
-            pop = NeatPopulation(size=100,
-                             num_inputs=10,
-                             num_outputs=3)
+            def fitness_func(genome):
+                \"\"\"
+                Function that takes a genome as input and returns the genome's
+                fitness (a float) as output.
+                \"\"\"
+                # ...
 
-            pop.evolve(generations=100),
-                       fitness_function=calc_fitness)
 
-            best_genome = pop.fittest()
+            # Creating and evolving a population:
+            population = NeatPopulation(size=100,
+                                        num_inputs=10,
+                                        num_outputs=3)
+            history = population.evolve(generations=100,
+                                        fitness_function=fitness_func)
+
+            # Visualizing the progression of the population's fitness:
+            history.visualize()
+
+            # Retrieving and visualizing the fittest genome of the population:
+            best_genome = population.fittest()
             best_genome.visualize()
 
     Args:
@@ -105,13 +120,8 @@ class NeatPopulation(Population):
             :class:`.PoolProcessingScheduler`.
 
     Attributes:
-        config (NeatConfig): The settings of the evolutionary process.
-        genomes (Sequence[Genome]): List with the population's genomes.
-        species (List[NeatSpecies]): List with the currently alive species in the
-            population.
-        stop_evolving (bool): At the start of every generation,
-            :meth:`.evolve()` checks if this variable is set to `True`. If it
-            is, the evolutionary process is stopped. Useful for callbacks.
+        species (List[NeatSpecies]): List with the currently alive species in
+            the population.
     """
 
     #: Default processing scheduler used by instances of this class.
@@ -205,7 +215,8 @@ class NeatPopulation(Population):
                fitness_function: Callable[[NeatGenome], float],
                callbacks: Optional[List[Callback]] = None,
                verbose: int = 2,
-               **kwargs) -> History:
+               **kwargs,  # pylint: disable=unused-argument
+    ) -> History:
         """ Evolves the population of genomes using the NEAT algorithm.
 
         Args:
@@ -221,7 +232,7 @@ class NeatPopulation(Population):
                 session. By default, a :class:`.History` callback is always
                 included in the list. A :class:`.CompleteStdOutLogger` or a
                 :class:`.SimpleStdOutLogger` might also be included, depending
-                on the value passed to the `verbose` param.
+                on the value passed to the ``verbose`` param.
             verbose (int): Verbose level (logging on stdout). Options: 0 (no
                 verbose), 1 (light verbose) and 2 (heavy verbose).
 
@@ -318,7 +329,7 @@ class NeatPopulation(Population):
 
                 # mass extinction
                 self._mass_extinction_counter = 0
-                self.genomes = [best] + [self._random_genome_with_extras()  # type: ignore
+                self.genomes = [best] + [self._random_genome_with_extras()
                                          for _ in range(self._size - 1)]
                 assert len(self.genomes) == self._size
             else:
@@ -520,8 +531,9 @@ class NeatPopulation(Population):
         self.genomes = new_pop
 
         # checking if the innovation ids should be reset
-        if (self._config.reset_innovations_period is not None
-                and self._id_handler.reset_counter > self._config.reset_innovations_period):
+        reset_period = self._config.reset_innovations_period
+        reset_counter = self._id_handler.reset_counter
+        if reset_period is not None and reset_counter > reset_period:
             self._id_handler.reset()
         self._id_handler.reset_counter += 1
 
@@ -548,7 +560,8 @@ class NeatPopulation(Population):
         offspring_count = {}
         count = num_offspring
         for sid in self.species:
-            offspring_count[sid] = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
+            v = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
+            offspring_count[sid] = v
             count -= offspring_count[sid]
 
         for _ in range(count):

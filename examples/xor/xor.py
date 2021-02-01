@@ -18,7 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-ALGORITHM = "neat"  # "neat" or "fixed_topology"
+ALGORITHM = "fixed_topology"  # "neat" or "fixed_topology"
 MAX_GENERATIONS = 100
 FITNESS_THRESHOLD = 1e3
 NUM_VARIABLES = 2
@@ -78,14 +78,24 @@ def eval_fito_genome(genome: neat.genomes.FixedTopologyGenome,
     return 1 / error
 
 
+def load_and_test(path, cls):
+    genome = cls.load(path)
+    if cls == neat.NeatGenome:
+        print(f"Fitness: {eval_neat_genome(genome, log=True)}")
+    else:
+        print(f"Fitness: {eval_fito_genome(genome, log=True)}")
+
+
 if __name__ == "__main__":
+    # load_and_test("./.temp/2021-01-31-12-20-06_genome_checkpoint5.pkl",
+    #               fito.FixedTopologyGenome)
     runs = 1
     total_time = 0
     pop = history = None
 
     if ALGORITHM == "fixed_topology":
         base_genome = fito.FixedTopologyGenome(
-            layers=[fito.layers.TFDenseLayer(32, activation="relu"),
+            layers=[fito.layers.TFDenseLayer(8, activation="relu"),
                     fito.layers.TFDenseLayer(1, activation="relu")],
             input_shape=xor_inputs.shape,
         )
@@ -102,7 +112,7 @@ if __name__ == "__main__":
                 num_outputs=1,
             )
         else:
-            pop = fito.FixedTopologyPopulation(size=100,
+            pop = fito.FixedTopologyPopulation(size=200,
                                                base_genome=base_genome)
 
         history = pop.evolve(generations=MAX_GENERATIONS,
@@ -112,7 +122,11 @@ if __name__ == "__main__":
                                  nevopy.callbacks.FitnessEarlyStopping(
                                      fitness_threshold=FITNESS_THRESHOLD,
                                      min_consecutive_generations=3,
-                                 )
+                                 ),
+                                 # nevopy.callbacks.BestGenomeCheckpoint(
+                                 #    output_path="./.temp",
+                                 #    min_improvement_pc=0.5,
+                                 # ),
                              ])
 
         deltaT = timer() - start_time
@@ -129,16 +143,3 @@ if __name__ == "__main__":
 
     history.visualize()
     history.visualize(attrs=["processing_time"])
-
-    # print("\n\n\nSaving population...")
-    # pop.save("./test/test_pop.pkl")
-    #
-    # del pop
-    # del best
-    #
-    # pop = nevopy.neat.population.NeatPopulation.load("./test/test_pop.pkl")
-    # print(pop.info())
-    # best = pop.fittest()
-    # eval_neat_genome(best, log=True)
-    # print(best.info())
-    # best.visualize()

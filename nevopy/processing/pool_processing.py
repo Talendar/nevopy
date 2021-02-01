@@ -21,7 +21,8 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Implements a processing scheduler that uses :py:class:`multiprocessing.Pool`.
+""" Implements a processing scheduler that uses
+:py:class:`multiprocessing.Pool`.
 
 :py:class:`multiprocessing.Pool` is a built-in Python class that facilitates
 parallel processing on a single machine. Note that it requires compatibility
@@ -29,13 +30,15 @@ with `pickle`.
 """
 
 import multiprocessing
-from nevopy.processing.base_scheduler import (ProcessingScheduler,
-                                              TProcItem, TProcResult)
-from typing import List, Optional, Sequence, Callable
+from typing import Callable, List, Optional, Sequence
+
+from nevopy.processing.base_scheduler import ProcessingScheduler
+from nevopy.processing.base_scheduler import TProcItem, TProcResult
 
 
 class PoolProcessingScheduler(ProcessingScheduler):
-    """ Processing scheduler that uses Python's :py:class:`multiprocessing.Pool`.
+    """ Processing scheduler that uses Python's
+    :py:class:`multiprocessing.Pool`.
 
     This scheduler implements parallel processing (on a single machine) using
     Python's built-in module :py:mod:`multiprocessing`, specifically, the class
@@ -75,8 +78,7 @@ class PoolProcessingScheduler(ProcessingScheduler):
 
     def run(self,
             items: Sequence[TProcItem],
-            func: Callable[[TProcItem], TProcResult],
-    ) -> List[TProcResult]:
+            func: Callable[[TProcItem], TProcResult]) -> List[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
@@ -99,9 +101,7 @@ class PoolProcessingScheduler(ProcessingScheduler):
             A list containing the results of the processing of each item. It is
             guaranteed that the ordering of the items in the returned list
             follows the order in which the items are yielded by the iterable
-            passed as argument. This means that if the argument  passed to
-            `items` is a :py:class:`Sequence`, the order of the results will
-            match the order of the sequence.
+            passed as argument.
         """
         return self._pool.map(func, items, chunksize=self._chunksize)
 

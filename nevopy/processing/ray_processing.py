@@ -22,17 +22,20 @@
 # ==============================================================================
 
 """ Implements a processing scheduler that uses the `ray` framework.
+
 By using `ray` (https://github.com/ray-project/ray), the scheduler is able to
 implement parallel processing, either on a single machine or on a cluster.
 """
 
-import os
-import ray
-from nevopy.processing.base_scheduler import (ProcessingScheduler,
-                                              TProcItem, TProcResult)
-from typing import List, Optional, Sequence, Callable, Dict, Set
-
 import logging
+import os
+from typing import Callable, Dict, List, Optional, Sequence, Set
+
+import ray
+
+from nevopy.processing.base_scheduler import ProcessingScheduler
+from nevopy.processing.base_scheduler import TProcItem, TProcResult
+
 _logger = logging.getLogger(__name__)
 
 
@@ -42,8 +45,8 @@ class RayProcessingScheduler(ProcessingScheduler):
     Ray is an open source framework that provides a simple, universal API for
     building distributed applications. This scheduler uses it to implement
     parallel processing. It's possible to either run `ray` on a single machine
-    or on a cluster. For more information about the `ray` framework, checkout
-    the project's GitHub page: https://github.com/ray-project/ray.
+    or on a cluster. For more information regarding the `ray` framework,
+    checkout the project's GitHub page: https://github.com/ray-project/ray.
 
     It's possible to view the `ray's` dashboard at http://127.0.0.1:8265. It
     contains useful information about the distribution of work and usage of
@@ -127,8 +130,7 @@ class RayProcessingScheduler(ProcessingScheduler):
 
     def run(self,
             items: Sequence[TProcItem],
-            func: Callable[[TProcItem], TProcResult],
-    ) -> List[TProcResult]:
+            func: Callable[[TProcItem], TProcResult]) -> List[TProcResult]:
         """ Processes the given items and returns a result.
 
         Main function of the scheduler. Call it to make the scheduler manage the
@@ -146,20 +148,19 @@ class RayProcessingScheduler(ProcessingScheduler):
                 possible to use Python's :mod:`functools.partial` or to just
                 wrap it with a simple function. The callable doesn't need to be
                 annotated with `ray.remote`, this is handled for you.
+
         Returns:
             A list containing the results of the processing of each item. It is
             guaranteed that the ordering of the items in the returned list
             follows the order in which the items are yielded by the iterable
-            passed as argument. This means that if the argument  passed to
-            `items` is a :py:class:`Sequence`, the order of the results will
-            match the order of the sequence.
+            passed as argument.
         """
         func_id = ray.put(func)
         if self._num_gpus == 0:
             return ray.get([_func_wrapper.remote(func_id, item)
                             for item in items])
 
-        NUM_WORKERS = self._num_cpus
+        num_workers = self._num_cpus
         processing_refs = []         # type: List[ray.ObjectRef]
         results_dict = {}            # type: Dict[int, TProcResult]
         gpu_processing_refs = set()  # type: Set[ray.ObjectRef]
@@ -178,7 +179,7 @@ class RayProcessingScheduler(ProcessingScheduler):
                     results_dict[ref2idx[ref]] = result
 
             # assigning work
-            while len(processing_refs) < NUM_WORKERS and idx < len(items):
+            while len(processing_refs) < num_workers and idx < len(items):
                 if gpu_available >= self._worker_gpu_frac:
                     gpu_available -= self._worker_gpu_frac
                     ref = _func_wrapper.options(num_gpus=self._worker_gpu_frac)\

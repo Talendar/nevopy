@@ -25,9 +25,11 @@
 package.
 """
 
-from typing import Optional, TypeVar, Callable, Any, Union
 import time
+from typing import Any, Callable, Optional, TypeVar, Union
+
 import numpy as np
+
 from nevopy.base_genome import BaseGenome
 
 #: `TypeVar` indicating an undefined type

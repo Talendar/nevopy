@@ -25,8 +25,9 @@
 settings of the NEAT algorithm.
 """
 
+from typing import Dict
+
 import nevopy
-from typing import Optional, Tuple, Dict
 
 
 class NeatConfig:
@@ -192,9 +193,6 @@ class NeatConfig:
             node when it's created or reset.
 
     Attributes:
-        file_pathname (Optional[str]): The pathname of a file from where the
-            settings should be loaded.
-
         out_nodes_activation (Callable[[float], float]): Activation function to
             be used by the output nodes of the networks. It should receive a
             float as input and return a float (the resulting activation) as
@@ -341,15 +339,16 @@ class NeatConfig:
 
     #: Name of the mutation chance attributes (type: Tuple[float, float])
     #:  related to mass extinction.
-    __MAEX_KEYS = {"weight_mutation_chance",
-                   "new_node_mutation_chance",
-                   "new_connection_mutation_chance",
-                   "enable_connection_mutation_chance",
-                   "weight_perturbation_pc",
-                   "weight_reset_chance"}
+    _MAEX_KEYS = {"weight_mutation_chance",
+                  "new_node_mutation_chance",
+                  "new_connection_mutation_chance",
+                  "enable_connection_mutation_chance",
+                  "weight_perturbation_pc",
+                  "weight_reset_chance"}
 
     def __init__(self,
                  file_pathname=None,
+                 # pylint: disable=unused-argument
                  # genome creation
                  out_nodes_activation=nevopy.activations.steepened_sigmoid,
                  hidden_nodes_activation=nevopy.activations.steepened_sigmoid,
@@ -394,7 +393,7 @@ class NeatConfig:
         values.pop("file_pathname")
 
         if file_pathname is not None:
-            raise NotImplemented  # todo: implementation
+            raise NotImplementedError()  # TODO: implementation
 
         self.__dict__.update(values)
 
@@ -408,7 +407,7 @@ class NeatConfig:
         return self._maex_counter
 
     def __getattribute__(self, key):
-        if key in NeatConfig.__MAEX_KEYS:
+        if key in NeatConfig._MAEX_KEYS:
             return self._maex_cache[key]
         return super().__getattribute__(key)
 
@@ -421,7 +420,7 @@ class NeatConfig:
                 (generations without improvement).
         """
         self._maex_counter = maex_counter
-        for k in NeatConfig.__MAEX_KEYS:
+        for k in NeatConfig._MAEX_KEYS:
             base_value, max_value = self.__dict__[k]
             unit = (max_value - base_value) / self.mass_extinction_threshold
             self._maex_cache[k] = (base_value + unit * maex_counter)

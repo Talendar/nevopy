@@ -24,16 +24,17 @@
 """ Exposes the main utility functions and classes within this package.
 """
 
-# From `utils.py`:
-from nevopy.utils.utils import Comparable
-from nevopy.utils.utils import chance
-from nevopy.utils.utils import pickle_save, pickle_load
-from nevopy.utils.utils import align_lists
-from nevopy.utils.utils import min_max_norm
-from nevopy.utils.utils import rank_prob_dist
-from nevopy.utils.utils import make_table_row
-from nevopy.utils.utils import is_jupyter_notebook
-from nevopy.utils.utils import clear_output
-
 # From `gym_utils.py`:
 from nevopy.utils.gym_utils import GymEnvFitness
+
+# From `utils.py`:
+from nevopy.utils.utils import align_lists
+from nevopy.utils.utils import chance
+from nevopy.utils.utils import clear_output
+from nevopy.utils.utils import Comparable
+from nevopy.utils.utils import is_jupyter_notebook
+from nevopy.utils.utils import make_table_row
+from nevopy.utils.utils import min_max_norm
+from nevopy.utils.utils import pickle_load
+from nevopy.utils.utils import pickle_save
+from nevopy.utils.utils import rank_prob_dist

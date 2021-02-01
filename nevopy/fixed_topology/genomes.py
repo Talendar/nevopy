@@ -25,24 +25,25 @@
 networks with a fixed topology.
 """
 
+import logging
 from typing import Any, List, Optional, Tuple
+
 import numpy as np
+from PIL import Image
+from tensorflow.keras.models import Sequential as KerasSequential
+from tensorflow.keras.utils import plot_model as keras_plot_model
 
 from nevopy.base_genome import BaseGenome, IncompatibleGenomesError
-from nevopy.fixed_topology.layers import (BaseLayer, IncompatibleLayersError,
-                                          TensorFlowLayer)
 from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.fixed_topology.layers.base_layer import BaseLayer
+from nevopy.fixed_topology.layers.tf_layers import IncompatibleLayersError
+from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
 
-from tensorflow.keras.utils import plot_model as keras_plot_model
-from tensorflow.keras.models import Sequential as KerasSequential
-from PIL import Image
-
-import logging
 _logger = logging.getLogger(__name__)
 
 
 class FixedTopologyGenome(BaseGenome):
-    """ Genome that encodes a fixed topology multilayer neural network.
+    """ Genome that encodes a fixed-topology multilayer neural network.
 
     This genome directly encodes a multilayer neural network with fixed
     topology. The network is defined by its layers (instances of a subclass of
@@ -114,8 +115,8 @@ class FixedTopologyGenome(BaseGenome):
         for layer in self.layers:
             layer.config = self._config
 
-    def process(self, X: Any) -> Any:
-        prev_output = X
+    def process(self, x: Any) -> Any:
+        prev_output = x
         for layer in self.layers:
             prev_output = layer(prev_output)
         return prev_output
@@ -152,9 +153,9 @@ class FixedTopologyGenome(BaseGenome):
 
         Currently available mating modes for individual layers:
 
-            * :meth:`nevopy.fixed_topology.layers.mating.exchange_weights_mating`;
-            * :meth:`nevopy.fixed_topology.layers.mating.exchange_units_mating`;
-            * :meth:`nevopy.fixed_topology.layers.mating.weights_avg_mating`.
+            * :func:`.mating.exchange_weights_mating`;
+            * :func:`.mating.exchange_units_mating`;
+            * :func:`.mating.weights_avg_mating`.
 
         The mating mode of a layer is specified during its instantiation.
 
@@ -178,24 +179,24 @@ class FixedTopologyGenome(BaseGenome):
 
         new_layers = []
 
-        # exchange weights mode
+        # Exchange weights mode
         if self.config.mating_mode == "weights_mating":
             for layer1, layer2 in zip(self.layers, other.layers):
                 try:
                     new_layers.append(layer1.mate(layer2))
-                except IncompatibleLayersError:
+                except IncompatibleLayersError as e:
                     raise IncompatibleGenomesError(
                         "Attempt to mate a layer of a genome with an "
                         "incompatible layer of another genome!"
-                    )
-        # exchange layers mode
+                    ) from e
+        # Exchange layers mode
         elif self.config.mating_mode == "exchange_layers":
             parents = (self, other)
             chosen_parents = np.random.choice([0, 1],
                                               size=len(self.layers), p=[.5, .5])
             for idx, p in enumerate(chosen_parents):
                 new_layers.append(parents[p].layers[idx].deep_copy())
-        # invalid mating mode
+        # Invalid mating mode
         else:
             raise ValueError(f"Invalid mating mode "
                              f"(\"{self.config.mating_mode}\")!")
