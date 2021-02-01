@@ -1,6 +1,4 @@
-<h1>
-  <img src="./docs/imgs/nevopy.png" width="200" alt="NEvoPY logo">
-</h1>
+<img src="./docs/imgs/nevopy.png" width="180" alt="NEvoPY logo">
 
 <h2> Neuroevolution for Python </h2>
 
