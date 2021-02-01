@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./docs/imgs/nevopy.png" width="250" alt="NEvoPY logo">
+    <img src="./docs/imgs/nevopy.png" width="300" alt="NEvoPY logo">
 </div>
 
 <h1>Neuroevolution for Python</h1>
