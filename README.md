@@ -1,11 +1,6 @@
-<div align="center">
-    <img src="./docs/imgs/nevopy.png" width="300" alt="NEvoPY logo">
-</div>
+# <img src="./docs/imgs/nevopy.png" width="150" alt="NEvoPY logo">
 
 ![License](https://img.shields.io/github/license/Talendar/nevopy?style=plastic)
-
-
-<h1>Neuroevolution for Python</h1>
 
 *NEvoPY* is a fast and intuitive neuroevolution framework for Python. It was 
 designed to allow researchers and enthusiasts to quickly tackle machine learning 
