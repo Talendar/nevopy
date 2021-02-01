@@ -23,7 +23,7 @@
 
 """ NEvoPY is an open source neuroevolution framework for Python.
 
-NEvoPY is an open source software library that implements high performance
+NEvoPY is an open source software library that implements high-performance
 neuroevolution algorithms. It's flexible, easy to deploy and compatible with
 large-scale distributed computing. It's been originally developed by Gabriel
 Guedes Nogueira (Talendar).
@@ -32,8 +32,7 @@ Guedes Nogueira (Talendar).
 from typing import List
 import setuptools
 
-# Todo: FOLLOW SEMANTIC VERSIONING
-_VERSION = "0.0.1"
+_VERSION = "1.0.0"
 
 # Short description.
 short_description = "An open source neuroevolution framework for Python."
@@ -43,11 +42,11 @@ short_description = "An open source neuroevolution framework for Python."
 # that is expected to be compatible with the specified version.
 REQUIRED_PACKAGES = [
     "Columnar ~= 1.3.1",
-    "matplotlib ~= 3.3.3",  # ToDo: Google Colab uses matplotlib 3.2.2
+    "matplotlib ~= 3.3.3",
     "mypy ~= 0.790",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
-    "ray ~= 1.1.0",  # ToDo: should ray be included by default?
+    "ray ~= 1.1.0",
 ]
 
 # Packages which are only needed for testing code.
@@ -76,22 +75,22 @@ setuptools.setup(
     # PyPI package information:
     classifiers=[
         "Programming Language :: Python :: 3",
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        'Intended Audience :: Developers',
-        'Intended Audience :: Education',
-        'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering',
-        'Topic :: Scientific/Engineering :: Mathematics',
-        'Topic :: Scientific/Engineering :: Artificial Intelligence',
-        'Topic :: Software Development',
-        'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules'
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Software Development",
+        "Topic :: Software Development :: Libraries",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    license='MIT License',
-    python_requires='>=3.6',
+    license="MIT License",
+    python_requires=">=3.6",
     keywords="nevopy neuroevolution evolutionary algorithms machine learning",
 )

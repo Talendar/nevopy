@@ -25,6 +25,9 @@
 neuroevolution algorithms.
 """
 
+# Mating util functions
+from nevopy.fixed_topology.layers import mating
+
 # Base abstract layer
 from nevopy.fixed_topology.layers.base_layer import BaseLayer
 from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
@@ -34,6 +37,3 @@ from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
 from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
 from nevopy.fixed_topology.layers.tf_layers import TFDenseLayer
 from nevopy.fixed_topology.layers.tf_layers import TFFlattenLayer
-
-# Mating util functions
-from nevopy.fixed_topology.layers import mating

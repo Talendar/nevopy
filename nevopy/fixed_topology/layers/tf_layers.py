@@ -24,11 +24,13 @@
 """ Implements subclasses of :class:`.BaseLayer` that wrap TensorFlow layers.
 """
 
-import numpy as np
-from typing import Any, Tuple, Dict, Optional, Union, Type, Callable, List
-
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "1"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1" \
+    # pylint: disable=wrong-import-position
+
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+
+import numpy as np
 import tensorflow as tf
 
 from nevopy.base_genome import InvalidInputError
@@ -58,15 +60,15 @@ class TensorFlowLayer(BaseLayer):
                 def __init__(self,
                              arg1, arg2,
                              activation="relu",
-                             mating_func = mating.exchange_units_mating,
-                             config = None,
-                             input_shape = None,
-                             mutable = True,
-                             **tf_kwargs: Dict[str, Any]) -> None:
+                             mating_func=mating.exchange_units_mating,
+                             config=None,
+                             input_shape=None,
+                             mutable=True,
+                             **tf_kwargs: Dict[str, Any]):
                     super().__init__(
                         layer_type=tf.keras.layers.SomeKerasLayer,
                         **{k: v for k, v in locals().items()
-                           if k != "self" and k != "tf_kwargs" and k != "__class__"},
+                           if k not in ["self", "tf_kwargs", "__class__"]},
                         **tf_kwargs,
                     )
 
@@ -156,16 +158,17 @@ class TensorFlowLayer(BaseLayer):
         self.tf_layer.build(input_shape=input_shape)
         self._input_shape = input_shape
 
-    def process(self, X: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
+    def process(self, x: Union[np.ndarray, tf.Tensor]) -> tf.Tensor:
         try:
-            result = self.tf_layer(X)
+            result = self.tf_layer(x)
             if self._input_shape is None:
-                self._input_shape = X.shape
+                self._input_shape = x.shape
             return result
         except ValueError as e:
-            raise InvalidInputError("The given input's shape doesn't match the "
-                                    "shape expected by the layer! "
-                                    f"TensorFlow's error message: {str(e)}")
+            raise InvalidInputError(
+                "The given input's shape doesn't match the shape expected by "
+                f"the layer! TensorFlow's error message: {str(e)}"
+            ) from e
 
     def _new_instance(self):
         """ Returns a new instance of the layer.
@@ -190,8 +193,10 @@ class TensorFlowLayer(BaseLayer):
         new_layer.weights = self.weights
         return new_layer
 
-    # noinspection PyUnboundLocalVariable
-    def mutate_weights(self, _test_info=None) -> None:
+    def mutate_weights(self,
+                       # pylint: disable=invalid-name
+                       _test_info: Dict = None,
+    ) -> None:
         """ Randomly mutates the weights of the layer's connections.
 
         Each weight has a chance to be perturbed by a predefined amount or to be
@@ -248,11 +253,14 @@ class TensorFlowLayer(BaseLayer):
 
             # Test/debug info:
             if _test_info is not None:
+                # noinspection PyUnboundLocalVariable
                 _test_info[f"w{i}_perturbation"] = (w_perturbation
                                                     if num_mutate > 0
                                                     else np.array([]))
+                # noinspection PyUnboundLocalVariable
                 _test_info[f"w{i}_mutate_idx"] = (mutate_idx if num_mutate > 0
                                                   else np.array([]))
+                # noinspection PyUnboundLocalVariable
                 _test_info[f"w{i}_reset_idx"] = (reset_idx if num_reset > 0
                                                  else np.array([]))
 
@@ -278,6 +286,7 @@ class TFConv2DLayer(TensorFlowLayer):
     """
 
     def __init__(self,
+                 # pylint: disable=unused-argument
                  filters: int,
                  kernel_size: Tuple[int, int],
                  strides: Tuple[int, int] = (1, 1),
@@ -293,7 +302,7 @@ class TFConv2DLayer(TensorFlowLayer):
         super().__init__(
             layer_type=tf.keras.layers.Conv2D,
             **{k: v for k, v in locals().items()
-               if k != "self" and k != "tf_kwargs" and k != "__class__"},
+               if k not in ["self", "tf_kwargs", "__class__"]},
             **tf_kwargs,
         )
 
@@ -306,6 +315,7 @@ class TFDenseLayer(TensorFlowLayer):
     """
 
     def __init__(self,
+                 # pylint: disable=unused-argument
                  units: int,
                  activation=None,
                  mating_func: Optional[
@@ -318,7 +328,7 @@ class TFDenseLayer(TensorFlowLayer):
         super().__init__(
             layer_type=tf.keras.layers.Dense,
             **{k: v for k, v in locals().items()
-               if k != "self" and k != "tf_kwargs" and k != "__class__"},
+               if k not in ["self", "tf_kwargs", "__class__"]},
             **tf_kwargs,
         )
 
@@ -341,6 +351,6 @@ class TFFlattenLayer(TensorFlowLayer):
         super().__init__(
             layer_type=tf.keras.layers.Flatten,
             **{k: v for k, v in locals().items()
-               if k != "self" and k != "tf_kwargs" and k != "__class__"},
+               if k not in ["self", "tf_kwargs", "__class__"]},
             **tf_kwargs,
         )

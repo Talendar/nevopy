@@ -25,9 +25,10 @@
 generate a new neural network layer from two parent layers.
 """
 
-from typing import List
-import numpy as np
 import random
+from typing import List
+
+import numpy as np
 
 from nevopy.fixed_topology.layers.base_layer import BaseLayer
 from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError

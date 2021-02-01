@@ -26,10 +26,13 @@ used by fixed-topology neuroevolution algorithms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, Optional, List
-from nevopy.fixed_topology.config import FixedTopologyConfig
-from nevopy.utils import pickle_save, pickle_load
+from typing import Any, List, Optional, Tuple
+
 from numpy import ndarray
+
+from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.utils import pickle_load
+from nevopy.utils import pickle_save
 
 
 class BaseLayer(ABC):
@@ -106,14 +109,14 @@ class BaseLayer(ABC):
         """
 
     @abstractmethod
-    def process(self, X: Any) -> Any:
+    def process(self, x: Any) -> Any:
         """ Feeds the given input(s) to the layer.
 
         This is where the layer's logic lives. If the layer hasn't been built
         yet, it will be automatically built using the given input shape.
 
         Args:
-            X (Any): The input(s) to be fed to the layer. Usually a
+            x (Any): The input(s) to be fed to the layer. Usually a
                 `NumPy ndarray` or a `TensorFlow tensor`.
 
         Returns:
@@ -121,13 +124,13 @@ class BaseLayer(ABC):
             `TensorFlow tensor`.
 
         Raises:
-            InvalidInputError: If the shape of ``X`` doesn't match the input
+            InvalidInputError: If the shape of ``x`` doesn't match the input
                 shape expected by the layer.
         """
 
-    def __call__(self, X: Any) -> Any:
+    def __call__(self, x: Any) -> Any:
         """ Wraps a call to :meth:`.process`. """
-        return self.process(X)
+        return self.process(x)
 
     @abstractmethod
     def random_copy(self) -> "BaseLayer":
@@ -178,7 +181,7 @@ class BaseLayer(ABC):
                 ``other`` is incompatible with the current layer (`self`).
         """
 
-    def save(self, abs_path: str, **kwargs) -> None:
+    def save(self, abs_path: str) -> None:
         """ Saves the layer on the absolute path provided.
 
         This method uses, by default, :py:mod:`pickle` to save the layer.
@@ -191,13 +194,15 @@ class BaseLayer(ABC):
         pickle_save(self, abs_path)
 
     @classmethod
-    def load(cls, abs_path: str, **kwargs) -> "BaseLayer":
+    def load(cls, abs_path: str) -> "BaseLayer":
         """ Loads the layer from the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to load the layer.
 
         Args:
-            abs_path (str): Absolute path of the saved ".pkl" file.
+            abs_path (str): Absolute path of the saved ".pkl" file. If the given
+                path doesn't end with the suffix ".pkl", it will be
+                automatically added to it.
 
         Returns:
             The loaded layer.

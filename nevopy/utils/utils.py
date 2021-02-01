@@ -84,7 +84,9 @@ def pickle_load(abs_path: str) -> Any:
     Simple wrapper around the `pickle` package.
 
     Args:
-        abs_path (str): Absolute path of the saved ".pkl" file.
+        abs_path (str): Absolute path of the saved ".pkl" file. If the given
+            path doesn't end with the suffix ".pkl", it will be automatically
+            added.
 
     Returns:
         The loaded object.
