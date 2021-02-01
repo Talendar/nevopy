@@ -32,7 +32,11 @@ $ pip install nevopy
 
 <h2> Getting started </h2>
 
-To get started with *NEvoPY*, please check out the examples available [here](https://github.com/Talendar/nevopy/tree/master/examples).
+To get started with *NEvoPY*, please check out the examples available
+[here](https://github.com/Talendar/nevopy/tree/master/examples).
+
+The project's documentation is available
+[here](https://nevopy.readthedocs.io/en/latest/index.html).
 
 <h2> Citing </h2>
 
