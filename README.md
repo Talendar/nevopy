@@ -1,6 +1,6 @@
 <h1>
   <div align="center">
-    <img src="./docs/imgs/nevopy.png" width="360" alt="NEvoPY logo">
+    <img src="./docs/imgs/nevopy.png" width="300" alt="NEvoPY logo">
   </div>
 </h1>
 
