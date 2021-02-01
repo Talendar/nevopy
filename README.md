@@ -1,4 +1,4 @@
-# <img src="./docs/imgs/nevopy.png" width="150" alt="NEvoPY logo">
+# <img src="./docs/imgs/nevopy.png" width="180" alt="NEvoPY logo">
 
 ![License](https://img.shields.io/github/license/Talendar/nevopy?style=plastic)
 
