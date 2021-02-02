@@ -2,8 +2,10 @@
 
 <h2> Neuroevolution for Python </h2>
 
+![Python versions](https://img.shields.io/pypi/pyversions/nevopy)
 ![License](https://img.shields.io/github/license/Talendar/nevopy)
-[![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://nevopy.readthedocs.io/en/latest/index.html) 
+[![PyPI](https://img.shields.io/pypi/v/nevopy)](https://pypi.org/project/nevopy/)
+[![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://nevopy.readthedocs.io/en/latest/index.html)
 
 *NEvoPy* is an open source neuroevolution framework for Python. It allows 
 researchers and enthusiasts to quickly tackle machine learning problems 
