@@ -21,7 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Neural network layers to be used with `NEvoPY's` fixed-topology
+""" Neural network layers to be used with `NEvoPy's` fixed-topology
 neuroevolutionary algorithms.
 """
 

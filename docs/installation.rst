@@ -1,10 +1,10 @@
 Installation
 ============
 
-Install NEvoPY from PyPI using pip
+Install NEvoPy from PyPI using pip
 ----------------------------------
 todo
 
-Install NEvoPY from source using setup.py
+Install NEvoPy from source using setup.py
 -----------------------------------------
 todo

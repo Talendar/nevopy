@@ -21,9 +21,9 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" NEvoPY is an open source neuroevolution framework for Python.
+""" NEvoPy is an open source neuroevolution framework for Python.
 
-NEvoPY is an open source software library that implements high-performance
+NEvoPy is an open source software library that implements high-performance
 neuroevolution algorithms. It's flexible, easy to deploy and compatible with
 large-scale distributed computing. It's been originally developed by Gabriel
 Guedes Nogueira (Talendar).

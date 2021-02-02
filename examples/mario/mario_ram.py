@@ -178,7 +178,7 @@ if __name__ == "__main__":
     # start
     pop = best = None
     while True:
-        key = int(input("\n\n< Learning Mario with NEvoPY >\n"
+        key = int(input("\n\n< Learning Mario with NEvoPy >\n"
                         "   [1] New population\n"
                         "   [2] Load population\n"  
                         "   [3] Visualize best genome\n"

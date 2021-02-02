@@ -43,7 +43,7 @@ from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
 class TensorFlowLayer(BaseLayer):
     """ Wraps a `TensorFlow` layer.
 
-    This class wraps a `TensorFlow` layer, making it compatible with `NEvoPY's`
+    This class wraps a `TensorFlow` layer, making it compatible with `NEvoPy's`
     neuroevolutionary algorithms. It handles the mutation and reproduction of
     the `TensorFlow` layer.
 

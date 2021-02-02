@@ -21,7 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Imports core names of NEvoPY.
+""" Imports core names of NEvoPy.
 """
 
 # Utils

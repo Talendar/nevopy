@@ -41,7 +41,7 @@ class Population(ABC, Generic[TGenome]):
 
     This base abstract class defines a population of genomes (each of which
     encodes a neural network) to be evolved through neuroevolution. It's in this
-    class' subclasses where the core of `NEvoPY's` neuroevolutionary algorithms
+    class' subclasses where the core of `NEvoPy's` neuroevolutionary algorithms
     will be implemented.
 
     Args:

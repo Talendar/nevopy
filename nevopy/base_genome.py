@@ -27,7 +27,7 @@ In the context of neuroevolution, a genome is the entity subject to the
 evolutionary process. It encodes a neural network (the genome's phenotype),
 either directly or indirectly. This module declares the base abstract class that
 must be inherited by all the different classes of genomes used by the
-neuroevolutionary algorithms in `NEvoPY`.
+neuroevolutionary algorithms in `NEvoPy`.
 """
 
 from abc import ABC, abstractmethod
@@ -38,10 +38,10 @@ from nevopy.utils.utils import pickle_save
 
 
 class BaseGenome(ABC):
-    """ Defines the general behaviour of a genome in `NEvoPY`.
+    """ Defines the general behaviour of a genome in `NEvoPy`.
 
     This class must be inherited by all the different classes of genomes present
-    in `NEvoPY`
+    in `NEvoPy`
 
     In the context of neuroevolution, a genome is the entity subject to the
     evolutionary process. It encodes a neural network (the genome's phenotype),
@@ -55,8 +55,8 @@ class BaseGenome(ABC):
 
     One of the goals of this base abstract class is to abstract these details
     for the user, defining a general interface for different types of genomes
-    used by the different neuroevolutionary algorithms in `NEvoPY`. Generally,
-    for `NEvoPY`, there is no distinction between a genome and the network it
+    used by the different neuroevolutionary algorithms in `NEvoPy`. Generally,
+    for `NEvoPy`, there is no distinction between a genome and the network it
     encodes.
 
     A genome must be capable of processing inputs based on its nodes and

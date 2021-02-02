@@ -23,7 +23,7 @@
 
 """ Implementation of the main mechanisms of the NEAT algorithm.
 
-This is the main module of `NEvoPY's` implementation of the NEAT algorithm. It
+This is the main module of `NEvoPy's` implementation of the NEAT algorithm. It
 implements the :class:`.NeatPopulation` class, which handles the evolution of a
 population/community of NEAT genomes.
 """
@@ -50,7 +50,7 @@ from nevopy.processing.pool_processing import PoolProcessingScheduler
 class NeatPopulation(Population):
     """ Population of individuals (genomes) to be evolved by the NEAT algorithm.
 
-    Main class of `NEvoPY's` implementation of the NEAT algorithm. It represents
+    Main class of `NEvoPy's` implementation of the NEAT algorithm. It represents
     a population of individuals (genomes) to be evolved. The correct term, in
     NEAT's case, is actually "community" (group of populations of two or more
     different species) rather than "population" (subset of individuals of one

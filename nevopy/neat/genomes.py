@@ -902,7 +902,7 @@ class NeatGenome(BaseGenome):
         * The `graphviz` layout; it's really good, but to use it you must
           have `Graphviz-Dev` and `pygraphviz` installed on your machine;
         * The `columns` layout (used by default), implemented exclusively for
-          `NEvoPY`; it positions the nodes in columns (see
+          `NEvoPy`; it positions the nodes in columns (see
           :meth:`.NeatGenome.columns_graph_layout`, specially the parameter
           ``ideal_h_nodes_per_col``).
 

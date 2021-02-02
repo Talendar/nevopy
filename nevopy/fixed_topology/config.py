@@ -22,14 +22,14 @@
 # ==============================================================================
 
 """ This module implements the :class:`.FixedTopologyConfig` class, used to
-handle the settings of `NEvoPY's` fixed-topology neuroevolutionary algorithms.
+handle the settings of `NEvoPy's` fixed-topology neuroevolutionary algorithms.
 """
 
 from typing import Dict
 
 
 class FixedTopologyConfig:
-    """ Stores the settings of `NEvoPY's` fixed-topology NE algorithms.
+    """ Stores the settings of `NEvoPy's` fixed-topology NE algorithms.
 
     Individual configurations can be ignored (default values will be used), set
     in the arguments of this class constructor or written in a file (pathname

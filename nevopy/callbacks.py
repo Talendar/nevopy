@@ -23,7 +23,7 @@
 
 """ Defines a base interface for all callbacks and implements simple callbacks.
 
-For NEvoPY, callbacks are utilities called at certain points during the
+For NEvoPy, callbacks are utilities called at certain points during the
 evolution of a population. They are a powerful tool to customize the behavior of
 a neuroevolutionary algorithm.
 
@@ -71,14 +71,14 @@ _logger = logging.getLogger(__name__)
 class Callback(ABC):
     """ Abstract base class used to build new callbacks.
 
-    This class defines the general structure of the callbacks used by `NEvoPY's`
+    This class defines the general structure of the callbacks used by `NEvoPy's`
     neuroevolutionary algorithms. It's not required for a subclass to implement
     all the methods of this class (you can implement only those that will be
     useful for your case).
 
     Attributes:
         population (Population): Reference to the instance of a subclass of
-            :class:`.Population` being evolved by one of `NEvoPY's`
+            :class:`.Population` being evolved by one of `NEvoPy's`
             neuroevolutionary algorithms.
     """
 

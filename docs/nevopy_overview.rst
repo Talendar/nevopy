@@ -1,4 +1,4 @@
-NEvoPY Overview
+NEvoPy Overview
 ===============
 
 Neuroevolution refers to the artificial evolution of neural networks using
@@ -13,10 +13,10 @@ its `phenotype`. We call a set of competing genomes a `population`. The goal of
 a neuroevolutionary algorithm is to evolve a population of genomes in order to
 find good solutions for a problem at hand.
 
-In `NEvoPY`, a genome is an instance of a subclass that inherits from
+In `NEvoPy`, a genome is an instance of a subclass that inherits from
 :class:`.BaseGenome`. Although each neuroevolutionary algorithm defines its own
 type of genome by implementing the :class:`.BaseGenome` class, all genomes are
-governed by the same general API. Note that in `NEvoPY's` API there isn't any
+governed by the same general API. Note that in `NEvoPy's` API there isn't any
 distinction between a genome and the neural network it encodes. A genome, just
 like a neural network, must be capable of processing inputs based on its nodes
 and connections in order to produce an output. It also must be able, however, to
@@ -24,12 +24,12 @@ mutate and to generate offspring, in order to evolve.
 
 A population of genomes, on the other hand, is represented by the class
 :class:`.Population`. It defines a general API that all neuroevolutionary
-algorithms implemented by `NEvoPY` must follow. Each algorithm makes its own
+algorithms implemented by `NEvoPy` must follow. Each algorithm makes its own
 implementation of that class - it's where the core of the evolutionary algorithm
 lives. The main method of the API is :meth:`.Population.evolve()`, which
 triggers the evolutionary process in a population.
 
-`NEvoPY` currently implements the following neuroevolutionary algorithms:
+`NEvoPy` currently implements the following neuroevolutionary algorithms:
 
     * :doc:`Neuroevolution of Augmenting Topologies (NEAT) <nevopy.neat>`;
     * :doc:`Fixed-topology deep-neuroevolution <nevopy.fixed_topology>`.
@@ -97,7 +97,7 @@ topology and saves the genome:
         best_genome.visualize()
         best_genome.save("./best_genome.pkl")
 
-For more information on how `NEvoPY` works, please take a look at our
+For more information on how `NEvoPy` works, please take a look at our
 :doc:`docs <index>`. For more practical examples, go :doc:`here <examples>`.
 
 If you are a beginner to neuroevolution, here's a couple of papers and articles
