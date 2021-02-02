@@ -3,7 +3,7 @@
 <h2> Neuroevolution for Python </h2>
 
 ![Python versions](https://img.shields.io/pypi/pyversions/nevopy)
-![License](https://img.shields.io/github/license/Talendar/nevopy)
+[![License](https://img.shields.io/github/license/Talendar/nevopy)](https://github.com/Talendar/nevopy/blob/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/nevopy)](https://pypi.org/project/nevopy/)
 [![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://nevopy.readthedocs.io/en/latest/index.html)
 
