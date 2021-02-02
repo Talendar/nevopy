@@ -55,8 +55,8 @@ class BaseGenome(ABC):
 
     One of the goals of this base abstract class is to abstract these details
     for the user, defining a general interface for different types of genomes
-    used by the different neuroevolution algorithms in `NEvoPY`. Generally, for
-    `NEvoPY`, there is no distinction between a genome and the network it
+    used by the different neuroevolutionary algorithms in `NEvoPY`. Generally,
+    for `NEvoPY`, there is no distinction between a genome and the network it
     encodes.
 
     A genome must be capable of processing inputs based on its nodes and

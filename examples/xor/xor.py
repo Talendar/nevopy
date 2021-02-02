@@ -18,7 +18,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-ALGORITHM = "fixed_topology"  # "neat" or "fixed_topology"
+ALGORITHM = "neat"  # "neat" or "fixed_topology"
 MAX_GENERATIONS = 100
 FITNESS_THRESHOLD = 1e3
 NUM_VARIABLES = 2

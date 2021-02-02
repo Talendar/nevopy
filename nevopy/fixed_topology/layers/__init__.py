@@ -22,7 +22,7 @@
 # ==============================================================================
 
 """ Neural network layers to be used with `NEvoPY's` fixed-topology
-neuroevolution algorithms.
+neuroevolutionary algorithms.
 """
 
 # Mating util functions

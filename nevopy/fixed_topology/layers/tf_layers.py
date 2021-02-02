@@ -44,8 +44,8 @@ class TensorFlowLayer(BaseLayer):
     """ Wraps a `TensorFlow` layer.
 
     This class wraps a `TensorFlow` layer, making it compatible with `NEvoPY's`
-    neuroevolution algorithms. It handles the mutation and reproduction of the
-    `TensorFlow` layer.
+    neuroevolutionary algorithms. It handles the mutation and reproduction of
+    the `TensorFlow` layer.
 
     In most cases, there is no need to create subclasses of this class. Doing
     that to frequently used types of layers, however, may be desirable, since it

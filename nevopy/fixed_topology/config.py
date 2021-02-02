@@ -22,7 +22,7 @@
 # ==============================================================================
 
 """ This module implements the :class:`.FixedTopologyConfig` class, used to
-handle the settings of `NEvoPY's` fixed-topology neuroevolution algorithms.
+handle the settings of `NEvoPY's` fixed-topology neuroevolutionary algorithms.
 """
 
 from typing import Dict

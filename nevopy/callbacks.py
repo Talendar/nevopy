@@ -72,14 +72,14 @@ class Callback(ABC):
     """ Abstract base class used to build new callbacks.
 
     This class defines the general structure of the callbacks used by `NEvoPY's`
-    neuroevolution algorithms. It's not required for a subclass to implement all
-    the methods of this class (you can implement only those that will be useful
-    for your case).
+    neuroevolutionary algorithms. It's not required for a subclass to implement
+    all the methods of this class (you can implement only those that will be
+    useful for your case).
 
     Attributes:
         population (Population): Reference to the instance of a subclass of
             :class:`.Population` being evolved by one of `NEvoPY's`
-            neuroevolution algorithms.
+            neuroevolutionary algorithms.
     """
 
     def __init__(self) -> None:

@@ -22,7 +22,7 @@
 # ==============================================================================
 
 """ Defines the abstract class that serves as a base for all the neural layers
-used by fixed-topology neuroevolution algorithms.
+used by fixed-topology neuroevolutionary algorithms.
 """
 
 from abc import ABC, abstractmethod
