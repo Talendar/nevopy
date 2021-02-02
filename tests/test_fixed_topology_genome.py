@@ -39,7 +39,7 @@ from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.layers import TFConv2DLayer
 from nevopy.fixed_topology.layers import TFFlattenLayer
 from nevopy.fixed_topology.layers import TFDenseLayer
-from nevopy.tests import test_utils
+import test_utils
 
 
 config = FixedTopologyConfig(  # weight mutation
@@ -58,7 +58,7 @@ def test_processing_and_mutation(genome, num_tests=5, verbose=False):
         if verbose:
             print(f"\n>> Test {t} of {num_tests}.")
 
-        layers_weights = [layer.weights for layer in genome.layers]
+        layers_weights = [nl.weights for nl in genome.layers]
 
         if past_layers_weights is not None:
             for l_num, (w_list0, w_list1) in enumerate(zip(past_layers_weights,
@@ -198,7 +198,8 @@ def test_save_and_load(genome, num_tests=10):
     saving_time = loading_time = file_size = weights_size = 0
     for _ in range(num_tests):
         genome.mutate_weights()
-        file_name = f"../.temp/saved_genome_{int(1e6 * timer())}"
+        file_name = (f"{test_utils.TEMP_SAVE_DIR}/"
+                     f"saved_genome_{int(1e6 * timer())}")
 
         start_time = timer()
         genome.save(file_name)

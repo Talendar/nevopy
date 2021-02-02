@@ -32,7 +32,7 @@ Guedes Nogueira (Talendar).
 from typing import List
 import setuptools
 
-_VERSION = "1.0.0"
+_VERSION = "0.0.2"
 
 # Short description.
 short_description = "An open source neuroevolution framework for Python."
@@ -62,12 +62,12 @@ setuptools.setup(
     name="nevopy",
     version=_VERSION,
     author="Gabriel Guedes Nogueira (Talendar)",
-    author_email="no_email",  # todo: email
+    author_email="gabriel.gnogueira@gmail.com",
     description=short_description,
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Talendar/nevopy",
-    download_url=None,  # todo: link to releases
+    download_url="https://github.com/Talendar/nevopy/releases",
     # Contained modules and scripts:
     packages=setuptools.find_packages(),
     install_requires=REQUIRED_PACKAGES,
@@ -75,9 +75,11 @@ setuptools.setup(
     # PyPI package information:
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",

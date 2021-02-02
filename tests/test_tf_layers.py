@@ -39,7 +39,7 @@ from nevopy.fixed_topology.layers import mating
 from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
 from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
 from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
-from nevopy.tests import test_utils
+import test_utils
 
 
 config = FixedTopologyConfig(  # weight mutation
@@ -434,7 +434,8 @@ def test_immutable_layer_mating(layer1, layer2, num_tests=100, verbose=False):
 def test_save_and_load(layer, num_tests=10, pkl=True):
     saving_time = loading_time = file_size = 0
     for _ in range(num_tests):
-        file_name = f"../.temp/saved_layer_{int(1e6 * timer())}"
+        file_name = (f"{test_utils.TEMP_SAVE_DIR}/"
+                     f"saved_layer_{int(1e6 * timer())}")
 
         start_time = timer()
         layer.save(file_name)
