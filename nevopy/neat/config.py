@@ -212,7 +212,7 @@ class NeatConfig(ne.genetic_algorithm.config.GeneticAlgorithmConfig):
         new_connection_mutation_chance=(0.03, 0.3),
         enable_connection_mutation_chance=(0.03, 0.3),
         disable_inherited_connection_chance=0.75,
-        mating_chance=0.75,
+        mating_chance=0.7,
         interspecies_mating_chance=0.05,
         rank_prob_dist_coefficient=1.75,
         # weight mutation specifics
@@ -220,7 +220,7 @@ class NeatConfig(ne.genetic_algorithm.config.GeneticAlgorithmConfig):
         weight_reset_chance=(0.1, 0.3),
         new_weight_interval=(-2, 2),
         # mass extinction
-        mass_extinction_threshold=50,
+        mass_extinction_threshold=15,
         maex_improvement_threshold_pc=0.03,
         # infanticide
         infanticide_output_nodes=True,

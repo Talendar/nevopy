@@ -260,6 +260,7 @@ class CompleteStdOutLogger(Callback):
                                                     current=mutation_chance,
                                                     past=self._past_mutation,
                                                     show_inc_pc=False,
+                                                    abs_format=".2%",
                                                     inc_format="+0.2%"))
             self._past_mutation = mutation_chance
         except AttributeError:

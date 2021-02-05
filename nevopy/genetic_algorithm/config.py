@@ -138,12 +138,12 @@ class GeneticAlgorithmConfig:
         # weight mutation
         mutation_chance=(0.6, 0.9),
         weight_mutation_chance=(0.5, 1),
-        weight_perturbation_pc=(0.07, 0.5),
-        weight_reset_chance=(0.07, 0.5),
+        weight_perturbation_pc=(0.05, 0.5),
+        weight_reset_chance=(0.05, 0.5),
         new_weight_interval=(-2, 2),
         # reproduction
         weak_genomes_removal_pc=0.5,
-        mating_chance=0.75,
+        mating_chance=0.7,
         interspecies_mating_chance=0.05,
         mating_mode="weights_mating",
         rank_prob_dist_coefficient=1.75,
@@ -154,7 +154,7 @@ class GeneticAlgorithmConfig:
         elitism_pc=0.03,
         species_no_improvement_limit=15,
         # mass extinction
-        mass_extinction_threshold=25,
+        mass_extinction_threshold=15,
         maex_improvement_threshold_pc=0.03,
     )
 

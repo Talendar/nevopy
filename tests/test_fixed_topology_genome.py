@@ -34,21 +34,21 @@ from timeit import default_timer as timer
 import numpy as np
 import tensorflow as tf
 
-from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.layers import TFConv2DLayer
 from nevopy.fixed_topology.layers import TFFlattenLayer
 from nevopy.fixed_topology.layers import TFDenseLayer
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 import test_utils
 
 
-config = FixedTopologyConfig(  # weight mutation
-                             weight_mutation_chance=(0.5, 0.9),
-                             weight_perturbation_pc=(0.2, 0.4),
-                             weight_reset_chance=(0.2, 0.3),
-                             new_weight_interval=(-2, 2),
-                               # others
-                             mating_mode="exchange_weights_mating")
+config = GeneticAlgorithmConfig(  # weight mutation
+                                weight_mutation_chance=(0.5, 0.9),
+                                weight_perturbation_pc=(0.2, 0.4),
+                                weight_reset_chance=(0.2, 0.3),
+                                new_weight_interval=(-2, 2),
+                                  # others
+                                mating_mode="exchange_weights_mating")
 
 
 def test_processing_and_mutation(genome, num_tests=5, verbose=False):
