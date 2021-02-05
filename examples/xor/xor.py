@@ -15,10 +15,10 @@ import numpy as np
 from tensorflow import reshape
 
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 
-ALGORITHM = "neat"  # "neat" or "fixed_topology"
+ALGORITHM = "fixed_topology"  # "neat" or "fixed_topology"
 MAX_GENERATIONS = 100
 FITNESS_THRESHOLD = 1e3
 NUM_VARIABLES = 2
@@ -63,7 +63,7 @@ def eval_neat_genome(genome: neat.genomes.NeatGenome,
     return 1 / error
 
 
-def eval_fito_genome(genome: neat.genomes.FixedTopologyGenome,
+def eval_fito_genome(genome: fito.genomes.FixedTopologyGenome,
                      log=False) -> float:
     idx = np.random.permutation(len(xor_inputs))
     H = genome.process(xor_inputs[idx])
@@ -112,7 +112,7 @@ if __name__ == "__main__":
                 num_outputs=1,
             )
         else:
-            pop = fito.FixedTopologyPopulation(size=200,
+            pop = fito.FixedTopologyPopulation(size=100,
                                                base_genome=base_genome)
 
         history = pop.evolve(generations=MAX_GENERATIONS,

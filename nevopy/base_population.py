@@ -36,13 +36,13 @@ from nevopy.processing.base_scheduler import ProcessingScheduler
 TGenome = TypeVar("TGenome", bound="ne.base_genome.BaseGenome")
 
 
-class Population(ABC, Generic[TGenome]):
+class BasePopulation(ABC, Generic[TGenome]):
     """ Base abstract class that defines a population of genomes (neural nets).
 
     This base abstract class defines a population of genomes (each of which
     encodes a neural network) to be evolved through neuroevolution. It's in this
     class' subclasses where the core of `NEvoPy's` neuroevolutionary algorithms
-    will be implemented.
+    are implemented.
 
     Args:
         size (int): Number of genomes (constant) in the population.
@@ -137,7 +137,7 @@ class Population(ABC, Generic[TGenome]):
     def load(cls,
              abs_path: str,
              scheduler: Optional[ProcessingScheduler] = None,
-    ) -> "Population":
+    ) -> "BasePopulation":
         """ Loads the population from the given absolute path.
 
         This method uses, by default, :py:mod:`pickle` to load the population.

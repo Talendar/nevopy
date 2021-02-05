@@ -30,10 +30,9 @@ the network it encodes. In NEAT, the genome is the entity subject to evolution.
 
 from typing import Any, cast, Dict, Optional, Sequence, Tuple, List
 
-# pylint: disable=wrong-import-position
 import numpy as np
-np.warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
-# pylint: enable=wrong-import-position
+np.warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) \
+    # pylint: disable=wrong-import-position
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -85,7 +84,6 @@ class NeatGenome(BaseGenome):
             and the output nodes of the network will be created.
 
     Attributes:
-        config (NeatConfig): Settings of the current evolution session.
         species_id (int): Indicates the species to which the genome belongs.
         fitness (float): The last calculated fitness of the genome.
         adj_fitness (float): The last calculated adjusted fitness of the genome.
@@ -105,7 +103,7 @@ class NeatGenome(BaseGenome):
                  config: NeatConfig,
                  initial_connections: bool = True) -> None:
         super().__init__()
-        self.config = config
+        self._config = config
         self.species_id = None        # type: Optional[int]
         self._activated_nodes = None  # type: Optional[Dict[int, bool]]
 
@@ -163,14 +161,22 @@ class NeatGenome(BaseGenome):
                     self.add_connection(connection_counter, in_node, out_node)
 
     @property
-    def num_inputs(self):
+    def input_shape(self) -> int:
         """ Number of input nodes in the genome. """
         return len(self._input_nodes)
 
     @property
-    def num_outputs(self):
+    def output_shape(self) -> int:
         """ Number of output nodes in the genome. """
         return len(self._output_nodes)
+
+    @property
+    def config(self) -> Any:
+        return self._config
+
+    @config.setter
+    def config(self, c) -> None:
+        self._config = c
 
     def reset_activations(self) -> None:
         """ Resets cached activations of the genome's nodes.
@@ -207,7 +213,7 @@ class NeatGenome(BaseGenome):
         .. math::
                 \\delta = c_1 \\cdot \\frac{E}{N} + c_2 \\cdot \\frac{D}{N} \\
                     + c_3 \\cdot W
-            :label: distance
+            :label: neat_genome_distance
 
         Args:
             other (NeatGenome): The other genome (an instance of
@@ -883,7 +889,9 @@ class NeatGenome(BaseGenome):
                   input_color: str = "deepskyblue",
                   output_color: str = "mediumseagreen",
                   hidden_color: str = "silver",
-                  bias_color: str = "khaki", ) -> None:
+                  bias_color: str = "khaki",
+                  **kwargs,  # pylint: disable=unused-argument
+    ) -> None:
         """ Plots the neural network (phenotype) encoded by the genome.
 
         The network is drawn as a graph, with nodes and edges. An edge's color
@@ -1214,8 +1222,8 @@ class FixTopNeatGenome(NeatGenome):
             :attr:`.fito_genome` is set to None.
         """
         return FixTopNeatGenome(fito_genome=None,
-                                num_neat_inputs=self.num_inputs,
-                                num_neat_outputs=self.num_outputs,
+                                num_neat_inputs=self.input_shape,
+                                num_neat_outputs=self.output_shape,
                                 config=self.config,
                                 initial_neat_connections=False)
 

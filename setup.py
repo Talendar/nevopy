@@ -32,21 +32,21 @@ Guedes Nogueira (Talendar).
 from typing import List
 import setuptools
 
-_VERSION = "0.0.2"
+_VERSION = "0.1.0"
 
 # Short description.
 short_description = "An open source neuroevolution framework for Python."
 
-# Packages needed for nevopy to run.
+# Packages needed for NEvoPy to run.
 # The compatible release operator (`~=`) is used to match any candidate version
 # that is expected to be compatible with the specified version.
 REQUIRED_PACKAGES = [
     "Columnar ~= 1.3.1",
     "matplotlib ~= 3.3.3",
-    "mypy ~= 0.790",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
     "ray ~= 1.1.0",
+    "tensorflow ~= 2.4.0",
 ]
 
 # Packages which are only needed for testing code.

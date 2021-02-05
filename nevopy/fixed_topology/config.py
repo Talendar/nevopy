@@ -23,11 +23,20 @@
 
 """ This module implements the :class:`.FixedTopologyConfig` class, used to
 handle the settings of `NEvoPy's` fixed-topology neuroevolutionary algorithms.
+
+``Deprecated since version 0.1.0.`` Use :class:`.GeneticAlgorithmConfig`
+instead.
 """
 
 from typing import Dict
+from nevopy.utils.deprecation import deprecated
 
 
+@deprecated(
+    version="0.1.0",
+    instructions="use ``nevopy.genetic_algorithm.GeneticAlgorithmConfig`` "
+                 "instead."
+)
 class FixedTopologyConfig:
     """ Stores the settings of `NEvoPy's` fixed-topology NE algorithms.
 
