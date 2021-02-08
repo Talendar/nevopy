@@ -565,13 +565,17 @@ class NeatPopulation(BasePopulation):
 
         offspring_count = {}
         count = num_offspring
-        for sid in self.species:
-            v = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
-            offspring_count[sid] = v
-            count -= offspring_count[sid]
+
+        if total_adj_fitness > 0:
+            for sid in self.species:
+                v = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
+                offspring_count[sid] = v
+                count -= offspring_count[sid]
 
         for _ in range(count):
             sid = np.random.choice(list(self.species.keys()))
+            if sid not in offspring_count:
+                offspring_count[sid] = 0
             offspring_count[sid] += 1
 
         assert np.sum(list(offspring_count.values())) == num_offspring

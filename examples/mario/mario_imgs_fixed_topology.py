@@ -1,3 +1,8 @@
+""" In this example, we're going to use NEvoPy's implementation of a classic
+fixed-topology neuroevolution algorithm to learn how to play Super Mario Bros
+from images!
+"""
+
 import os
 os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
