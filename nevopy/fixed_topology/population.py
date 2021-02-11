@@ -23,6 +23,8 @@
 
 """ Implementation of a genetic algorithm that evolves a population of
 fixed-topology neural networks (genomes).
+
+``Deprecated since version 0.1.0.`` Use :class:`.GeneticPopulation` instead.
 """
 
 import logging
@@ -31,7 +33,8 @@ from typing import Callable, List, Optional, Sequence, Tuple
 import numpy as np
 
 from nevopy.utils import utils
-from nevopy.base_population import Population
+from nevopy.utils.deprecation import deprecated
+from nevopy.base_population import BasePopulation
 from nevopy.callbacks import Callback
 from nevopy.callbacks import History
 from nevopy.callbacks import CompleteStdOutLogger
@@ -44,7 +47,10 @@ from nevopy.processing.ray_processing import RayProcessingScheduler
 _logger = logging.getLogger(__name__)
 
 
-class FixedTopologyPopulation(Population):
+@deprecated(version="0.1.0",
+            instructions="use ``nevopy.genetic_algorithm.GeneticPopulation`` "
+                         "instead.")
+class FixedTopologyPopulation(BasePopulation):
     """ Population of fixed-topology neural networks (genomes) to be evolved.
 
     This class implements a genetic algorithm and uses it to evolve a population
@@ -127,7 +133,7 @@ class FixedTopologyPopulation(Population):
             raise ValueError("The base genome was assigned a different config "
                              "object than the one used by the population!")
 
-        self._base_genome.config = self._config
+        self._base_genome.config = self._config  # type: ignore
 
         # Basic instance variables:
         self._mass_extinction_counter = 0

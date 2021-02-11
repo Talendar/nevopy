@@ -1,17 +1,29 @@
+==================================
 Welcome to NEvoPy's documentation!
 ==================================
 
-`NEvoPy` is an open source neuroevolution framework for Python. It allows
-researchers and enthusiasts to quickly tackle machine learning problems through
-the use of neuroevolutionary algorithms. In addition to being highly optimized
-for distributed computing, `NEvoPy` is also compatible with TensorFlow.
+`NEvoPy` is an open source neuroevolution framework for Python. It provides a
+simple and intuitive API for researchers and enthusiasts in general to quickly
+tackle machine learning problems using neuroevolutionary algorithms. `NEvoPy` is
+optimized for distributed computing and has compatibility with TensorFlow.
 
-Neuroevolution is a form of artificial intelligence that uses evolutionary
-algorithms to generate artificial neural networks (ANNs). It is a vast and
-expanding field of research that holds many promises for the future. Currently,
-`NEvoPy` implements the NEAT (NeuroEvolution of Augmenting Topologies) algorithm
-and a custom fixed-topology deep-neuroevolutionary algorithm, but much more is
-coming.
+Currently, the neuroevolutionary algorithms implemented by `NEvoPy` are:
+
+    * **NEAT** (NeuroEvolution of Augmenting Topologies), a powerful method by
+      Kenneth O. Stanley for evolving neural networks through complexification;
+    * the standard fixed-topology approach to neuroevolution, with support to
+      TensorFlow and deep neural networks.
+
+Note, though, that there's much more to come!
+
+In addition to providing high-performance implementations of powerful
+neuroevolutionary algorithms, such as NEAT, `NEvoPy` also provides tools to help
+you more easily implement your own algorithms.
+
+Neuroevolution, a form of artificial intelligence that uses evolutionary
+algorithms to generate artificial neural networks (ANNs), is one of the most
+interesting and unexplored fields of machine learning. It is a vast and
+expanding area of research that holds many promises for the future.
 
 If you encounter any confusing, incomplete or incorrect information in this
 project, please open an issue in our `GitHub project
@@ -24,8 +36,6 @@ project, please open an issue in our `GitHub project
    nevopy_overview
    installation
    examples
-   genomes_and_populations
-   neuroevolutionary_algorithms
    callbacks
    processing
    Modules and Subpackages<nevopy>

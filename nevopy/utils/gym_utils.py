@@ -57,6 +57,7 @@ class GymEnvFitness:
         max_steps (Optional[int]): Default maximum number of steps a session can
             run. By default, there is no limit. This can be overridden during
             the call.
+        num_obs_skip (int):
 
     Attributes:
         make_env (Callable[[], Any]): Callable that creates the environment to
@@ -82,12 +83,14 @@ class GymEnvFitness:
                  num_episodes: int,
                  pre_process_obs: Optional[Callable[[_T, Any], _T]] = None,
                  render_fps: int = 60,
-                 max_steps: Optional[int] = None) -> None:
+                 max_steps: Optional[int] = None,
+                 num_obs_skip: int = 0) -> None:
         self.make_env = make_env
         self.num_episodes = num_episodes
         self.pre_process_obs = pre_process_obs
         self.render_fps = render_fps
         self.max_steps = max_steps
+        self.num_obs_skip = num_obs_skip
 
     def __call__(self,
                  genome: Optional[BaseGenome] = None,
@@ -119,7 +122,10 @@ class GymEnvFitness:
             max_steps = (float("inf") if self.max_steps is None
                          else self.max_steps)  # type: ignore
 
+        skip_counter = self.num_obs_skip
+        last_action = None
         total_reward = 0
+
         for _ in range(eps):
             obs = env.reset()
             if genome is not None:
@@ -135,10 +141,26 @@ class GymEnvFitness:
                 if self.pre_process_obs is not None:
                     obs = self.pre_process_obs(obs, env)
 
-                if genome is not None:
-                    action = np.argmax(genome.process(obs))
+                if skip_counter == 0 or last_action is None:
+                    if genome is not None:
+                        result = genome.process(obs)
+                        if len(result.shape) > 1:
+                            assert result.shape[0] == 1, (
+                                "Detected a batched outputs with multiple "
+                                "items! Only batches with 1 item are accepted."
+                            )
+                            result = result[0]
+
+                        action = (round(float(result[0])) if len(result) == 1
+                                  else np.argmax(genome.process(obs)))
+                    else:
+                        action = env.action_space.sample()
+
+                    skip_counter = self.num_obs_skip
+                    last_action = action
                 else:
-                    action = env.action_space.sample()
+                    skip_counter -= 1
+                    action = last_action
 
                 obs, reward, done, _ = env.step(action)
                 total_reward += reward

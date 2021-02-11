@@ -30,7 +30,8 @@ a neuroevolutionary algorithm.
 Example:
 
     To implement your own callback, simply create a class that inherits from
-    :class:`.Callback` and pass an instance of it to :meth:`.Population.evolve`.
+    :class:`.Callback` and pass an instance of it to
+    :meth:`.BasePopulation.evolve`.
 
     .. code-block:: python
 
@@ -62,8 +63,9 @@ from click import style
 from columnar import columnar
 
 from nevopy.utils import utils  # pylint: disable=wrong-import-position
+
 if TYPE_CHECKING:
-    from nevopy.base_population import Population
+    from nevopy.base_population import BasePopulation
 
 _logger = logging.getLogger(__name__)
 
@@ -77,14 +79,14 @@ class Callback(ABC):
     useful for your case).
 
     Attributes:
-        population (Population): Reference to the instance of a subclass of
+        population (BasePopulation): Reference to the instance of a subclass of
             :class:`.Population` being evolved by one of `NEvoPy's`
             neuroevolutionary algorithms.
     """
 
     def __init__(self) -> None:
         self.population = None \
-            # type: Optional["Population"]
+            # type: Optional["BasePopulation"]
 
     def on_generation_start(self,
                             current_generation: int,
@@ -197,6 +199,7 @@ class CompleteStdOutLogger(Callback):
                  colored_text: bool = True,
                  output_cleaner: Optional[Callable] = utils.clear_output):
         super().__init__()
+        self.speciation = False
         self.clear_output = output_cleaner
         self.colored_text = colored_text
         self._past_best_fitness = 0.0
@@ -204,6 +207,7 @@ class CompleteStdOutLogger(Callback):
         self._past_mutation = 0.0
         self._past_weight_mutation = 0.0
         self._past_weight_perturbation = 0.0
+        self._past_num_species = 0
         self._table = None  # type: Optional[List[List[str]]]
         self._timer = 0.0
         self._summary_msg = ""
@@ -256,6 +260,7 @@ class CompleteStdOutLogger(Callback):
                                                     current=mutation_chance,
                                                     past=self._past_mutation,
                                                     show_inc_pc=False,
+                                                    abs_format=".2%",
                                                     inc_format="+0.2%"))
             self._past_mutation = mutation_chance
         except AttributeError:
@@ -268,11 +273,13 @@ class CompleteStdOutLogger(Callback):
                                  current=weight_mutation,
                                  past=self._past_weight_mutation,
                                  show_inc_pc=False,
+                                 abs_format=".2%",
                                  inc_format="+0.2%"),
             utils.make_table_row(name="Weight\nperturbation",
                                  current=weight_perturbation,
                                  past=self._past_weight_perturbation,
                                  show_inc_pc=False,
+                                 abs_format=".2%",
                                  inc_format="+0.2%")
         ]
 
@@ -292,7 +299,15 @@ class CompleteStdOutLogger(Callback):
         print(". Reproduction... ", end="")
 
     def on_speciation_start(self, **kwargs) -> None:
-        pass
+        print("done!\n")
+        print(". Speciating... ", end="")
+        try:
+            self._past_num_species = len(
+                self.population.species  # type: ignore
+            )
+            self.speciation = True
+        except AttributeError:
+            self.speciation = False
 
     def on_generation_end(self,
                           current_generation: int,
@@ -307,6 +322,17 @@ class CompleteStdOutLogger(Callback):
             print(self._summary_msg)
 
         print(f". Processing time: {timer() - self._timer : .4f}s\n")
+
+        if self.speciation:
+            self._table.append(
+                utils.make_table_row(name="Num species",
+                                     current=len(
+                                         self.population.species  # type: ignore
+                                     ),
+                                     past=self._past_num_species,
+                                     abs_format="d",
+                                     inc_format="+d")
+            )
 
         print(columnar(self._table,
                        CompleteStdOutLogger._TAB_HEADER,

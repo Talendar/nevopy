@@ -33,9 +33,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"
 import tensorflow as tf
 
 from nevopy.neat.genomes import FixTopNeatGenome
-from nevopy.fixed_topology import FixedTopologyConfig
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.layers import TFConv2DLayer
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 from nevopy.neat.config import NeatConfig
 
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 TFConv2DLayer(filters=32, kernel_size=(16, 16), strides=(4, 4)),
                 TFConv2DLayer(filters=8, kernel_size=(4, 4), strides=(1, 1)),
             ],
-            config=FixedTopologyConfig(),
+            config=GeneticAlgorithmConfig(),
         ),
         num_neat_inputs=8,
         num_neat_outputs=5,

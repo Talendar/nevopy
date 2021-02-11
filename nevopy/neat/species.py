@@ -42,7 +42,7 @@ class NeatSpecies:
     Attributes:
         representative (Optional[NeatGenome]): Genome used to represent the
             species.
-        members (List[Genome]): List with the genomes that belong to the
+        members (List[NeatGenome]): List with the genomes that belong to the
             species.
         last_improvement (int): Generation in which the species last showed
             improvement of its fitness. The species fitness in a given

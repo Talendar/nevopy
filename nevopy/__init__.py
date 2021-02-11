@@ -21,24 +21,32 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Imports core names of NEvoPy.
+""" Imports the core names of NEvoPy.
 """
 
-# Utils
+# Util submodules
 from nevopy import activations
 from nevopy import callbacks
 
 # "Fixed topology" subpackage
 from nevopy import fixed_topology
 
+# "Genetic algorithm" subpackage
+from nevopy import genetic_algorithm
+
 # "NEAT" subpackage
 from nevopy import neat
 
 # "Processing" subpackage
 from nevopy import processing
+
+# "Utils" subpackage
 from nevopy import utils
 
 # Base genome
 from nevopy.base_genome import BaseGenome
 from nevopy.base_genome import IncompatibleGenomesError
 from nevopy.base_genome import InvalidInputError
+
+# Base population
+from nevopy.base_population import BasePopulation

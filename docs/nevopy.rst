@@ -8,6 +8,7 @@ Subpackages
    :maxdepth: 4
 
    nevopy.fixed_topology
+   nevopy.genetic_algorithm
    nevopy.neat
    nevopy.processing
    nevopy.utils

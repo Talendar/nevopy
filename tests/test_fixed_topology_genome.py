@@ -34,21 +34,21 @@ from timeit import default_timer as timer
 import numpy as np
 import tensorflow as tf
 
-from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
 from nevopy.fixed_topology.layers import TFConv2DLayer
 from nevopy.fixed_topology.layers import TFFlattenLayer
 from nevopy.fixed_topology.layers import TFDenseLayer
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 import test_utils
 
 
-config = FixedTopologyConfig(  # weight mutation
-                             weight_mutation_chance=(0.5, 0.9),
-                             weight_perturbation_pc=(0.2, 0.4),
-                             weight_reset_chance=(0.2, 0.3),
-                             new_weight_interval=(-2, 2),
-                               # others
-                             mating_mode="exchange_weights_mating")
+config = GeneticAlgorithmConfig(  # weight mutation
+                                weight_mutation_chance=(0.5, 0.9),
+                                weight_perturbation_pc=(0.2, 0.4),
+                                weight_reset_chance=(0.2, 0.3),
+                                new_weight_interval=(-2, 2),
+                                  # others
+                                mating_mode="exchange_weights_mating")
 
 
 def test_processing_and_mutation(genome, num_tests=5, verbose=False):
@@ -194,6 +194,25 @@ def test_mating(g1, g2, mode, num_tests=10):
     print(f"\t. Mating time: {1000 * mating_time / num_tests:.2f}ms")
 
 
+def test_distance(g1, num_tests=10):
+    total_time = 0
+    dist_history = []
+    g2 = g1.deep_copy()
+    for _ in range(num_tests):
+        start_time = timer()
+        d = g1.distance(g2)
+        total_time += timer() - start_time
+
+        dist_history.append(d)
+        g1.mutate_weights()
+        g2.mutate_weights()
+
+    print(f"\t. Distance time: {1000 * total_time / num_tests:.4f}ms")
+    print(f"\t. Distance progression: "
+          f"{[f'{d:.2f}' for d in dist_history]}")
+    print(f"\t. Avg distance: {np.mean(dist_history):.4f}")
+
+
 def test_save_and_load(genome, num_tests=10):
     saving_time = loading_time = file_size = weights_size = 0
     for _ in range(num_tests):
@@ -250,6 +269,7 @@ if __name__ == "__main__":
             TFConv2DLayer(filters=32, kernel_size=(4, 4), strides=(2, 2)),
             TFFlattenLayer(),
             TFDenseLayer(units=64, activation="relu"),
+            TFDenseLayer(units=64, activation="relu"),
             TFDenseLayer(units=20, activation="softmax"),
         ],
         input_shape=input_shape,
@@ -262,6 +282,7 @@ if __name__ == "__main__":
             TFConv2DLayer(filters=64, kernel_size=(5, 5), strides=(3, 3)),
             TFConv2DLayer(filters=32, kernel_size=(4, 4), strides=(2, 2)),
             TFFlattenLayer(),
+            TFDenseLayer(units=64, activation="relu"),
             TFDenseLayer(units=64, activation="relu"),
             TFDenseLayer(units=20, activation="softmax"),
         ],
@@ -288,6 +309,9 @@ if __name__ == "__main__":
 
     print("> Mating (layers):")
     test_mating(genome1, genome2, mode="exchange_layers", num_tests=10)
+
+    print("> Distance:")
+    test_distance(genome1, num_tests=20)
 
     print("> Saving and loading:")
     test_save_and_load(genome1, num_tests=10)

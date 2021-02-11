@@ -4,6 +4,14 @@ nevopy.utils package
 Submodules
 ----------
 
+nevopy.utils.deprecation module
+-------------------------------
+
+.. automodule:: nevopy.utils.deprecation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 nevopy.utils.gym\_utils module
 ------------------------------
 

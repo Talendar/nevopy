@@ -28,7 +28,8 @@ import os
 import pickle
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Iterable, List, Optional, Set, TypeVar
+from typing import (Any, Callable, Iterable, List, Optional, Set, TypeVar,
+                    Sequence, Tuple)
 
 import click
 import numpy as np
@@ -97,6 +98,51 @@ def pickle_load(abs_path: str) -> Any:
 
     with open(p, "rb") as in_file:
         return pickle.load(in_file)
+
+
+def make_xor_data(num_variables: int = 2) -> Tuple[np.ndarray, np.ndarray]:
+    """ Builds data using the `XOR` logic function.
+
+    The generated inputs are all the possible combinations of input values with
+    the specified number of variables. Each variable is a bit (0 or 1). The
+    generated outputs are the results (a single bit each) of the `XOR` function
+    applied to all the inputs.
+
+    Example:
+
+        >>> xor_in, xor_out = make_xor_data(num_variables=2)
+        >>> for x, y in zip(xor_in, xor_out):
+        ...     print(f"{x} -> {y}")
+        ...
+        [0 0] -> 0
+        [0 1] -> 1
+        [1 0] -> 1
+        [1 1] -> 0
+
+    Args:
+        num_variables (int): Number of input variables for the `XOR` logic
+            function.
+
+    Returns:
+        A tuple with two numpy arrays. The first array contains the input
+        values, and the second array contains the output of the `XOR` function.
+    """
+    assert num_variables >= 2, "The XOR function needs at least 2 variables!"
+
+    xor_inputs, xor_outputs = [], []
+    for num in range(2 ** num_variables):
+        binary = bin(num)[2:].zfill(num_variables)
+        xin = [int(binary[0])]
+        xout = int(binary[0])
+
+        for bit in binary[1:]:
+            xin.append(int(bit))
+            xout ^= int(bit)
+
+        xor_inputs.append(np.array(xin))
+        xor_outputs.append(np.array(xout))
+
+    return np.array(xor_inputs), np.array(xor_outputs)
 
 
 def align_lists(lists: Iterable[List[_T]],
@@ -177,6 +223,7 @@ def rank_prob_dist(size: int,
 def make_table_row(name: str,
                    current: float,
                    past: float,
+                   abs_format: str = ".2E",
                    inc_format: str = "+0.2E",
                    pc_format: str = "+0.2%",
                    show_inc_pc: bool = True,
@@ -207,7 +254,7 @@ def make_table_row(name: str,
                                        else neutral_color))
 
     return [name,
-            f"{current:{inc_format}}", f"{past:{inc_format}}",
+            f"{current:{abs_format}}", f"{past:{abs_format}}",
             inc, inc_pc]
 
 
@@ -246,3 +293,40 @@ def clear_output() -> None:
         jupyter_clear(wait=True)
     else:
         click.clear()
+
+
+def round_proportional_distribution(to_distribute: int,
+                                    values: Sequence[float]) -> List[int]:
+    """ Given an integer `A` and a sequence `S` of arbitrary size `k`, this
+    function divides `A` into `k` integers. The proportion that the `i-th`
+    integer represents of `A` is approximately equal to the proportion that
+    `S[i]` represents of `sum(S[i])`.
+
+    Example:
+
+        >>> round_proportional_distribution(100, [1.22, 2.78, 0.26, 5.74])
+        [12, 28, 3, 57]
+
+    Args:
+        to_distribute (int): Integer to be distributed.
+        values (Sequence[float]): Values that will serve as a reference.
+
+    Returns:
+        A list with the same size as ``values`` containing integers that sum to
+        ``to_distribute``.
+    """
+    total = np.sum(values)
+    percentages = [v / total for v in values]
+    dist = [int(to_distribute * pc) for pc in percentages]
+
+    remainder = to_distribute - np.sum(dist)
+    if remainder > 0:
+        decimals = sorted([(i, 100 * pc - int(100 * pc))
+                           for i, pc in enumerate(percentages)],
+                          reverse=True, key=lambda n: n[1])
+        for _ in range(remainder):
+            i, _ = decimals.pop(0)
+            dist[i] += 1
+
+    assert to_distribute == np.sum(dist)
+    return dist

@@ -34,10 +34,10 @@ from tensorflow.keras.models import Sequential as KerasSequential
 from tensorflow.keras.utils import plot_model as keras_plot_model
 
 from nevopy.base_genome import BaseGenome, IncompatibleGenomesError
-from nevopy.fixed_topology.config import FixedTopologyConfig
 from nevopy.fixed_topology.layers.base_layer import BaseLayer
 from nevopy.fixed_topology.layers.tf_layers import IncompatibleLayersError
 from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 
 _logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ class FixedTopologyGenome(BaseGenome):
             :meth:`.process()` is made. There is no need to pass the `config`
             object to the layers (it's done automatically when this class is
             instantiated).
-        config (Optional[FixedTopologyConfig]): Settings of the current
+        config (Optional[GeneticAlgorithmConfig]): Settings of the current
             evolutionary session. If `None`, a config object must be assigned to
             this genome latter.
         input_shape (Optional[Tuple[int, ...]]): Shape of the inputs that will
@@ -78,7 +78,7 @@ class FixedTopologyGenome(BaseGenome):
 
     def __init__(self,
                  layers: List[BaseLayer],
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None) -> None:
         super().__init__()
         self.layers = layers
@@ -101,16 +101,11 @@ class FixedTopologyGenome(BaseGenome):
         return self.layers[0].input_shape
 
     @property
-    def config(self) -> Optional[FixedTopologyConfig]:
-        """ Settings of the current evolutionary session.
-
-        If `None`, a config object hasn't been assigned to this genome yet.
-        """
+    def config(self) -> Optional[GeneticAlgorithmConfig]:
         return self._config
 
     @config.setter
     def config(self, c) -> None:
-        """ Sets the config object of the genome and all of its layers. """
         self._config = c
         for layer in self.layers:
             layer.config = self._config
@@ -204,13 +199,43 @@ class FixedTopologyGenome(BaseGenome):
         return FixedTopologyGenome(layers=new_layers,
                                    config=self.config)
 
+    def distance(self, other: "FixedTopologyGenome") -> float:
+        """ Calculates the distance between the two genomes.
+
+        The distance is calculated based on the euclidean distance (the L2 norm
+        of the difference) between correspondent weight matrices of the genomes
+        layers.
+
+        Args:
+            other (FixedTopologyGenome): The other fixed-topology genome.
+
+        Returns:
+            A float representing the distance between the two genomes. The lower
+            the distance, the more similar the two genomes are.
+        """
+        total_dist = 0.0
+        for l1, l2 in zip(self.layers, other.layers):
+            layers_dist = 0.0
+
+            c = 0
+            for c, (w1, w2) in enumerate(zip(l1.weights, l2.weights)):
+                norm = np.linalg.norm(w1 - w2)
+                layers_dist += norm / np.sqrt(w1.size)
+
+            if c > 0:
+                layers_dist /= c
+
+            total_dist += layers_dist
+
+        return total_dist / len(self.layers)
+
     def visualize(self,
                   show: bool = True,
                   to_file: str = "genome.png",
-                  **kwargs):
-        """ Visualization tool for visualizing the genome's neural network.
+                  **kwargs) -> None:
+        """ Utility method for visualizing the genome's neural network.
 
-        This currently only works with genome's that uses TensorFlow layers.
+        This currently only works with genomes that use TensorFlow layers.
 
         Todo:
             Make it possible to visualize neurons and connections.

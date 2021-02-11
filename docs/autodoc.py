@@ -4,8 +4,8 @@ import subprocess
 
 commands = [
 	"sphinx-apidoc -f -o ./ ../nevopy",
-    "make clean",
-    "make html"
+	"make clean",
+	"make html"
 ]
 
 

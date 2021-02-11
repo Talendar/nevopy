@@ -25,13 +25,15 @@
 
 In the context of neuroevolution, a genome is the entity subject to the
 evolutionary process. It encodes a neural network (the genome's phenotype),
-either directly or indirectly. This module declares the base abstract class that
-must be inherited by all the different classes of genomes used by the
-neuroevolutionary algorithms in `NEvoPy`.
+either directly or indirectly.
+
+This module declares the base abstract class that must be inherited by all the
+different classes of genomes used by the neuroevolutionary algorithms in
+`NEvoPy`.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional, Tuple, Union
 
 from nevopy.utils.utils import pickle_load
 from nevopy.utils.utils import pickle_save
@@ -53,22 +55,48 @@ class BaseGenome(ABC):
     for constructing a phenotype. These rules can be layer specifications or
     growth rules through cell division.
 
-    One of the goals of this base abstract class is to abstract these details
-    for the user, defining a general interface for different types of genomes
-    used by the different neuroevolutionary algorithms in `NEvoPy`. Generally,
-    for `NEvoPy`, there is no distinction between a genome and the network it
-    encodes.
+    One of the goals of this base abstract class is to abstract those details
+    for the user, defining a general interface for the different types of
+    genomes used by the different neuroevolutionary algorithms in `NEvoPy`.
+    Generally, for `NEvoPy`, there is no distinction between a genome and the
+    network it encodes.
 
     A genome must be capable of processing inputs based on its nodes and
     connections in order to produce an output, emulating a neural network. It
     also must be able to mutate and to generate offspring, in order to evolve.
 
     Attributes:
-        fitness (float): The current fitness of the genome.
+        fitness (float): The current fitness value of the genome.
     """
 
     def __init__(self) -> None:
         self.fitness = 0.0
+
+    @property
+    @abstractmethod
+    def input_shape(self) -> Optional[Union[int, Tuple[int, ...]]]:
+        """ The expected shape of the inputs that will be fed to the genome.
+
+        Returns:
+
+            * ``None``, if an input shape has not been defined yet;
+            * An ``int``, if the expected inputs are one-dimensional;
+            * A ``tuple`` with the expected inputs' dimensions, if they're
+              multi-dimensional.
+
+        """
+
+    @property
+    @abstractmethod
+    def config(self) -> Any:
+        """ Settings of the current evolutionary session.
+
+        If `None`, a config object hasn't been assigned to this genome yet.
+        """
+
+    @config.setter
+    def config(self, c) -> None:
+        """ Sets the config object of the genome. """
 
     @abstractmethod
     def process(self, x: Any) -> Any:
@@ -142,6 +170,22 @@ class BaseGenome(ABC):
             IncompatibleGenomesError: If the genome passed as argument to
                 ``other`` is incompatible with the current genome (`self`).
         """
+
+    @abstractmethod
+    def distance(self, other: Any) -> float:
+        """ Calculates the distance between two genomes.
+
+        Args:
+            other (BaseGenome): The other genome.
+
+        Returns:
+            A float representing the distance between the two genomes. The lower
+            the distance, the more similar the two genomes are.
+        """
+
+    @abstractmethod
+    def visualize(self, **kwargs) -> None:
+        """ Utility method for visualizing the genome's neural network. """
 
     def save(self, abs_path: str) -> None:
         """ Saves the genome to the given absolute path.

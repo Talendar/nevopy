@@ -33,7 +33,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 import numpy as np
 
 from nevopy.utils import utils
-from nevopy.base_population import Population
+from nevopy.base_population import BasePopulation
 from nevopy.callbacks import Callback
 from nevopy.callbacks import CompleteStdOutLogger
 from nevopy.callbacks import History
@@ -47,7 +47,7 @@ from nevopy.processing.base_scheduler import ProcessingScheduler
 from nevopy.processing.pool_processing import PoolProcessingScheduler
 
 
-class NeatPopulation(Population):
+class NeatPopulation(BasePopulation):
     """ Population of individuals (genomes) to be evolved by the NEAT algorithm.
 
     Main class of `NEvoPy's` implementation of the NEAT algorithm. It represents
@@ -156,14 +156,14 @@ class NeatPopulation(Population):
                                            config=self._config)
         else:
             if None not in (num_inputs, num_outputs):
-                if (base_genome.num_inputs != num_inputs
-                        or base_genome.num_outputs != num_outputs):
+                if (base_genome.input_shape != num_inputs
+                        or base_genome.output_shape != num_outputs):
                     raise ValueError(
                         "The specified numbers of inputs and outputs "
                         "are not compatible with the given base "
                         "genome! Expected "
-                        f"(in: {base_genome.num_inputs}, "
-                        f"out: {base_genome.num_outputs}) but got "
+                        f"(in: {base_genome.input_shape}, "
+                        f"out: {base_genome.output_shape}) but got "
                         f"(in: {num_inputs}, out: {num_outputs}).")
 
             if config is not None and config != base_genome.config:
@@ -176,8 +176,8 @@ class NeatPopulation(Population):
 
         # others instance variables
         self._id_handler = IdHandler(
-            num_inputs=self._base_genome.num_inputs,
-            num_outputs=self._base_genome.num_outputs,
+            num_inputs=self._base_genome.input_shape,
+            num_outputs=self._base_genome.output_shape,
             has_bias=self._config.bias_value is not None,
         )
 
@@ -472,16 +472,22 @@ class NeatPopulation(Population):
         This method implements the reproduction mechanism described in the
         original paper of the NEAT algorithm :cite:`stanley:ec02`.
 
-        First, the most fit genome of each species with more than a pre-defined
-        number of individuals is selected to be passed unchanged to the next
-        generation. This is called `elitism`. Next, the least fit genomes of
-        each species are discarded. After that, each species is assigned a
-        number specifying the number of genomes it will generate for the next
-        generation. This number is calculated based on the proportion between
-        the total fitness of the population and the adjusted fitness of the
-        species (roulette wheel selection). Finally, the reproduction of
-        individuals of the same species (and, on rare occasions, between genomes
-        of different species as well) occurs.
+        First, the most fit genomes of each species with more than a pre-defined
+        number of individuals are selected to be passed unchanged to the next
+        generation (elitism). Next, the least fit genomes of each species are
+        discarded (reverse elitism). After that, the number of descendants of
+        each species is calculated based on the proportion between the total
+        fitness of the population and the adjusted fitness of the species
+        (roulette wheel selection). Finally, the reproduction of individuals of
+        the same species (and, on rare occasions, between genomes of different
+        species as well) occurs.
+
+        Genomes with a higher fitness have a higher chance of leaving offspring.
+        Within a species, the chance of a genome reproducing is given by the
+        position it occupies in the species fitness rank (rank-based selection).
+        This means that the reproduction chance of a genome is not directly
+        calculated from the genome's fitness, but rather from how well
+        positioned is the genome in the fitness rank.
 
         Most of the behaviour described above can be adjusted by changing the
         settings of the evolutionary process (see :class:`.NeatConfig`).
@@ -543,7 +549,7 @@ class NeatPopulation(Population):
 
         Every species is assigned a potentially different number of offspring in
         proportion to the sum of adjusted fitnesses of its member organisms
-        :cite:`stanley:ec02`. This is selection method is called `roulette wheel
+        :cite:`stanley:ec02`. This selection method is called `roulette wheel
         selection`.
 
         Args:
@@ -559,13 +565,17 @@ class NeatPopulation(Population):
 
         offspring_count = {}
         count = num_offspring
-        for sid in self.species:
-            v = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
-            offspring_count[sid] = v
-            count -= offspring_count[sid]
+
+        if total_adj_fitness > 0:
+            for sid in self.species:
+                v = int(num_offspring * adj_fitness[sid] / total_adj_fitness)
+                offspring_count[sid] = v
+                count -= offspring_count[sid]
 
         for _ in range(count):
             sid = np.random.choice(list(self.species.keys()))
+            if sid not in offspring_count:
+                offspring_count[sid] = 0
             offspring_count[sid] += 1
 
         assert np.sum(list(offspring_count.values())) == num_offspring
