@@ -12,7 +12,8 @@
 
 * Added new type of population: `ne.genetic_algorithm.GeneticPopulation`. It
   implements a generalizable genetic algorithm that can be used as a base for a
-  wide range of neuroevolutionary algorithms.
+  wide range of neuroevolutionary algorithms. This resolves
+  [#1](https://github.com/Talendar/nevopy/issues/1).
 * Added `deprecation.py` to `utils`. It implements the `@deprecated` decorator,
   that can be used to mark a function, method or class as being deprecated.
 * Fixed a bug in `GymEnvFitness` that was causing an incorrect interpretation of
