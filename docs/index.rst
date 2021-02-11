@@ -1,3 +1,4 @@
+==================================
 Welcome to NEvoPy's documentation!
 ==================================
 
@@ -24,8 +25,6 @@ project, please open an issue in our `GitHub project
    nevopy_overview
    installation
    examples
-   genomes_and_populations
-   neuroevolutionary_algorithms
    callbacks
    processing
    Modules and Subpackages<nevopy>

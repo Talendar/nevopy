@@ -1,4 +1,0 @@
-Neuroevolutionary Algorithms
-============================
-
-todo
