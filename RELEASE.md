@@ -24,6 +24,6 @@
   added to them.
 
 
-## Release 0.02
+## Release 0.0.2
 
 Initial public release of the *NEvoPy* framework.
