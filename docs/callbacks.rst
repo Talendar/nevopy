@@ -67,7 +67,7 @@ documentation for a list of accepted parameters):
 Writing your own callbacks
 --------------------------
 
-To create your own callback, simply create a new class that has
+To build your own callback, simply create a new class that has
 :class:`.Callback` as its parent class:
 
     .. code-block:: python

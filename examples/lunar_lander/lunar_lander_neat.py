@@ -22,11 +22,11 @@ if __name__ == "__main__":
     # parameter "num_episodes" below is the number of "tries" the agent will
     # have in each playing session.
     fitness_function = ne.utils.GymEnvFitness(make_env=make_env,
-                                              num_episodes=5)
+                                              num_episodes=7)
 
     # Creating a new population of NEAT genomes:
     # (we're going to use the default settings)
-    population = ne.neat.population.NeatPopulation(size=100,
+    population = ne.neat.population.NeatPopulation(size=50,
                                                    num_inputs=8,
                                                    num_outputs=4)
 
