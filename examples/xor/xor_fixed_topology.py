@@ -41,16 +41,20 @@ def fitness_function(genome, log=False):
     """ Implementation of the fitness function we're going to use.
 
     It simply feeds the XOR inputs to the given genome and calculates how well
-    it did.
+    it did (based on the squared error).
     """
-    idx = np.random.permutation(len(xor_inputs))  # shuffling the samples order
-    out = genome.process(xor_inputs[idx])  # feeds the input to the genome
+    # Shuffling the input, in order to prevent our networks from memorizing the
+    # sequence of the answers.
+    idx = np.random.permutation(len(xor_inputs))
+
+    # Feeding the input to the genome.
+    out = genome.process(xor_inputs[idx])
 
     # Since we're using TensorFlow layers, the value output by our genome is a
     # tf.tensor. Let's reshape it and turn it into a numpy array:
     out = reshape(out, [-1]).numpy()
 
-    # Quadratic error:
+    # Squared error:
     error = ((out - xor_outputs[idx]) ** 2).sum()
 
     if log:
@@ -58,7 +62,7 @@ def fitness_function(genome, log=False):
             print(f"IN: {x}  |  OUT: {h:.4f}  |  TARGET: {y}")
         print(f"\nError: {error}")
 
-    return 1 / error
+    return (1 / error) if error > 0 else 0
 
 
 if __name__ == "__main__":

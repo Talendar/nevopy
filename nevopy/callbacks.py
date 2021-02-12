@@ -299,7 +299,7 @@ class CompleteStdOutLogger(Callback):
         print(". Reproduction... ", end="")
 
     def on_speciation_start(self, **kwargs) -> None:
-        print("done!\n")
+        print("done!")
         print(". Speciating... ", end="")
         try:
             self._past_num_species = len(
