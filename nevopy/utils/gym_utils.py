@@ -152,7 +152,7 @@ class GymEnvFitness:
                             result = result[0]
 
                         action = (round(float(result[0])) if len(result) == 1
-                                  else np.argmax(genome.process(obs)))
+                                  else np.argmax(result))
                     else:
                         action = env.action_space.sample()
 
