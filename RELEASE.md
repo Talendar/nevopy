@@ -3,6 +3,7 @@
 * fix gym utils idx/argmax problem
 * update fix top genome visualize to work with colab
 * add colab xor example
+* add wrapper for tf.keras.layers.MaxPool2D
 
 
 ## Release 0.1.0
