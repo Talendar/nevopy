@@ -1,3 +1,10 @@
+## Release 0.1.1
+
+* fix gym utils idx/argmax problem
+* update fix top genome visualize to work with colab
+* add colab xor example
+
+
 ## Release 0.1.0
 
 ### Breaking Changes
