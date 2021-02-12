@@ -44,7 +44,8 @@ To get started with *NEvoPy*,
 [this](https://nevopy.readthedocs.io/en/latest/nevopy_overview.html) quick
 guide is especially useful. You should also check out some examples available
 [here](https://github.com/Talendar/nevopy/tree/master/examples).
-The XOR example is particularly instructive.
+The [XOR example](https://colab.research.google.com/github/Talendar/nevopy/blob/master/examples/xor/nevopy_xor_example.ipynb)
+is particularly instructive.
 
 The project's documentation is available on *Read the Docs*. You can access it
 through this [link](https://nevopy.readthedocs.io/en/latest/index.html).
