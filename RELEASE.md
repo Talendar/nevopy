@@ -1,9 +1,17 @@
 ## Release 0.1.1
 
-* fix gym utils idx/argmax problem
-* update fix top genome visualize to work with colab
-* add colab xor example
-* add wrapper for tf.keras.layers.MaxPool2D
+### Bug Fixes and Other Changes
+
+* Fixed a bug in `ne.utils.GymEnvFitness` that led to an incorrect
+  interpretation of the agent's chosen action when dealing with TensorFlow
+  tensors.
+* Updated `ne.fixed_topology.FixedTopologyGenome.visualize`. It now returns the
+  generated `PIL.Image.Image` object. It's possible now to directly use the
+  method to visualize the genome's topology on a Jupyter Notebook.
+* Added a new XOR example (Jupyter Notebook).
+* Added a wrapper to `tf.keras.layers.MaxPool2D` in `ne.fixed_topology.layers`.
+* Fixed a bug that occurred when a string was passed to the ``layer_type``
+  parameter of the constructor of the `ne.fixed_topology.TensorFlowLayer` class.
 
 
 ## Release 0.1.0
