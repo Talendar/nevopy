@@ -105,6 +105,7 @@ class TensorFlowLayer(BaseLayer):
         "simple_rnn": tf.keras.layers.SimpleRNN,
         "rnn": tf.keras.layers.RNN,
         "lstm": tf.keras.layers.LSTM,
+        "max_pool_2D": tf.keras.layers.MaxPool2D,
     }
 
     def __init__(self,
@@ -350,6 +351,33 @@ class TFFlattenLayer(TensorFlowLayer):
                  **tf_kwargs: Dict[str, Any]) -> None:
         super().__init__(
             layer_type=tf.keras.layers.Flatten,
+            **{k: v for k, v in locals().items()
+               if k not in ["self", "tf_kwargs", "__class__"]},
+            **tf_kwargs,
+        )
+
+
+class TFMaxPool2DLayer(TensorFlowLayer):
+    """ Wraps a `TensorFlow` 2D max pooling layer.
+
+    This is a simple wrapper for `tf.keras.layers.MaxPool2D
+    <https://www.tensorflow.org/api_docs/python/tf/keras/layers/Flatten>`_.
+    """
+
+    def __init__(self,
+                 # pylint: disable=unused-argument
+                 pool_size: Tuple[int, int] = (2, 2),
+                 strides: Optional[Tuple[int, int]] = None,
+                 padding: str = "valid",
+                 mating_func: Optional[
+                     Callable[[BaseLayer, BaseLayer], BaseLayer]
+                 ] = None,
+                 config: Optional[FixedTopologyConfig] = None,
+                 input_shape: Optional[Tuple[int, ...]] = None,
+                 mutable: Optional[bool] = False,
+                 **tf_kwargs: Dict[str, Any]) -> None:
+        super().__init__(
+            layer_type=tf.keras.layers.MaxPool2D,
             **{k: v for k, v in locals().items()
                if k not in ["self", "tf_kwargs", "__class__"]},
             **tf_kwargs,
