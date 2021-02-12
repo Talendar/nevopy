@@ -123,7 +123,7 @@ class TensorFlowLayer(BaseLayer):
         self._tf_layer_kwargs = tf_kwargs
         self.mating_func = mating_func
 
-        self._tf_layer = layer_type(**self._tf_layer_kwargs)  # type: ignore
+        self._tf_layer = self._layer_type(**self._tf_layer_kwargs)
         if input_shape is not None:
             self.build(input_shape)
 
