@@ -232,7 +232,7 @@ class FixedTopologyGenome(BaseGenome):
     def visualize(self,
                   show: bool = True,
                   to_file: str = "genome.png",
-                  **kwargs) -> None:
+                  **kwargs) -> Image.Image:
         """ Utility method for visualizing the genome's neural network.
 
         This currently only works with genomes that use TensorFlow layers.
@@ -245,6 +245,9 @@ class FixedTopologyGenome(BaseGenome):
             to_file (str): Path in which the image file will be saved to.
             **kwargs: Optional named arguments to be passed to
                 :py:func:`tensorflow.keras.utils.plot_model`.
+
+        Returns:
+            The generated ``PIL.Image.Image`` object.
         """
         # Checking compatibility:
         for layer in self.layers:
