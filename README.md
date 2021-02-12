@@ -51,17 +51,23 @@ The project's documentation is available on *Read the Docs*. You can access it
 through this [link](https://nevopy.readthedocs.io/en/latest/index.html).
 
 <p>
-  <img align="center" 
+  <a href="https://github.com/Talendar/nevopy/blob/master/examples/flappy_bird/flappy_bird_simple_neat.py">
+    <img align="center" 
        src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/flappy_bird.gif?raw=true" 
        height="250"/>
+  </a>
   &nbsp;&nbsp;&nbsp;
-  <img align="center" 
+  <a href="https://github.com/Talendar/nevopy/blob/master/examples/lunar_lander/lunar_lander_neat.py">
+    <img align="center" 
        src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/lunar_lander.gif?raw=true" 
        height="250"/>
+  </a> 
   &nbsp;&nbsp;&nbsp;
-  <img align="center" 
+  <a href="https://github.com/Talendar/nevopy/blob/master/examples/cart_pole/cart_pole_neat.py">
+    <img align="center" 
        src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/cart_pole.gif?raw=true" 
        height="250"/>
+  </a> 
 </p>
 
 <h2> Citing </h2>
