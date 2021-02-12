@@ -129,3 +129,6 @@ dmypy.json
 
 # Saved genomes and populations
 .pkl
+
+# Fixed-topology genome visualization img
+genome.png
