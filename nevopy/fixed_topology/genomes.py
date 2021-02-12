@@ -260,5 +260,8 @@ class FixedTopologyGenome(BaseGenome):
         model(np.zeros(shape=self.input_shape))
         keras_plot_model(model, show_shapes=True, to_file=to_file, **kwargs)
 
+        img = Image.open(to_file)
         if show:
-            Image.open(to_file).show()
+            img.show()
+
+        return img
