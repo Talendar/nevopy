@@ -40,15 +40,17 @@ $ pip install nevopy
 
 <h2> Getting started </h2>
 
-To get started with *NEvoPy*,
-[this](https://nevopy.readthedocs.io/en/latest/nevopy_overview.html) quick
-guide is especially useful. You should also check out some examples available
-[here](https://github.com/Talendar/nevopy/tree/master/examples).
-The [XOR example](https://colab.research.google.com/github/Talendar/nevopy/blob/master/examples/xor/nevopy_xor_example.ipynb)
-is particularly instructive.
+To learn the basics of *NEvoPy*, the
+[XOR example](https://colab.research.google.com/github/Talendar/nevopy/blob/master/examples/xor/nevopy_xor_example.ipynb)
+is a good place to start. More examples can be found in the
+[`examples`](https://github.com/Talendar/nevopy/tree/master/examples) folder of
+the project's GitHub repo.
 
-The project's documentation is available on *Read the Docs*. You can access it
-through this [link](https://nevopy.readthedocs.io/en/latest/index.html).
+You should also take a look at
+[this](https://nevopy.readthedocs.io/en/latest/nevopy_overview.html) quick
+overview on *NEvoPy*. The project's documentation is available on
+*Read the Docs*, through this
+[link](https://nevopy.readthedocs.io/en/latest/index.html).
 
 <p>
   <a href="https://github.com/Talendar/nevopy/blob/master/examples/flappy_bird/flappy_bird_simple_neat.py">
