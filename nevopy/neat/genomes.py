@@ -28,13 +28,16 @@ phenotype). In this implementation, there is no distinction between a genome and
 the network it encodes. In NEAT, the genome is the entity subject to evolution.
 """
 
-from typing import Any, cast, Dict, Optional, Sequence, Tuple, List
+import logging
+import os
+from numbers import Number
+from typing import Any, cast, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING
 
+import matplotlib.pyplot as plt
 import numpy as np
 np.warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) \
     # pylint: disable=wrong-import-position
-
-import matplotlib.pyplot as plt
 import networkx as nx
 from tensorflow import reshape
 
@@ -49,6 +52,14 @@ from nevopy.neat.genes import NodeGene
 from nevopy.neat.config import NeatConfig
 from nevopy.neat.id_handler import IdHandler
 from nevopy.fixed_topology.genomes import FixedTopologyGenome
+
+_logger = logging.getLogger(__name__)
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+
+# Necessary for forward-reference type-checking.
+if TYPE_CHECKING:
+    _logger.warning("THIS SHOULDN'T BE PRINTED!")
+    import pygame
 
 
 class NeatGenome(BaseGenome):
@@ -778,7 +789,7 @@ class NeatGenome(BaseGenome):
     def columns_graph_layout(self,
                              width: float,
                              height: float,
-                             node_size: int,
+                             node_size: float,
                              pad_width_pc: float = 0.025,
                              ideal_h_nodes_per_col: int = 4,
     ) -> Dict[int, Tuple[float, float]]:
@@ -790,15 +801,9 @@ class NeatGenome(BaseGenome):
         smaller node size for better quality.
 
         Args:
-            width (float): Width of the `matplotlib` figure, in inches (default
-                unit).
-            height (float): Height of the `matplotlib` figure, in inches
-                (default unit).
-            node_size (int): Size of the drawn nodes, in `points**2` (the area
-                of each node). See the parameter ``s`` of
-                `matplotlib.axes.Axes.scatter
-                <https://matplotlib.org/3.3.3/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
-                for more information.
+            width (float): Width of the figure / surface.
+            height (float): Height of the figure / surface.
+            node_size (float): Size of the drawn nodes.
             pad_width_pc (float): Percentage of the figure's width to be
                 reserved for padding in each of the figure's border.
             ideal_h_nodes_per_col (int): Preferred number of hidden nodes per
@@ -809,14 +814,6 @@ class NeatGenome(BaseGenome):
             Dictionary mapping the ID of each node to a tuple containing its
             position in the figure.
         """
-        # adjusting limits
-        plt.xlim(0, width)
-        plt.ylim(0, height)
-
-        # getting real node diameter
-        dpi = plt.gcf().dpi
-        node_size = (node_size ** 0.5) / dpi
-
         # padding
         origin = width * pad_width_pc
         width, height = width - 2*origin, height - 2*origin
@@ -867,6 +864,165 @@ class NeatGenome(BaseGenome):
                     next_x += space_x
 
         return pos
+
+    def _nodes_activation_status(self,
+                                 output_activation_threshold: float,
+                                 hidden_activation_threshold: float,
+                                 input_activation_threshold: Union[float,
+                                                                   List[float]],
+    ) -> Dict[int, bool]:
+        """ TODO
+
+        Args:
+            hidden_activation_threshold:
+            input_activation_threshold:
+            output_activation_threshold:
+
+        Returns:
+
+        """
+        status = {}  # type: Dict[int, bool]
+        max_out_node = max(self._output_nodes, key=lambda n: n.activation)
+
+        for node in self.nodes():
+            # Bias node:
+            if node.type == NodeGene.Type.BIAS:
+                status[node.id] = False
+                continue
+
+            # Output node:
+            if node.type == NodeGene.Type.OUTPUT:
+                if len(self._output_nodes) > 1:
+                    status[node.id] = node is max_out_node
+                    continue
+                threshold = output_activation_threshold
+            # Input node:
+            elif node.type == node.type.INPUT:
+                threshold = (
+                    input_activation_threshold
+                    if isinstance(input_activation_threshold, Number)
+                    else input_activation_threshold.pop(0)  # type: ignore
+                )
+            # Hidden node:
+            else:
+                threshold = hidden_activation_threshold
+
+            status[node.id] = node.activation > threshold
+
+        return status
+
+    def visualize_activations(self,
+                              surface_size: Tuple[int, int] = (500, 360),
+                              node_radius: float = 12,
+                              node_deactivated_color: Union[
+                                  str, Tuple[int, int, int]] = "darkgrey",
+                              node_activated_color: Union[
+                                  str, Tuple[int, int, int]] = "red",
+                              bias_node_color: Union[
+                                  str, Tuple[int, int, int]] = "yellow",
+                              edge_activated_color: Union[
+                                  str, Tuple[int, int, int]] = "red",
+                              edge_deactivated_color: Union[
+                                  str, Tuple[int, int, int]] = "grey",
+                              background_color: Union[
+                                  str, Tuple[int, int, int]] = "lightgrey",
+                              border_thickness: Optional[float] = 2,
+                              border_color: Union[
+                                  str, Tuple[int, int, int]] = "black",
+                              pad_width_pc: float = 0.05,
+                              hidden_activation_threshold: float = 0.5,
+                              input_activation_threshold: Union[
+                                  float, List[float]] = 0.5,
+                              output_activation_threshold: float = 0.5,
+                              ideal_h_nodes_per_col: int = 4,
+    ) -> "pygame.Surface":
+        """ TODO
+
+        Args:
+            surface_size:
+            node_radius:
+            node_deactivated_color:
+            node_activated_color:
+            bias_node_color:
+            edge_activated_color:
+            edge_deactivated_color:
+            background_color:
+            border_thickness:
+            border_color:
+            pad_width_pc:
+            hidden_activation_threshold:
+            input_activation_threshold:
+            output_activation_threshold:
+            ideal_h_nodes_per_col:
+
+        Returns:
+
+        """
+        # TODO: labels on input and output nodes
+
+        # Importing pygame:
+        try:
+            import pygame  # pylint: disable=import-outside-toplevel
+        except ModuleNotFoundError as e:
+            raise ModuleNotFoundError(
+                "Couldn't find 'pygame'! To use this method, make sure you've "
+                "it installed.\nYou can install 'pygame' using pip:\n"
+                "\t$ pip install pygame"
+            ) from e
+
+        # Creating surface:
+        surface = pygame.Surface(surface_size)
+        surface.fill(background_color)
+
+        # Checking the activation status of the nodes:
+        node_activated = self._nodes_activation_status(
+            output_activation_threshold=output_activation_threshold,
+            hidden_activation_threshold=hidden_activation_threshold,
+            input_activation_threshold=input_activation_threshold,
+        )
+
+        # Calculating the nodes' position:
+        nodes_pos = self.columns_graph_layout(
+            width=surface_size[0],
+            height=surface_size[1],
+            node_size=node_radius,
+            pad_width_pc=pad_width_pc,
+            ideal_h_nodes_per_col=ideal_h_nodes_per_col
+        )
+
+        # Drawing edges:
+        # (must be drawn before the nodes)
+        for c in self.connections:
+            if not c.enabled:
+                continue
+
+            color = (edge_activated_color
+                     if node_activated[c.from_node.id] and c.weight > 0
+                     else edge_deactivated_color)
+
+            pygame.draw.line(surface,
+                             color=color,
+                             start_pos=nodes_pos[c.from_node.id],
+                             end_pos=nodes_pos[c.to_node.id])
+
+        # Drawing nodes:
+        for node in self.nodes():
+            # Border:
+            if border_thickness is not None and border_thickness > 0:
+                pygame.draw.circle(surface,
+                                   color=border_color,
+                                   center=nodes_pos[node.id],
+                                   radius=node_radius + border_thickness)
+            # Choosing the node's color:
+            color = (bias_node_color if node.type == NodeGene.Type.BIAS
+                     else node_activated_color if node_activated[node.id]
+                     else node_deactivated_color)
+            # Drawing the node:
+            pygame.draw.circle(surface,
+                               color=color,
+                               center=nodes_pos[node.id],
+                               radius=node_radius)
+        return surface
 
     def visualize(self,
                   layout_name: str = "columns",
@@ -1014,7 +1170,12 @@ class NeatGenome(BaseGenome):
             pos = graphviz_layout(graph, **layout_kwargs)
 
         elif layout_name == "columns":
-            pos = self.columns_graph_layout(*figsize, node_size,
+            plt.xlim(0, figsize[0])
+            plt.ylim(0, figsize[1])
+
+            dpi = plt.gcf().dpi
+            pos = self.columns_graph_layout(*figsize,
+                                            node_size=(node_size ** 0.5) / dpi,
                                             **layout_kwargs)
         else:
             nx_layout_func = getattr(nx, layout_name)

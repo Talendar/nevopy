@@ -1,3 +1,10 @@
+## Release 0.2.0
+
+### Major Features and Improvements
+
+* activations visualization for neat genomes
+
+
 ## Release 0.1.1
 
 ### Bug Fixes and Other Changes

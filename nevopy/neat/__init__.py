@@ -36,6 +36,9 @@ from nevopy.neat.genes import NodeGene
 from nevopy.neat.genomes import FixTopNeatGenome
 from nevopy.neat.genomes import NeatGenome
 
+# ID handler
+from nevopy.neat.id_handler import IdHandler
+
 # Population
 from nevopy.neat.population import NeatPopulation
 
