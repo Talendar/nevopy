@@ -21,8 +21,7 @@
 # SOFTWARE.
 # ==============================================================================
 
-"""
-TODO
+""" Quick test of the :meth:`.NeatGenome.visualize_activations()` method.
 """
 
 from timeit import default_timer as timer
@@ -31,33 +30,44 @@ import nevopy as ne
 import numpy as np
 import pygame
 
+_SCREEN_SIZE = 700, 450
+_NUM_INPUTS = 16
+_NUM_OUTPUTS = 2
+
 
 if __name__ == "__main__":
     id_handler = ne.neat.id_handler.IdHandler(has_bias=True,
-                                              num_inputs=8,
-                                              num_outputs=4)
-    genome = ne.neat.NeatGenome(num_inputs=8,
-                                num_outputs=4,
+                                              num_inputs=_NUM_INPUTS,
+                                              num_outputs=_NUM_OUTPUTS)
+    genome = ne.neat.NeatGenome(num_inputs=_NUM_INPUTS,
+                                num_outputs=_NUM_OUTPUTS,
                                 config=ne.neat.NeatConfig())
-    genome.visualize()
-
-    for _ in range(5):
+    for _ in range(10):
         genome.add_random_hidden_node(id_handler)
-        genome.add_random_connection(id_handler)
+        # genome.add_random_connection(id_handler)
 
     genome.visualize()
 
-    screen_size = 500, 360
+    screen_size = 700, 450
     display = pygame.display.set_mode(screen_size)
     pygame.display.set_caption("Activations Visualization")
     clock = pygame.time.Clock()
 
-    for _ in range(1000):
+    for _ in range(500):
+        genome.mutate_weights()
+        genome.process(np.random.uniform(size=_NUM_INPUTS))
+
         start = timer()
-        surface = genome.visualize_activations(screen_size)
+        surface = genome.visualize_activations(
+            surface_size=screen_size,
+            input_labels=[f"l{d}_" + "i"*d for d in range(_NUM_INPUTS)],
+            output_labels=[f"out{d}" for d in range(_NUM_OUTPUTS)],
+        )
 
         print(f"Time: {1000 * (timer() - start)}ms")
+
         # pylint: disable=protected-access
+        # noinspection PyProtectedMember
         print("Activations:\n"
               f"\t. Input: {[n.activation for n in genome._input_nodes]}\n"
               f"\t. Output: {[n.activation for n in genome._output_nodes]}\n"
@@ -67,5 +77,3 @@ if __name__ == "__main__":
         display.blit(surface, [0, 0])
         pygame.display.update()
         clock.tick(60)
-
-        genome.process(np.random.uniform(size=8))

@@ -58,7 +58,6 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 
 # Necessary for forward-reference type-checking.
 if TYPE_CHECKING:
-    _logger.warning("THIS SHOULDN'T BE PRINTED!")
     import pygame
 
 
@@ -790,8 +789,12 @@ class NeatGenome(BaseGenome):
                              width: float,
                              height: float,
                              node_size: float,
-                             pad_width_pc: float = 0.025,
+                             horizontal_pad_pc: Tuple[float,
+                                                      float] = (.025, .025),
+                             vertical_pad_pc: Tuple[float,
+                                                    float] = (.025, .025),
                              ideal_h_nodes_per_col: int = 4,
+                             consider_bias_node: bool = True,
     ) -> Dict[int, Tuple[float, float]]:
         """ Positions the network's nodes in columns.
 
@@ -804,29 +807,39 @@ class NeatGenome(BaseGenome):
             width (float): Width of the figure / surface.
             height (float): Height of the figure / surface.
             node_size (float): Size of the drawn nodes.
-            pad_width_pc (float): Percentage of the figure's width to be
-                reserved for padding in each of the figure's border.
+            horizontal_pad_pc (Tuple[float, float]): Tuple containing the size
+                of the padding on the left and on the right of the surface.
+                Unit: the width of the surface.
+            vertical_pad_pc (Tuple[float, float]): Tuple containing the size
+                of the padding below and above the surface. Unit: the height of
+                the surface.
             ideal_h_nodes_per_col (int): Preferred number of hidden nodes per
                 column (the algorithm will try to draw columns with this amount
                 of hidden nodes when possible).
+            consider_bias_node (bool): Whether the bias node should be
+                considered or not when calculating the positions.
 
         Returns:
             Dictionary mapping the ID of each node to a tuple containing its
             position in the figure.
         """
-        # padding
-        origin = width * pad_width_pc
-        width, height = width - 2*origin, height - 2*origin
         pos = {}
+
+        # padding
+        origin_x = width * horizontal_pad_pc[0]
+        origin_y = height * vertical_pad_pc[0]
+
+        width = width - (origin_x + horizontal_pad_pc[1] * width)
+        height = height - (origin_y + vertical_pad_pc[1] * height)
 
         # procedure for inserting nodes into columns
         def insert_nodes_col(x, nodes):
             """ Inserts the nodes in a column (specified by x). """
             if len(nodes) == 1:
-                pos[nodes[0].id] = (x, origin + height/2)
+                pos[nodes[0].id] = (x, origin_y + height/2)
                 return
 
-            next_y = origin
+            next_y = origin_y
             space_y = height / len(nodes)
             for n in nodes:
                 pos[n.id] = (x, next_y + space_y/2)
@@ -834,18 +847,19 @@ class NeatGenome(BaseGenome):
 
         # input and bias nodes
         insert_nodes_col(
-            x=origin,
-            nodes=self._input_nodes + ([] if self._bias_node is None
+            x=origin_x,
+            nodes=self._input_nodes + ([] if (self._bias_node is None
+                                              or not consider_bias_node)
                                        else [self._bias_node]),
         )
 
         # output nodes
-        insert_nodes_col(x=origin + width,
+        insert_nodes_col(x=origin_x + width,
                          nodes=self._output_nodes)
 
         # hidden nodes
         if self.hidden_nodes:
-            max_num_h_cols = int((width - 4*node_size) / (2*node_size))
+            max_num_h_cols = int((width - 4 * node_size) / (2 * node_size))
             h_nodes_per_col = ideal_h_nodes_per_col
             num_cols = max(1, np.ceil(len(self.hidden_nodes) / h_nodes_per_col))
             while num_cols > max_num_h_cols:
@@ -855,11 +869,11 @@ class NeatGenome(BaseGenome):
             if num_cols == 1:
                 insert_nodes_col(x=width / 2, nodes=self.hidden_nodes)
             else:
-                next_x = origin + 2*node_size
-                space_x = (width - 4*node_size) / num_cols
+                next_x = origin_x + 2 * node_size
+                space_x = (width - 4 * node_size) / num_cols
                 h_nodes = np.array(self.hidden_nodes)
                 for node_list in np.array_split(h_nodes, num_cols):
-                    insert_nodes_col(x=next_x + space_x/2,
+                    insert_nodes_col(x=next_x + space_x / 2,
                                      nodes=node_list)
                     next_x += space_x
 
@@ -871,15 +885,11 @@ class NeatGenome(BaseGenome):
                                  input_activation_threshold: Union[float,
                                                                    List[float]],
     ) -> Dict[int, bool]:
-        """ TODO
-
-        Args:
-            hidden_activation_threshold:
-            input_activation_threshold:
-            output_activation_threshold:
+        """ Check each of the network's nodes activation status.
 
         Returns:
-
+            A :class:`dict` mapping each node's ID to a :class:`bool` (``True``
+            if the node is activated and ``False`` otherwise).
         """
         status = {}  # type: Dict[int, bool]
         max_out_node = max(self._output_nodes, key=lambda n: n.activation)
@@ -911,58 +921,128 @@ class NeatGenome(BaseGenome):
 
         return status
 
+    # noinspection PyUnboundLocalVariable
     def visualize_activations(self,
-                              surface_size: Tuple[int, int] = (500, 360),
+                              # Sizes
+                              surface_size: Tuple[int, int] = (700, 450),
                               node_radius: float = 12,
+                              # Nodes colors
                               node_deactivated_color: Union[
                                   str, Tuple[int, int, int]] = "darkgrey",
                               node_activated_color: Union[
                                   str, Tuple[int, int, int]] = "red",
                               bias_node_color: Union[
                                   str, Tuple[int, int, int]] = "yellow",
+                              node_border_color: Union[
+                                  str, Tuple[int, int, int]] = "black",
+                              # Edges colors
                               edge_activated_color: Union[
                                   str, Tuple[int, int, int]] = "red",
                               edge_deactivated_color: Union[
                                   str, Tuple[int, int, int]] = "grey",
-                              background_color: Union[
-                                  str, Tuple[int, int, int]] = "lightgrey",
-                              border_thickness: Optional[float] = 2,
-                              border_color: Union[
-                                  str, Tuple[int, int, int]] = "black",
-                              pad_width_pc: float = 0.05,
+                              # Padding
+                              horizontal_pad_pc: Tuple[float,
+                                                       float] = (.03, .03),
+                              vertical_pad_pc: Tuple[float,
+                                                     float] = (.03, .03),
+                              # Activation threshold
                               hidden_activation_threshold: float = 0.5,
                               input_activation_threshold: Union[
                                   float, List[float]] = 0.5,
                               output_activation_threshold: float = 0.5,
+                              # Labels
+                              input_labels: Optional[List[str]] = None,
+                              output_labels: Optional[List[str]] = None,
+                              labels_config: Dict[str, Any] = None,
+                              # Others
                               ideal_h_nodes_per_col: int = 4,
-    ) -> "pygame.Surface":
-        """ TODO
+                              background_color: Union[
+                                  str, Tuple[int, int, int]] = "lightgrey",
+                              node_border_thickness: Optional[float] = 2,
+                              edge_width: int = 2,
+                              draw_bias_node: bool = False,
+    ) -> "pygame.surface.Surface":
+        """ Draws the network taking into consideration each node's activation.
+
+        Activated nodes and edges are drawn with different colors. This method
+        requires :mod:`pygame`.
 
         Args:
-            surface_size:
-            node_radius:
-            node_deactivated_color:
-            node_activated_color:
-            bias_node_color:
-            edge_activated_color:
-            edge_deactivated_color:
-            background_color:
-            border_thickness:
-            border_color:
-            pad_width_pc:
-            hidden_activation_threshold:
-            input_activation_threshold:
-            output_activation_threshold:
-            ideal_h_nodes_per_col:
+            surface_size (Tuple[int, int]): Width and height of the pygame
+                surface to be drawn.
+            node_radius (float): Radius (size) of the nodes.
+            node_deactivated_color (Union[str, Tuple[int, int, int]]): Color of
+                deactivated nodes.
+            node_activated_color (Union[str, Tuple[int, int, int]]): Color of
+                activated nodes.
+            bias_node_color (Union[str, Tuple[int, int, int]]): Color of the
+                bias node.
+            node_border_color (Union[str, Tuple[int, int, int]]): Color of the
+                nodes' borders.
+            edge_activated_color (Union[str, Tuple[int, int, int]]): Color of
+                activated edges.
+            edge_deactivated_color (Union[str, Tuple[int, int, int]]): Color of
+                deactivated edges.
+            horizontal_pad_pc (Tuple[float, float]): Tuple containing the size
+                of the padding on the left and on the right of the surface.
+                Unit: the width of the surface.
+            vertical_pad_pc (Tuple[float, float]): Tuple containing the size
+                of the padding below and above the surface. Unit: the height of
+                the surface.
+            hidden_activation_threshold (float): Activation threshold for hidden
+                nodes. If the activation value of a hidden node is greater than
+                this threshold, the node is considered to be activated.
+            input_activation_threshold (Union[float, List[float]]): Activation
+                threshold(s) for input nodes. If the argument passed to this
+                parameter is a `float`, the same threshold will be considered
+                for all the input nodes. If it's a list, each input node will
+                have its own activation threshold. If the activation value of an
+                input node is greater than the threshold, the node is considered
+                to be activated.
+            output_activation_threshold (float): Activation threshold for output
+                nodes. This value is only used when the network has only one
+                output node. When there are many output nodes, the activated
+                node is always the one with the greatest activation value.
+            input_labels (Optional[List[str]]): Labels for the input nodes.
+            output_labels (Optional[List[str]]): Labels for the output nodes.
+            labels_config (Dict[str, Any]): Keyword arguments to be passed to
+                the :meth:`pygame.Font.render()` method.
+            ideal_h_nodes_per_col (int): Preferred number of hidden nodes per
+                column (the algorithm will try to draw columns with this amount
+                of hidden nodes whenever possible).
+            background_color (Union[str, Tuple[int, int, int]]): The background
+                color of the surface.
+            node_border_thickness (Optional[float]): Thickness of the nodes'
+                borders. If ``None`` or `0`, no border will be drawn.
+            edge_width (int): The width/thickness of the drawn edges.
+            draw_bias_node (bool): Whether to draw the network's bias node or
+                not.
 
         Returns:
+            An instance of :class:`pygame.Surface` with the drawings. You can
+            display it using :mod:`pygame`:
 
+                .. code:: python
+
+                    screen_size = 700, 450
+                    display = pygame.display.set_mode(screen_size)
+                    # ...
+                    s = genome.visualize_activations(surface_size=screen_size)
+                    display.blit(s, [0, 0])
+                    pygame.display.update()
+
+            Alternatively, you can convert the surface to an image or to a
+            :class:`numpy.ndarray`. Please refer to :mod:`pygame`'s docs for
+            more information.
+
+        Raises:
+            ModuleNotFoundError: If :mod:`pygame` is not found.
         """
-        # TODO: labels on input and output nodes
-
         # Importing pygame:
         try:
             import pygame  # pylint: disable=import-outside-toplevel
+            if not pygame.font.get_init():
+                pygame.font.init()
         except ModuleNotFoundError as e:
             raise ModuleNotFoundError(
                 "Couldn't find 'pygame'! To use this method, make sure you've "
@@ -973,6 +1053,38 @@ class NeatGenome(BaseGenome):
         # Creating surface:
         surface = pygame.Surface(surface_size)
         surface.fill(background_color)
+
+        # Font (for rendering the labels):
+        if input_labels is not None or output_labels is not None:
+            if labels_config is None:
+                labels_config = dict(name="monospace", size=15,
+                                     bold=True, italic=False)
+            font = pygame.font.SysFont(**labels_config)
+
+        # New variable for the horizontal padding:
+        # (required for placing the labels)
+        h_pad = list(horizontal_pad_pc)
+
+        # Rendering input labels:
+        if input_labels is not None:
+            rendered_in_labels = []  # type: List[pygame.surface.Surface]
+            for label_txt, node in zip(input_labels, self._input_nodes):
+                rendered_in_labels.append(
+                    font.render(f"{label_txt}: {node.activation:.2f}  -->   ",
+                                True, (0, 0, 0))
+                )
+            max_width = max(rendered_in_labels,
+                            key=lambda s: s.get_size()[0]).get_size()[0]
+            h_pad[0] = (max_width + h_pad[0]*surface_size[0]) / surface_size[0]
+
+        # Rendering output labels:
+        if output_labels is not None:
+            rendered_out_labels = [font.render(" " * 4 + label_txt,
+                                               True, (0, 0, 0))
+                                   for label_txt in output_labels]
+            max_width = max(rendered_out_labels,
+                            key=lambda s: s.get_size()[0]).get_size()[0]
+            h_pad[1] = (max_width + h_pad[1]*surface_size[1]) / surface_size[1]
 
         # Checking the activation status of the nodes:
         node_activated = self._nodes_activation_status(
@@ -986,14 +1098,31 @@ class NeatGenome(BaseGenome):
             width=surface_size[0],
             height=surface_size[1],
             node_size=node_radius,
-            pad_width_pc=pad_width_pc,
-            ideal_h_nodes_per_col=ideal_h_nodes_per_col
+            horizontal_pad_pc=h_pad,  # type: ignore
+            vertical_pad_pc=vertical_pad_pc,
+            ideal_h_nodes_per_col=ideal_h_nodes_per_col,
+            consider_bias_node=draw_bias_node,
         )
+
+        # Drawing input labels
+        if input_labels is not None:
+            for label, node in zip(rendered_in_labels, self._input_nodes):
+                x, y = nodes_pos[node.id]
+                w, h = label.get_size()
+                surface.blit(label, dest=(x - w, y - h / 2))
+
+        # Drawing input labels
+        if output_labels is not None:
+            for label, node in zip(rendered_out_labels, self._output_nodes):
+                x, y = nodes_pos[node.id]
+                h = label.get_size()[1]
+                surface.blit(label, dest=(x, y - h / 2))
 
         # Drawing edges:
         # (must be drawn before the nodes)
         for c in self.connections:
-            if not c.enabled:
+            if not c.enabled or (c.from_node.type == NodeGene.Type.BIAS
+                                 and not draw_bias_node):
                 continue
 
             color = (edge_activated_color
@@ -1003,16 +1132,20 @@ class NeatGenome(BaseGenome):
             pygame.draw.line(surface,
                              color=color,
                              start_pos=nodes_pos[c.from_node.id],
-                             end_pos=nodes_pos[c.to_node.id])
+                             end_pos=nodes_pos[c.to_node.id],
+                             width=edge_width)
 
         # Drawing nodes:
         for node in self.nodes():
+            if node.type == NodeGene.Type.BIAS and not draw_bias_node:
+                continue
+
             # Border:
-            if border_thickness is not None and border_thickness > 0:
+            if node_border_thickness is not None and node_border_thickness > 0:
                 pygame.draw.circle(surface,
-                                   color=border_color,
+                                   color=node_border_color,
                                    center=nodes_pos[node.id],
-                                   radius=node_radius + border_thickness)
+                                   radius=node_radius + node_border_thickness)
             # Choosing the node's color:
             color = (bias_node_color if node.type == NodeGene.Type.BIAS
                      else node_activated_color if node_activated[node.id]
@@ -1046,7 +1179,7 @@ class NeatGenome(BaseGenome):
                   output_color: str = "mediumseagreen",
                   hidden_color: str = "silver",
                   bias_color: str = "khaki",
-                  **kwargs,  # pylint: disable=unused-argument
+                  **kwargs,
     ) -> None:
         """ Plots the neural network (phenotype) encoded by the genome.
 
