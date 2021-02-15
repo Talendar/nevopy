@@ -61,13 +61,13 @@ overview on *NEvoPy*. The project's documentation is available on
   &nbsp;&nbsp;&nbsp;
   <a href="https://github.com/Talendar/nevopy/blob/master/examples/lunar_lander/lunar_lander_neat.py">
     <img align="center" 
-       src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/lunar_lander.gif?raw=true" 
+       src="https://raw.githubusercontent.com/Talendar/nevopy/master/docs/imgs/lunar_lander.gif" 
        height="250"/>
   </a> 
   &nbsp;&nbsp;&nbsp;
   <a href="https://github.com/Talendar/nevopy/blob/master/examples/cart_pole/cart_pole_neat.py">
     <img align="center" 
-       src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/cart_pole.gif?raw=true" 
+       src="https://raw.githubusercontent.com/Talendar/nevopy/master/docs/imgs/cart_pole.gif" 
        height="250"/>
   </a> 
 </p>
