@@ -55,7 +55,7 @@ overview on *NEvoPy*. The project's documentation is available on
 <p>
   <a href="https://github.com/Talendar/nevopy/blob/master/examples/flappy_bird/flappy_bird_simple_neat.py">
     <img align="center" 
-       src="https://github.com/Talendar/nevopy/blob/r0.1.0/docs/imgs/flappy_bird.gif?raw=true" 
+       src="https://raw.githubusercontent.com/Talendar/nevopy/master/docs/imgs/flappy_bird.gif" 
        height="250"/>
   </a>
   &nbsp;&nbsp;&nbsp;
