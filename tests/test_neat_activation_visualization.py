@@ -48,8 +48,7 @@ if __name__ == "__main__":
 
     genome.visualize()
 
-    screen_size = 700, 450
-    display = pygame.display.set_mode(screen_size)
+    display = pygame.display.set_mode(_SCREEN_SIZE)
     pygame.display.set_caption("Activations Visualization")
     clock = pygame.time.Clock()
 
@@ -59,7 +58,7 @@ if __name__ == "__main__":
 
         start = timer()
         surface = genome.visualize_activations(
-            surface_size=screen_size,
+            surface_size=_SCREEN_SIZE,
             input_labels=[f"l{d}_" + "i"*d for d in range(_NUM_INPUTS)],
             output_labels=[f"out{d}" for d in range(_NUM_OUTPUTS)],
         )
@@ -76,4 +75,4 @@ if __name__ == "__main__":
 
         display.blit(surface, [0, 0])
         pygame.display.update()
-        clock.tick(60)
+        clock.tick(10)

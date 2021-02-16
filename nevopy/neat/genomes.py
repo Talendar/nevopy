@@ -928,18 +928,21 @@ class NeatGenome(BaseGenome):
                               node_radius: float = 12,
                               # Nodes colors
                               node_deactivated_color: Union[
-                                  str, Tuple[int, int, int]] = "darkgrey",
+                                  str, Tuple[int, int, int]] = (190, 190, 190),
                               node_activated_color: Union[
-                                  str, Tuple[int, int, int]] = "red",
+                                  str, Tuple[int, int, int]] = (2, 68, 144),
                               bias_node_color: Union[
                                   str, Tuple[int, int, int]] = "yellow",
                               node_border_color: Union[
                                   str, Tuple[int, int, int]] = "black",
                               # Edges colors
                               edge_activated_color: Union[
-                                  str, Tuple[int, int, int]] = "red",
+                                  str, Tuple[int, int, int]] = (0, 120, 233),
                               edge_deactivated_color: Union[
-                                  str, Tuple[int, int, int]] = "grey",
+                                  str, Tuple[int, int, int]] = (100, 100, 100),
+                              # Edges width
+                              activated_edge_width: int = 2,
+                              deactivated_edge_width: int = 1,
                               # Padding
                               horizontal_pad_pc: Tuple[float,
                                                        float] = (.03, .03),
@@ -953,13 +956,19 @@ class NeatGenome(BaseGenome):
                               # Labels
                               input_labels: Optional[List[str]] = None,
                               output_labels: Optional[List[str]] = None,
+                              labels_color: Union[
+                                    str, Tuple[int, int, int]] = "white",
                               labels_config: Dict[str, Any] = None,
+                              # Light
+                              show_activation_light: bool = True,
+                              activation_light_color: Optional[Union[
+                                  str, Tuple[int, int, int]]] = (104, 179, 235),
+                              activation_light_radius_pc: float = 2,
                               # Others
                               ideal_h_nodes_per_col: int = 4,
                               background_color: Union[
-                                  str, Tuple[int, int, int]] = "lightgrey",
+                                  str, Tuple[int, int, int]] = "black",
                               node_border_thickness: Optional[float] = 2,
-                              edge_width: int = 2,
                               draw_bias_node: bool = False,
     ) -> "pygame.surface.Surface":
         """ Draws the network taking into consideration each node's activation.
@@ -1005,8 +1014,16 @@ class NeatGenome(BaseGenome):
                 node is always the one with the greatest activation value.
             input_labels (Optional[List[str]]): Labels for the input nodes.
             output_labels (Optional[List[str]]): Labels for the output nodes.
+            labels_color (Union[str, Tuple[int, int, int]]): Color of the
+                labels.
             labels_config (Dict[str, Any]): Keyword arguments to be passed to
-                the :meth:`pygame.Font.render()` method.
+                the :meth:`pygame.SysFont` constructor.
+            show_activation_light (bool): Whether or not to show a "light ring"
+                around activated nodes.
+            activation_light_color (Optional[Union[str, Tuple[int, int, int]]]):
+                The color of the light ring to be shown around activated nodes.
+            activation_light_radius_pc (float): Radius of the light ring to be
+                drawn around activated nodes. Unit: the node's radius.
             ideal_h_nodes_per_col (int): Preferred number of hidden nodes per
                 column (the algorithm will try to draw columns with this amount
                 of hidden nodes whenever possible).
@@ -1014,7 +1031,9 @@ class NeatGenome(BaseGenome):
                 color of the surface.
             node_border_thickness (Optional[float]): Thickness of the nodes'
                 borders. If ``None`` or `0`, no border will be drawn.
-            edge_width (int): The width/thickness of the drawn edges.
+            activated_edge_width (int): The width/thickness of activated edges.
+            deactivated_edge_width (int): The width/thickness of deactivated
+                edges.
             draw_bias_node (bool): Whether to draw the network's bias node or
                 not.
 
@@ -1071,7 +1090,7 @@ class NeatGenome(BaseGenome):
             for label_txt, node in zip(input_labels, self._input_nodes):
                 rendered_in_labels.append(
                     font.render(f"{label_txt}: {node.activation:.2f}  -->   ",
-                                True, (0, 0, 0))
+                                True, labels_color)  # type: ignore
                 )
             max_width = max(rendered_in_labels,
                             key=lambda s: s.get_size()[0]).get_size()[0]
@@ -1079,8 +1098,8 @@ class NeatGenome(BaseGenome):
 
         # Rendering output labels:
         if output_labels is not None:
-            rendered_out_labels = [font.render(" " * 4 + label_txt,
-                                               True, (0, 0, 0))
+            rendered_out_labels = [font.render(" " * 4 + label_txt, True,
+                                               labels_color)  # type: ignore
                                    for label_txt in output_labels]
             max_width = max(rendered_out_labels,
                             key=lambda s: s.get_size()[0]).get_size()[0]
@@ -1125,12 +1144,15 @@ class NeatGenome(BaseGenome):
                                  and not draw_bias_node):
                 continue
 
-            color = (edge_activated_color
-                     if node_activated[c.from_node.id] and c.weight > 0
-                     else edge_deactivated_color)
+            if node_activated[c.from_node.id] and c.weight > 0:
+                edge_color = edge_activated_color
+                edge_width = activated_edge_width
+            else:
+                edge_color = edge_deactivated_color
+                edge_width = deactivated_edge_width
 
             pygame.draw.line(surface,
-                             color=color,
+                             color=edge_color,
                              start_pos=nodes_pos[c.from_node.id],
                              end_pos=nodes_pos[c.to_node.id],
                              width=edge_width)
@@ -1155,6 +1177,43 @@ class NeatGenome(BaseGenome):
                                color=color,
                                center=nodes_pos[node.id],
                                radius=node_radius)
+
+        # Drawing activation lights
+        if show_activation_light:
+            for node in self.nodes():
+                if node_activated[node.id]:
+                    # Making surface:
+                    light_radius = node_radius * activation_light_radius_pc
+                    light_surface = pygame.Surface(size=(2 * light_radius,
+                                                         2 * light_radius),
+                                                   flags=pygame.SRCALPHA)
+
+                    # Drawing the circle:
+                    pygame.draw.circle(light_surface,
+                                       color=(node_activated_color
+                                              if activation_light_color is None
+                                              else activation_light_color),
+                                       center=(light_radius, light_radius),
+                                       radius=light_radius)
+
+                    # Adding alpha gradient to the circle:
+                    light_array = pygame.surfarray.pixels_alpha(light_surface)
+
+                    y = np.linspace(-1, 1, light_array.shape[1])[None, :] * 255
+                    x = np.linspace(-1, 1, light_array.shape[0])[:, None] * 255
+
+                    alpha = np.sqrt(x ** 2 + y ** 2)
+                    alpha = 255 - np.clip(0, 255, alpha)
+                    light_array[:] = alpha[:]
+
+                    del light_array
+                    light_surface.unlock()
+
+                    # Drawing the generated surface on the main surface:
+                    surface.blit(source=light_surface,
+                                 dest=(nodes_pos[node.id][0] - light_radius,
+                                       nodes_pos[node.id][1] - light_radius))
+
         return surface
 
     def visualize(self,
@@ -1179,7 +1238,7 @@ class NeatGenome(BaseGenome):
                   output_color: str = "mediumseagreen",
                   hidden_color: str = "silver",
                   bias_color: str = "khaki",
-                  **kwargs,
+                  **kwargs,  # pylint: disable=unused-argument
     ) -> None:
         """ Plots the neural network (phenotype) encoded by the genome.
 
