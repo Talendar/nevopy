@@ -29,7 +29,7 @@ import pickle
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import (Any, Callable, Iterable, List, Optional, Set, TypeVar,
-                    Sequence, Tuple)
+                    Sequence, Tuple, Generic)
 
 import click
 import numpy as np
@@ -44,6 +44,14 @@ class Comparable(metaclass=ABCMeta):
     @abstractmethod
     def __lt__(self, other: Any) -> bool:
         pass
+
+
+class MutableWrapper(Generic[_T]):
+    """ Simple class for wrapping immutable objects so they can be passed by
+    reference to a callable.
+    """
+    def __init__(self, value: _T) -> None:
+        self.value = value
 
 
 def chance(p: float) -> bool:
