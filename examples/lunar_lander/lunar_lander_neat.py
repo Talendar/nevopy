@@ -19,10 +19,15 @@ def make_env():
 if __name__ == "__main__":
     # NEvoPy provides a general fitness function that works with most gym
     # environments, so we don't have to worry about implementing it. The
-    # parameter "num_episodes" below is the number of "tries" the agent will
-    # have in each playing session.
-    fitness_function = ne.utils.GymEnvFitness(make_env=make_env,
-                                              num_episodes=7)
+    # parameter "default_num_episodes" below is the number of "tries" the agent
+    # will have in each playing session.
+    fitness_function = ne.utils.GymFitnessFunction(
+        make_env=make_env,
+        default_num_episodes=7,
+        env_renderer=ne.utils.NeatActivationsGymRenderer(
+            horizontal_pad_pc=(0.015, 0.07)
+        ),
+    )
 
     # Creating a new population of NEAT genomes:
     # (we're going to use the default settings)
@@ -39,7 +44,7 @@ if __name__ == "__main__":
     )
 
     # Evolving the population (this might take some minutes):
-    history = population.evolve(generations=50,
+    history = population.evolve(generations=2,
                                 fitness_function=fitness_function,
                                 callbacks=[early_stopping_cb])
 
@@ -55,8 +60,8 @@ if __name__ == "__main__":
     # Now, let's compare the performance of our best genome with the performance
     # of a random agent.
     print("\nEvaluation (25 episodes):")
-    print(f". Random genome score: {fitness_function(None, eps=25)}")
-    print(f". Evolved genome: {fitness_function(best_genome, eps=25)}")
+    print(f". Random genome score: {fitness_function(None, num_eps=25)}")
+    print(f". Evolved genome: {fitness_function(best_genome, num_eps=25)}")
 
     # Visualizing our best genome and a random agent playing:
     while True:
@@ -67,10 +72,10 @@ if __name__ == "__main__":
                         "Choose an option: "))
         if key == 0:
             print(f"\nRandom genome: "
-                  f"{fitness_function(None, eps=1, visualize=True)}")
+                  f"{fitness_function(None, num_eps=1, visualize=True)}")
         elif key == 1:
             print(f"\nEvolved genome: "
-                  f"{fitness_function(best_genome, eps=1, visualize=True)}")
+                  f"{fitness_function(best_genome, num_eps=1, visualize=True)}")
         elif key == 2:
             break
         else:
