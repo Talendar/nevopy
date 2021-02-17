@@ -790,9 +790,9 @@ class NeatGenome(BaseGenome):
                              height: float,
                              node_size: float,
                              horizontal_pad_pc: Tuple[float,
-                                                      float] = (.025, .025),
+                                                      float] = (.03, .03),
                              vertical_pad_pc: Tuple[float,
-                                                    float] = (.025, .025),
+                                                    float] = (.03, .03),
                              ideal_h_nodes_per_col: int = 4,
                              consider_bias_node: bool = True,
     ) -> Dict[int, Tuple[float, float]]:
@@ -826,11 +826,11 @@ class NeatGenome(BaseGenome):
         pos = {}
 
         # padding
-        origin_x = width * horizontal_pad_pc[0]
-        origin_y = height * vertical_pad_pc[0]
+        origin_x = width * horizontal_pad_pc[0] + node_size / 2
+        origin_y = height * vertical_pad_pc[0] + node_size / 2
 
-        width = width - (origin_x + horizontal_pad_pc[1] * width)
-        height = height - (origin_y + vertical_pad_pc[1] * height)
+        width = width - origin_x - horizontal_pad_pc[1] * width - node_size / 2
+        height = height - origin_y - vertical_pad_pc[1] * height - node_size / 2
 
         # procedure for inserting nodes into columns
         def insert_nodes_col(x, nodes):
@@ -945,9 +945,9 @@ class NeatGenome(BaseGenome):
                               deactivated_edge_width: int = 1,
                               # Padding
                               horizontal_pad_pc: Tuple[float,
-                                                       float] = (.03, .03),
+                                                       float] = (.015, .015),
                               vertical_pad_pc: Tuple[float,
-                                                     float] = (.03, .03),
+                                                     float] = (.015, .015),
                               # Activation threshold
                               hidden_activation_threshold: float = 0.5,
                               input_activation_threshold: Union[
@@ -970,7 +970,8 @@ class NeatGenome(BaseGenome):
                                   str, Tuple[int, int, int]] = "black",
                               node_border_thickness: Optional[float] = 2,
                               draw_bias_node: bool = False,
-    ) -> "pygame.surface.Surface":
+                              return_rgb_array: bool = False,
+    ) -> Union["pygame.surface.Surface", np.ndarray]:
         """ Draws the network taking into consideration each node's activation.
 
         Activated nodes and edges are drawn with different colors. This method
@@ -1036,9 +1037,12 @@ class NeatGenome(BaseGenome):
                 edges.
             draw_bias_node (bool): Whether to draw the network's bias node or
                 not.
+            return_rgb_array (bool): If ``True``, returns a numpy array with the
+                generated image instead of a pygame surface.
 
         Returns:
-            An instance of :class:`pygame.Surface` with the drawings. You can
+            If ``return_rgb_array`` is ``False``, an instance of
+            :class:`pygame.Surface` with the drawings is returned. You can
             display it using :mod:`pygame`:
 
                 .. code:: python
@@ -1050,9 +1054,8 @@ class NeatGenome(BaseGenome):
                     display.blit(s, [0, 0])
                     pygame.display.update()
 
-            Alternatively, you can convert the surface to an image or to a
-            :class:`numpy.ndarray`. Please refer to :mod:`pygame`'s docs for
-            more information.
+            If ``return_rgb_array`` is ``True``, a numpy array with the
+            generated image is returned instead.
 
         Raises:
             ModuleNotFoundError: If :mod:`pygame` is not found.
@@ -1116,7 +1119,7 @@ class NeatGenome(BaseGenome):
         nodes_pos = self.columns_graph_layout(
             width=surface_size[0],
             height=surface_size[1],
-            node_size=node_radius,
+            node_size=2 * node_radius,
             horizontal_pad_pc=h_pad,  # type: ignore
             vertical_pad_pc=vertical_pad_pc,
             ideal_h_nodes_per_col=ideal_h_nodes_per_col,
@@ -1214,7 +1217,8 @@ class NeatGenome(BaseGenome):
                                  dest=(nodes_pos[node.id][0] - light_radius,
                                        nodes_pos[node.id][1] - light_radius))
 
-        return surface
+        return (surface if not return_rgb_array
+                else pygame.surfarray.array3d(surface))
 
     def visualize(self,
                   layout_name: str = "columns",
