@@ -3,6 +3,12 @@
 ### Major Features and Improvements
 
 * activations visualization for neat genomes
+* gym utils
+
+### Breaking Changes
+* gym utils
+* removed fixtop pop and config
+* removed mario example
 
 
 ## Release 0.1.1
