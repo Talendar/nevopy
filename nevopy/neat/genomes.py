@@ -925,7 +925,7 @@ class NeatGenome(BaseGenome):
     def visualize_activations(self,
                               # Sizes
                               surface_size: Tuple[int, int] = (700, 450),
-                              node_radius: float = 12,
+                              node_radius: float = 14,
                               # Nodes colors
                               node_deactivated_color: Union[
                                   str, Tuple[int, int, int]] = (190, 190, 190),
