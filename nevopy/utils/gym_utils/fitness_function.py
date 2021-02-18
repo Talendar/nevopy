@@ -252,9 +252,9 @@ class GymFitnessFunction:
         for cb in callbacks:
             cb.on_env_close()
 
-        # Closing the renderer:
+        # Flushing the renderer's buffers:
         if visualize:
-            self.env_renderer.close()
+            self.env_renderer.flush()
 
         # Closing the environment:
         env.close()

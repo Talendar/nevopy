@@ -25,7 +25,7 @@ if __name__ == "__main__":
         make_env=make_env,
         default_num_episodes=7,
         env_renderer=ne.utils.NeatActivationsGymRenderer(
-            horizontal_pad_pc=(0.015, 0.07)
+            fps=30,
         ),
     )
 

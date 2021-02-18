@@ -26,7 +26,10 @@
 :class:`.GymFitnessFunction`.
 """
 
+import os
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -65,13 +68,8 @@ class GymRenderer:
         env.render(mode="human")
         time.sleep(1 / self.fps)
 
-    def close(self):
-        """
-        TODO
-
-        Returns:
-
-        """
+    def flush(self) -> None:
+        """ Flushes the internal buffers of the renderer. """
 
 
 class NeatActivationsGymRenderer(GymRenderer):
@@ -79,19 +77,17 @@ class NeatActivationsGymRenderer(GymRenderer):
     TODO
     """
 
-    # TODO: Option to save the two images separately
-    # TODO: specify image size (use skimage to rescale)
-
     def __init__(self,
-                 out_file_name: str = "./gym_video.avi",
+                 out_path: str = "./gym_videos",
                  fps: int = 45,
-                 activations_surface_width=400,
                  **kwargs):
         super().__init__(fps=fps)
-        self.activations_surface_width = activations_surface_width
+
+        self._out_path = out_path
         self.kwargs = kwargs
-        self._out_file_name = out_file_name
-        self._out_imgs = []
+
+        self._env_imgs = []
+        self._activations_imgs = []
 
     def render(self,
                env: "gym.Env",
@@ -99,6 +95,10 @@ class NeatActivationsGymRenderer(GymRenderer):
         """
         TODO
         """
+        # Random agents:
+        if genome is None:
+            return super().render(env=env, genome=genome)
+
         # Checking if genome is a NeatGenome:
         if not isinstance(genome, ne.neat.NeatGenome):
             raise ValueError("Currently, this renderer is only compatible with "
@@ -107,26 +107,23 @@ class NeatActivationsGymRenderer(GymRenderer):
         # Getting images
         env_img = env.render("rgb_array")
         activations_img = genome.visualize_activations(
-            surface_size=(self.activations_surface_width, env_img.shape[0]),
             return_rgb_array=True,
             **self.kwargs,
         )
         activations_img = np.rot90(activations_img)
 
-        # Concatenating images and saving the result:
-        img = np.concatenate([activations_img, env_img], axis=1)
-        self._out_imgs.append(img.astype(np.uint8))
+        # Saving images:
+        self._env_imgs.append(env_img.astype(np.uint8))
+        self._activations_imgs.append(activations_img.astype(np.uint8))
 
-        print(env_img.shape, activations_img.shape, img.shape)
-
-    def close(self):
+    def flush(self) -> None:
         """
         TODO
 
         Returns:
 
         """
-        if len(self._out_imgs) > 0:
+        if len(self._activations_imgs) > 0:
             # Importing scikit-video:
             try:
                 import skvideo.io  # pylint: disable=import-outside-toplevel
@@ -137,12 +134,30 @@ class NeatActivationsGymRenderer(GymRenderer):
                     "'scikit-video' using pip:\n\t$ pip install sk-video"
                 ) from e
 
-            # Making and saving video:
-            skvideo.io.vwrite(fname=self._out_file_name,
-                              videodata=self._out_imgs,
+            print("Generating video(s)... this might take a while.")
+            Path(self._out_path).mkdir(parents=True, exist_ok=True)
+
+            # Current date and time for file names:
+            time_now = datetime.today().strftime("%Y%m%d%H%M%S")
+
+            # Activations video:
+            act_fn = os.path.join(self._out_path,
+                                  f"gym_video_{time_now}_activations.avi")
+            skvideo.io.vwrite(fname=act_fn,
+                              videodata=self._activations_imgs,
                               inputdict={"-r": str(self.fps)},
                               outputdict={"-r": str(self.fps)})
-            print(f"Gym video saved to: {self._out_file_name}")
+            print(f"Gym activations video saved to: {act_fn}")
+
+            # Env video:
+            env_fn = os.path.join(self._out_path,
+                                  f"gym_video_{time_now}_env.avi")
+            skvideo.io.vwrite(fname=env_fn,
+                              videodata=self._env_imgs,
+                              inputdict={"-r": str(self.fps)},
+                              outputdict={"-r": str(self.fps)})
+            print(f"Gym environment video saved to: {env_fn}")
 
             # Discarding cached images:
-            self._out_imgs = []
+            self._env_imgs = []
+            self._activations_imgs = []
