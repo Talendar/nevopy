@@ -44,3 +44,7 @@ from nevopy.neat.population import NeatPopulation
 
 # Species
 from nevopy.neat.species import NeatSpecies
+
+# Visualization
+from nevopy.neat.visualization import visualize_activations
+from nevopy.neat.visualization import visualize_genome
