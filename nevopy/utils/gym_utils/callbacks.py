@@ -25,13 +25,12 @@
 :class:`.GymFitnessFunction`.
 """
 
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional
 
+import gym  # pylint: disable=unused-import
 import numpy as np
 
-if TYPE_CHECKING:
-    import gym
-    import nevopy as ne
+import nevopy as ne  # pylint: disable=unused-import
 
 
 class GymCallback:
@@ -59,8 +58,8 @@ class GymCallback:
         Args:
             env (gym.Env): The :mod:`gym` environment that's going to be used by
                 the fitness function.
-            genome (ne.BaseGenome): The genome currently being evaluated by the
-                fitness function.
+            genome (nevopy.BaseGenome): The genome currently being evaluated by
+                the fitness function.
         """
         self._env = env
         self._genome = genome
@@ -111,8 +110,8 @@ class GymCallback:
         Subclasses should override this method for any actions to run.
 
         Args:
-            wrapped_obs (ne.utils.MutableWrapper[Any]): Mutable wrapper around
-                the observation yielded by the gym environment.
+            wrapped_obs (nevopy.utils.MutableWrapper[Any]): Mutable wrapper
+                around he observation yielded by the gym environment.
         """
 
     def on_action_chosen(self,
@@ -126,7 +125,7 @@ class GymCallback:
         Subclasses should override this method for any actions to run.
 
         Args:
-            wrapped_action (ne.utils.MutableWrapper[Any]): Mutable wrapper
+            wrapped_action (nevopy.utils.MutableWrapper[Any]): Mutable wrapper
                 around the action chosen by the genome.
         """
 
@@ -149,8 +148,9 @@ class GymCallback:
             done (bool): Whether or not the episode has finished.
             info (Dict[str, Any]): Extra information yielded by the environment.
             total_reward (float): Total reward obtained by the genome so far.
-            force_stop_eps (ne.utils.MutableWrapper[bool]): Setting the value on
-                this wrapper to `True` will forcefully stop the current episode.
+            force_stop_eps (nevopy.utils.MutableWrapper[bool]): Setting the
+                value on this wrapper to `True` will forcefully stop the current
+                episode.
         """
 
     def on_env_close(self) -> None:

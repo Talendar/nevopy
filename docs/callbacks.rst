@@ -11,7 +11,7 @@ genomes during the neuroevolutionary process. Examples include
 :class:`.FitnessEarlyStopping` to stop the evolution when a certain fitness has
 been achieved by the population, or :class:`.BestGenomeCheckpoint` to
 periodically save the best genome of a population during evolution. For a list
-with all the pre-implemented callbacks, take a look at :mod:`.callbacks`.
+with all the pre-implemented callbacks, take a look at :mod:`nevopy.callbacks`.
 
 In this quick guide you'll learn what a `NEvoPy` callback is, what it can do,
 and how you can build your own.

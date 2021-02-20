@@ -52,6 +52,14 @@ nevopy.neat.species module
    :undoc-members:
    :show-inheritance:
 
+nevopy.neat.visualization module
+--------------------------------
+
+.. automodule:: nevopy.neat.visualization
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

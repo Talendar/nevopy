@@ -25,8 +25,7 @@
 algorithm.
 """
 
-from numbers import Number
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, cast, Dict, List, Optional, Tuple, Union
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -196,9 +195,9 @@ def visualize_genome(genome: "ne.neat.genomes.NeatGenome",
             window will be created by `matplotlib` to show the image.
         block_thread (bool): Whether to block the execution's thread while
             showing the image. Useful for visualizing multiple networks at
-            once. In this case, you should call :meth:`.visualize` with this
-            parameter set to `False` on all genomes except for the last one,
-            so all the windows are shown simultaneously.
+            once. In this case, you should call :meth:`.NeatGenome.visualize`
+            with this parameter set to `False` on all genomes except for the
+            last one, so all the windows are shown simultaneously.
         save_to (Optional[str]): Path to save the image. If `None`, the
             image won't be automatically saved.
         save_transparent: Whether the saved image should have a transparent
@@ -358,13 +357,12 @@ def visualize_genome(genome: "ne.neat.genomes.NeatGenome",
 
 
 def _nodes_activation_status(genome: "ne.neat.genomes.NeatGenome",
-                             output_activation_threshold: float,
                              hidden_activation_threshold: float,
-                             input_activation_threshold: Union[
-                                 float,
-                                 List[float],
-                                 List[Tuple[float, str]],
-                             ],
+                             input_visualization_info: Optional[
+                                 List["ne.neat.NodeVisualizationInfo"]],
+                             output_visualization_info: Optional[
+                                 List["ne.neat.NodeVisualizationInfo"]],
+                             output_activate_greatest_only: bool,
 ) -> Dict[int, bool]:
     """ Check each of the network's nodes activation status.
 
@@ -373,8 +371,9 @@ def _nodes_activation_status(genome: "ne.neat.genomes.NeatGenome",
         if the node is activated and ``False`` otherwise).
     """
     status = {}  # type: Dict[int, bool]
-    max_out_node = max(genome.output_nodes, key=lambda n: n.activation)
-    input_idx = 0
+    if output_activate_greatest_only:
+        max_out_node = max(genome.output_nodes, key=lambda n: n.activation)
+    in_idx = out_idx = 0
 
     for node in genome.nodes():
         # Bias node:
@@ -382,52 +381,78 @@ def _nodes_activation_status(genome: "ne.neat.genomes.NeatGenome",
             status[node.id] = False
         # Output node:
         elif node.type == ne.neat.NodeGene.Type.OUTPUT:
-            if len(genome.output_nodes) > 1:
-                status[node.id] = node is max_out_node
+            if output_activate_greatest_only and len(genome.output_nodes) > 1:
+                # noinspection PyUnboundLocalVariable
+                status[node.id] = node == max_out_node
             else:
-                status[node.id] = (node.activation
-                                   > output_activation_threshold)
+                if output_visualization_info is None:
+                    status[node.id] = (node.activation
+                                       > hidden_activation_threshold)
+                else:
+                    info = output_visualization_info[out_idx]
+                    out_idx += 1
+                    status[node.id] = info.is_activated(node.activation)
         # Input node:
         elif node.type == node.type.INPUT:
-            # Single threshold
-            if isinstance(input_activation_threshold, Number):
+            if input_visualization_info is None:
                 status[node.id] = (node.activation
-                                   > input_activation_threshold)
-            # Multiple thresholds:
+                                   > hidden_activation_threshold)
             else:
-                if isinstance(input_activation_threshold[input_idx],
-                              Number):
-                    threshold = input_activation_threshold[input_idx]
-                    mode = "greater"
-                else:
-                    threshold, mode = input_activation_threshold[input_idx]
-
-                input_idx += 1
-
-                # "Greater than" mode:
-                if mode == "greater":
-                    status[node.id] = node.activation > threshold
-                # "Less than" mode:
-                elif mode == "less":
-                    status[node.id] = node.activation < threshold
-                # "Equal" mode:
-                elif mode == "equal":
-                    status[node.id] = (abs(node.activation - threshold)
-                                       < 1e-3)
-                # "Different" mode:
-                elif mode == "diff":
-                    status[node.id] = (abs(node.activation - threshold)
-                                       > 1e-3)
-                # Invalid mode:
-                else:
-                    raise ValueError(f"Invalid mode \"{mode}\" for "
-                                     "verifying the activation status of "
-                                     "an input node!")
+                info = input_visualization_info[in_idx]
+                in_idx += 1
+                status[node.id] = info.is_activated(node.activation)
         # Hidden node:
         else:
             status[node.id] = node.activation > hidden_activation_threshold
 
     return status
+
+
+class NodeVisualizationInfo:
+    """ Stores information about an input or output node of a
+    :class:`.NeatGenome` to be visualized with the
+    :func:`.neat.visualize_activations` function.
+
+    Args:
+        label (str): Label to be drawn next to the node.
+        activation_threshold (float): Value to be taken as reference when
+            checking if the node is activated or not.
+        mode (str): Name of the method to be used to check if the node is
+            activated or not. Currently available modes: "greater", "less",
+            "equal" and "diff".
+    """
+
+    _ACTIVATION_MODES = {"greater", "less", "equal", "diff"}
+
+    def __init__(self,
+                 label: str = "",
+                 activation_threshold: float = 0.5,
+                 mode: str = "greater",
+                 equality_precision: float = 1e-2) -> None:
+        assert mode in NodeVisualizationInfo._ACTIVATION_MODES, (
+            f"Invalid mode \"{mode}\" for verifying the activation status of "
+            "a node!"
+        )
+
+        self.label = label
+        self.threshold = activation_threshold
+        self.mode = mode
+        self.equality_precision = equality_precision
+
+    def is_activated(self, activation: float) -> bool:
+        """ Checks whether the node is activated or not. """
+        # "Greater than" mode:
+        if self.mode == "greater":
+            return activation > self.threshold
+        # "Less than" mode:
+        elif self.mode == "less":
+            return activation < self.threshold
+        # "Equal" mode:
+        elif self.mode == "equal":
+            return abs(activation - self.threshold) < self.equality_precision
+        # "Different" mode:
+        else:
+            return abs(activation - self.threshold) > self.equality_precision
 
 
 # noinspection PyUnboundLocalVariable
@@ -457,14 +482,20 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
                                                    float] = (.015, .015),
                           vertical_pad_pc: Tuple[float,
                                                  float] = (.015, .015),
-                          # Activation threshold
+                          # Nodes labels and activation info
                           hidden_activation_threshold: float = 0.5,
-                          input_activation_threshold: Union[
-                              float, List[float]] = 0.5,
-                          output_activation_threshold: float = 0.5,
+                          input_visualization_info: Optional[Union[
+                              List["ne.neat.NodeVisualizationInfo"],
+                              List[str],
+                          ]] = None,
+                          output_visualization_info: Optional[Union[
+                              List["ne.neat.NodeVisualizationInfo"],
+                              List[str],
+                          ]] = None,
+                          output_activate_greatest_only: bool = True,
                           # Labels
-                          input_labels: Optional[List[str]] = None,
-                          output_labels: Optional[List[str]] = None,
+                          show_input_values: bool = False,
+                          show_output_values: bool = False,
                           labels_color: Union[
                                 str, Tuple[int, int, int]] = "white",
                           labels_config: Dict[str, Any] = None,
@@ -481,16 +512,22 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
                           draw_bias_node: bool = False,
                           return_rgb_array: bool = False,
 ) -> Union["pygame.surface.Surface", np.ndarray]:
-    """ Draws the network taking into consideration each node's activation.
+    """ Draws the network using different colors for activated and deactivated
+    nodes and edges.
 
-    Activated nodes and edges are drawn with different colors. This method
-    requires :mod:`pygame`.
+    Note:
+        This method requires :mod:`pygame` installed. You can install it using
+        the command:
+
+        .. code::
+
+            $ pip install pygame
 
     Args:
         genome (NeatGenome): The genome to be visualized.
         surface_size (Tuple[int, int]): Width and height of the pygame
             surface to be drawn.
-        node_radius (float): Radius (size) of the nodes.
+        node_radius (float): Radius (size) of the drawn nodes.
         node_deactivated_color (Union[str, Tuple[int, int, int]]): Color of
             deactivated nodes.
         node_activated_color (Union[str, Tuple[int, int, int]]): Color of
@@ -503,6 +540,9 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
             activated edges.
         edge_deactivated_color (Union[str, Tuple[int, int, int]]): Color of
             deactivated edges.
+        activated_edge_width (int): The width/thickness of activated edges.
+        deactivated_edge_width (int): The width/thickness of deactivated
+            edges.
         horizontal_pad_pc (Tuple[float, float]): Tuple containing the size
             of the padding on the left and on the right of the surface.
             Unit: the width of the surface.
@@ -512,19 +552,33 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
         hidden_activation_threshold (float): Activation threshold for hidden
             nodes. If the activation value of a hidden node is greater than
             this threshold, the node is considered to be activated.
-        input_activation_threshold (Union[float, List[float]]): Activation
-            threshold(s) for input nodes. If the argument passed to this
-            parameter is a `float`, the same threshold will be considered
-            for all the input nodes. If it's a list, each input node will
-            have its own activation threshold. If the activation value of an
-            input node is greater than the threshold, the node is considered
-            to be activated.
-        output_activation_threshold (float): Activation threshold for output
-            nodes. This value is only used when the network has only one
-            output node. When there are many output nodes, the activated
-            node is always the one with the greatest activation value.
-        input_labels (Optional[List[str]]): Labels for the input nodes.
-        output_labels (Optional[List[str]]): Labels for the output nodes.
+        input_visualization_info (Optional[Union[
+            List[NodeVisualizationInfo], List[str]]]): If it's a list of
+            strings, each string will be the label of an input node and default
+            settings will be used to determine if an input node is activated or
+            not. If it's a list of :class:`.NodeVisualizationInfo` objects, then
+            the information provided in the objects will be used instead. If
+            ``None``, default settings will be used to determine if an input
+            node is activated or not and no labels will be drawn for the input
+            nodes.
+        output_visualization_info (Optional[Union[
+            List[NodeVisualizationInfo], List[str]]]): If it's a list of
+            strings, each string will be the label of an output node and default
+            settings will be used to determine if an output node is activated or
+            not. If it's a list of :class:`.NodeVisualizationInfo` objects, then
+            the information provided in the objects will be used instead. If
+            ``None``, default settings will be used to determine if an output
+            node is activated or not and no labels will be drawn for the output
+            nodes.
+        show_input_values (bool): If ``True`` and ``input_visualization_info``
+            is not ``None``, then the input values will be drawn next to each
+            input node.
+        show_output_values (bool): If ``True`` and ``output_visualization_info``
+            is not ``None``, then the output values will be drawn next to each
+            output node.
+        output_activate_greatest_only (bool): If ``True``, only one output node
+            can be activated at a time (the node with the greatest activation
+            value). Otherwise, more than one node can be activated at a time.
         labels_color (Union[str, Tuple[int, int, int]]): Color of the
             labels.
         labels_config (Dict[str, Any]): Keyword arguments to be passed to
@@ -542,9 +596,6 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
             color of the surface.
         node_border_thickness (Optional[float]): Thickness of the nodes'
             borders. If ``None`` or `0`, no border will be drawn.
-        activated_edge_width (int): The width/thickness of activated edges.
-        deactivated_edge_width (int): The width/thickness of deactivated
-            edges.
         draw_bias_node (bool): Whether to draw the network's bias node or
             not.
         return_rgb_array (bool): If ``True``, returns a numpy array with the
@@ -587,43 +638,104 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
     surface.fill(background_color)
 
     # Font (for rendering the labels):
-    if input_labels is not None or output_labels is not None:
-        if labels_config is None:
-            labels_config = dict(name="monospace", size=15,
-                                 bold=True, italic=False)
-        font = pygame.font.SysFont(**labels_config)
+    if labels_config is None:
+        labels_config = dict(name="monospace", size=15,
+                             bold=True, italic=False)
+    font = pygame.font.SysFont(**labels_config)
 
     # New variable for the horizontal padding:
     # (required for placing the labels)
     h_pad = list(horizontal_pad_pc)
 
     # Rendering input labels:
-    if input_labels is not None:
+    if input_visualization_info is not None:
+        # Processing str list:
+        if isinstance(input_visualization_info[0], str):
+            input_visualization_info = [
+                NodeVisualizationInfo(label=label)  # type: ignore
+                for label in input_visualization_info
+            ]
+
+        # Casting to list of NodeVisualizationInfo objs:
+        input_visualization_info = cast(List[NodeVisualizationInfo],
+                                        input_visualization_info)
+
+        assert len(input_visualization_info) == len(genome.input_nodes), (
+            "Invalid number of labels or visualization info objects! There "
+            "must be one item for each input node."
+        )
+
+        # Rendering labels:
         rendered_in_labels = []  # type: List[pygame.surface.Surface]
-        for label_txt, node in zip(input_labels, genome.input_nodes):
+        for info, node in zip(input_visualization_info,
+                              genome.input_nodes):
+            # Building the label's text:
+            txt = ""
+            if len(info.label) > 0:
+                txt += f"{info.label}" + (": " if show_input_values else "")
+
+            if show_input_values:
+                txt += f"{node.activation:.2f}  -->"
+
+            txt += " " * 4
+
+            # Rendering the label:
             rendered_in_labels.append(
-                font.render(f"{label_txt}: {node.activation:.2f}  -->   ",
-                            True, labels_color)  # type: ignore
+                font.render(txt, True, labels_color)  # type: ignore
             )
+
+        # Adjusting padding:
         max_width = max(rendered_in_labels,
                         key=lambda s: s.get_size()[0]).get_size()[0]
-        h_pad[0] = (max_width + h_pad[0]*surface_size[0]) / surface_size[0]
+        h_pad[0] = (max_width + h_pad[0] * surface_size[0]) / surface_size[0]
 
     # Rendering output labels:
-    if output_labels is not None:
-        rendered_out_labels = [font.render(" " * 4 + label_txt, True,
-                                           labels_color)  # type: ignore
-                               for label_txt in output_labels]
+    if output_visualization_info is not None:
+        # Processing str list
+        if isinstance(output_visualization_info[0], str):
+            output_visualization_info = [
+                NodeVisualizationInfo(label=label)  # type: ignore
+                for label in output_visualization_info
+            ]
+
+        # Casting to list of NodeVisualizationInfo objs:
+        output_visualization_info = cast(List[NodeVisualizationInfo],
+                                         output_visualization_info)
+
+        assert len(output_visualization_info) == len(genome.output_nodes), (
+            "Invalid number of labels or visualization info objects! There "
+            "must be one item for each output node."
+        )
+
+        # Rendering labels:
+        rendered_out_labels = []  # type: List[pygame.surface.Surface]
+        for info, node in zip(output_visualization_info,
+                              genome.output_nodes):
+            # Building the label's text:
+            txt = " " * 3
+            if show_output_values:
+                txt += f"--> {node.activation:.2f}"
+
+            if len(info.label) > 0:
+                txt += " " + info.label
+
+            # Rendering the label:
+            rendered_out_labels.append(
+                font.render(txt, True, labels_color)  # type: ignore
+            )
+
+        # Adjusting padding:
         max_width = max(rendered_out_labels,
                         key=lambda s: s.get_size()[0]).get_size()[0]
-        h_pad[1] = (max_width + h_pad[1]*surface_size[1]) / surface_size[1]
+        h_pad[1] = (max_width + h_pad[1] * surface_size[0]) / surface_size[0]
 
     # Checking the activation status of the nodes:
     node_activated = _nodes_activation_status(
         genome=genome,
-        output_activation_threshold=output_activation_threshold,
         hidden_activation_threshold=hidden_activation_threshold,
-        input_activation_threshold=input_activation_threshold,
+        input_visualization_info=input_visualization_info,
+        output_visualization_info=output_visualization_info,
+        output_activate_greatest_only=output_activate_greatest_only,
     )
 
     # Calculating the nodes' position:
@@ -638,15 +750,15 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
         consider_bias_node=draw_bias_node,
     )
 
-    # Drawing input labels
-    if input_labels is not None:
+    # Drawing input labels:
+    if input_visualization_info is not None:
         for label, node in zip(rendered_in_labels, genome.input_nodes):
             x, y = nodes_pos[node.id]
             w, h = label.get_size()
             surface.blit(label, dest=(x - w, y - h / 2))
 
-    # Drawing input labels
-    if output_labels is not None:
+    # Drawing output labels:
+    if output_visualization_info is not None:
         for label, node in zip(rendered_out_labels, genome.output_nodes):
             x, y = nodes_pos[node.id]
             h = label.get_size()[1]
@@ -655,8 +767,10 @@ def visualize_activations(genome: "ne.neat.genomes.NeatGenome",
     # Drawing edges:
     # (must be drawn before the nodes)
     for c in genome.connections:
-        if not c.enabled or (c.from_node.type == ne.neat.NodeGene.Type.BIAS
-                             and not draw_bias_node):
+        if (not c.enabled
+            or abs(c.weight * c.from_node.activation) < 1e-3
+            or (c.from_node.type == ne.neat.NodeGene.Type.BIAS
+                and not draw_bias_node)):
             continue
 
         if node_activated[c.from_node.id] and c.weight > 0:

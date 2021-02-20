@@ -23,15 +23,35 @@ if __name__ == "__main__":
     # will have in each playing session.
     fitness_function = ne.utils.GymFitnessFunction(
         make_env=make_env,
-        default_num_episodes=7,
+        default_num_episodes=5,
+
+        # This renderer will allow us to visualize the activation of the
+        # network's neurons in realtime! It generates two videos: one with our
+        # genome interacting with the environment and another with our neural
+        # network's state during each step of the interaction.
         env_renderer=ne.utils.NeatActivationsGymRenderer(
             fps=30,
+            input_visualization_info=[
+                ne.neat.NodeVisualizationInfo("Pos X", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Pos Y", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Vel X", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Vel Y", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Angle", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Ang vel", 0, "diff"),
+                ne.neat.NodeVisualizationInfo("Left leg", 1, "equal"),
+                ne.neat.NodeVisualizationInfo("Right leg", 1, "equal"),
+            ],
+            show_input_values=True,
+            output_visualization_info=["NOp", "Left engine", "Down engine",
+                                       "Right engine"],
+            show_output_values=False,
+            output_activate_greatest_only=True,
         ),
     )
 
     # Creating a new population of NEAT genomes:
     # (we're going to use the default settings)
-    population = ne.neat.population.NeatPopulation(size=50,
+    population = ne.neat.population.NeatPopulation(size=100,
                                                    num_inputs=8,
                                                    num_outputs=4)
 
@@ -44,7 +64,7 @@ if __name__ == "__main__":
     )
 
     # Evolving the population (this might take some minutes):
-    history = population.evolve(generations=2,
+    history = population.evolve(generations=50,
                                 fitness_function=fitness_function,
                                 callbacks=[early_stopping_cb])
 
