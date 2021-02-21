@@ -24,6 +24,11 @@
 """ Exposes the main utility functions and classes within this package.
 """
 
+# Modules imports:
+from nevopy.utils import deprecation
+from nevopy.utils import gym_utils
+from nevopy.utils import utils
+
 # From `deprecation.py`
 from nevopy.utils.deprecation import deprecated
 
