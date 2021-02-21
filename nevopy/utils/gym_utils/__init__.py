@@ -24,6 +24,11 @@
 """ Exposes the core functionalities of :mod:`gym_utils`.
 """
 
+# Modules imports:
+from nevopy.utils.gym_utils import callbacks
+from nevopy.utils.gym_utils import fitness_function
+from nevopy.utils.gym_utils import renderers
+
 # Callbacks:
 from nevopy.utils.gym_utils.callbacks import BatchObsGymCallback
 from nevopy.utils.gym_utils.callbacks import GymCallback
