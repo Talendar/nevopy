@@ -42,6 +42,7 @@ short_description = "An open source neuroevolution framework for Python."
 # that is expected to be compatible with the specified version.
 REQUIRED_PACKAGES = [
     "Columnar ~= 1.3.1",
+    "gym ~= 0.18.0",
     "matplotlib ~= 3.3.3",
     "networkx ~= 2.5",
     "numpy ~= 1.19.5",
