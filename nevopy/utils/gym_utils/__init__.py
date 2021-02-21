@@ -21,11 +21,16 @@
 # SOFTWARE.
 # ==============================================================================
 
-""" Imports core names of :mod:`nevopy.fixed_topology`.
+""" Exposes the core functionalities of :mod:`gym_utils`.
 """
 
-# Layers
-from nevopy.fixed_topology import layers
+# Callbacks:
+from nevopy.utils.gym_utils.callbacks import BatchObsGymCallback
+from nevopy.utils.gym_utils.callbacks import GymCallback
 
-# Genomes
-from nevopy.fixed_topology.genomes import FixedTopologyGenome
+# Fitness function
+from nevopy.utils.gym_utils.fitness_function import GymFitnessFunction
+
+# Renderers:
+from nevopy.utils.gym_utils.renderers import GymRenderer
+from nevopy.utils.gym_utils.renderers import NeatActivationsGymRenderer

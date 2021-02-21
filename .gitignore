@@ -131,4 +131,5 @@ dmypy.json
 .pkl
 
 # Fixed-topology genome visualization img
-genome.png
+/examples/*/genome.png
+*.avi

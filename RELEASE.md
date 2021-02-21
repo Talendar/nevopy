@@ -1,3 +1,32 @@
+## Release 0.2.0
+
+### Major Features and Improvements
+
+* Added a new function (`nevopy.neat.visualization.visualize_activations`) to
+  visualize the neural topology of NEAT genomes (`nevopy.neat.NeatGenome`) while
+  they interact with an environment. It's highly customizable and allows, among
+  other things, activated nodes and edges to be drawn with different colors.
+  Check the lunar lander example for a demonstration.
+* Added new utilities to be used with `gym` environments, including callbacks
+  and custom renderers. They're all contained within the new subpackage
+  `nevopy.utils.gym_utils`.
+* Added the bipedal walker example.
+* Improved the lunar lander example. Now it shows the neural topology of the
+  evolved genome side by side with the rendering of the environment.
+
+### Breaking Changes
+
+* Removed `nevopy.fixed_topology.FixedTopologyPopulation` (deprecated since
+  v0.1.0). The `nevopy.genetic_algorithm.GeneticPopulation` class should be 
+  used instead.
+* Removed `nevopy.fixed_topology.FixedTopologyConfig` (deprecated since v0.1.0).
+  The `nevopy.genetic_algorithm.GeneticAlgorithmConfig` class should be used
+  instead.  
+* Removed the Mario example.
+* Replaced `nevopy.utils.GymEnvFitness` with `nevopy.utils.GymFitnessFunction`,
+  which has more features and supports more advanced callbacks.
+
+
 ## Release 0.1.1
 
 ### Bug Fixes and Other Changes

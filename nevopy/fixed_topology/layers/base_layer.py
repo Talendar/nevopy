@@ -30,7 +30,7 @@ from typing import Any, List, Optional, Tuple
 
 from numpy import ndarray
 
-from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 from nevopy.utils import pickle_load
 from nevopy.utils import pickle_save
 
@@ -62,7 +62,7 @@ class BaseLayer(ABC):
     """
 
     def __init__(self,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = True) -> None:
         self.config = config

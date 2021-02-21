@@ -1,7 +1,8 @@
 """ In this example, we're going to use NEvoPy's implementation of the NEAT
-algorithm to learn how to land a spaceship on the moon!
+algorithm to learn how to walk on two legs!
 
-We're going to use the "LunarLander-v2" gym environment to run the simulations.
+We're going to use the "BipedalWalker-v3" gym environment to run the
+simulations.
 
 Authors:
     Gabriel Nogueira (Talendar)
@@ -9,11 +10,55 @@ Authors:
 
 import gym
 import nevopy as ne
+import numpy as np
+
+
+# Some of the settings we can change to customize the behaviour of the NEAT
+# algorithm (to see all the available settings, check out the documentation of
+# the class nevopy.neat.config.NeatConfig):
+CONFIG = ne.neat.NeatConfig(
+    weak_genomes_removal_pc=0.7,
+    weight_mutation_chance=(0.7, 0.9),
+    new_node_mutation_chance=(0.1, 0.5),
+    new_connection_mutation_chance=(0.08, 0.5),
+    enable_connection_mutation_chance=(0.08, 0.5),
+    disable_inherited_connection_chance=0.75,
+    mating_chance=0.75,
+    interspecies_mating_chance=0.05,
+    rank_prob_dist_coefficient=1.75,
+    # weight mutation specifics
+    weight_perturbation_pc=(0.05, 0.4),
+    weight_reset_chance=(0.05, 0.4),
+    new_weight_interval=(-2, 2),
+    # mass extinction
+    mass_extinction_threshold=10,
+    maex_improvement_threshold_pc=0.03,
+    # infanticide
+    infanticide_output_nodes=False,
+    infanticide_input_nodes=False,
+    # speciation
+    species_distance_threshold=1.0,
+    # nodes activation
+    out_nodes_activation=np.tanh,
+    hidden_nodes_activation=ne.activations.steepened_sigmoid,
+)
 
 
 def make_env():
-    """ Makes a new gym 'LunarLander-v2' environment. """
-    return gym.make("LunarLander-v2")
+    """ Makes a new gym "BipedalWalker-v3" environment. """
+    return gym.make("BipedalWalker-v3")
+
+
+class PreProcessObsGymCallback(ne.utils.GymCallback):
+    """ The last 10 features in a observation yielded by the "BipedalWalker-v3"
+    environment are LIDAR rangefinder measurements, which aren't much useful to
+    an agent learning how to solve the easy version of the env, as pointed in
+    the environment's docs. This callback will remove those unnecessary
+    features, in order to speed up the evolution.
+    """
+
+    def on_obs_processing(self, wrapped_obs):
+        wrapped_obs.value = wrapped_obs.value[:-10]
 
 
 if __name__ == "__main__":
@@ -23,43 +68,22 @@ if __name__ == "__main__":
     # will have in each playing session.
     fitness_function = ne.utils.GymFitnessFunction(
         make_env=make_env,
-        default_num_episodes=5,
-
-        # This renderer will allow us to visualize the activation of the
-        # network's neurons in realtime! It generates two videos: one with our
-        # genome interacting with the environment and another with our neural
-        # network's state during each step of the interaction.
-        env_renderer=ne.utils.NeatActivationsGymRenderer(
-            fps=30,
-            input_visualization_info=[
-                ne.neat.NodeVisualizationInfo("Pos X", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Pos Y", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Vel X", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Vel Y", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Angle", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Ang vel", 0, "diff"),
-                ne.neat.NodeVisualizationInfo("Left leg", 1, "equal"),
-                ne.neat.NodeVisualizationInfo("Right leg", 1, "equal"),
-            ],
-            show_input_values=True,
-            output_visualization_info=["NOp", "Left engine", "Down engine",
-                                       "Right engine"],
-            show_output_values=False,
-            output_activate_greatest_only=True,
-        ),
+        default_num_episodes=7,
+        callbacks=[PreProcessObsGymCallback()],
     )
 
     # Creating a new population of NEAT genomes:
     # (we're going to use the default settings)
-    population = ne.neat.population.NeatPopulation(size=100,
-                                                   num_inputs=8,
-                                                   num_outputs=4)
+    population = ne.neat.population.NeatPopulation(size=200,
+                                                   num_inputs=14,
+                                                   num_outputs=4,
+                                                   config=CONFIG)
 
     # We can tell NEvoPy to halt the evolutionary process when a certain fitness
     # value has been achieved by the population. For that, we use a specific
     # type of callback.
     early_stopping_cb = ne.callbacks.FitnessEarlyStopping(
-        fitness_threshold=200,
+        fitness_threshold=300,
         min_consecutive_generations=3,
     )
 

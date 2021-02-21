@@ -4,6 +4,11 @@ fixed-topology neuroevolution algorithm to learn how to play Flappy Bird!
 We're going to use the "FlappyBird-v0" gym environment (available here:
 https://github.com/Talendar/flappy-bird-gym) to simulate the game.
 
+Note:
+    When I ran this example, I wasn't able to get a neural network capable of
+    playing the game. This example is listed here just to demonstrate how to use
+    a fixed-topology genome.
+
 Authors:
     Gabriel Nogueira (Talendar)
 """
@@ -50,23 +55,24 @@ BASE_GENOME = ne.fixed_topology.FixedTopologyGenome(
 )
 
 
-def pre_process_obs(img, env=None, show=False):
-    img = skimage.color.rgb2gray(img)
-    img = np.moveaxis(img, source=1, destination=0)  # width <-> height
-    img = img[10:-90]
+class GymPreProcessImgCallback(ne.utils.GymCallback):
+    """ We'll use this callback to pre-process the images before feeding them
+    to the genomes.
+    """
 
-    w, h = img.shape[0] // 6, img.shape[1] // 6
-    img = skimage.transform.resize(img, (w, h))
+    def on_obs_processing(self, wrapped_obs):
+        img = skimage.color.rgb2gray(wrapped_obs.value)
+        img = np.moveaxis(img, source=1, destination=0)  # width <-> height
+        img = img[10:-90]
 
-    if show:
-        print(f"Simplified image shape: {img.shape}")
-        plt.imshow(img, cmap='gray')
-        plt.show()
+        w, h = img.shape[0] // 6, img.shape[1] // 6
+        img = skimage.transform.resize(img, (w, h))
 
-    img = img.astype(np.float32)
-    img = np.expand_dims(img, axis=0)
-    img = np.expand_dims(img, axis=-1)
-    return img
+        img = img.astype(np.float32)
+        img = np.expand_dims(img, axis=0)
+        img = np.expand_dims(img, axis=-1)
+
+        wrapped_obs.value = img
 
 
 def make_env():
@@ -75,32 +81,35 @@ def make_env():
 
 
 if __name__ == "__main__":
+    # Instantiating our GymPreProcessImgCallback:
+    pre_proc_img_gym_cb = GymPreProcessImgCallback()
+
     # Let's start by visualizing some stuff.
     with make_env() as test_env:
-        obs = test_env.reset()
-        print("Visualizing sample input image...")
-        sample_input = pre_process_obs(obs, show=True)
+        # Obtaining a raw input sample:
+        sample_input = ne.utils.MutableWrapper(test_env.reset())
+        print(f"Raw input shape: {sample_input.value.shape}")
+
+        # Pre-processing the input with our callback:
+        pre_proc_img_gym_cb.on_obs_processing(sample_input)
+        print(f"Pre-processed input shape: {sample_input.value.shape}")
+        plt.imshow(sample_input.value[0], cmap="gray")
+        plt.show()
 
         # Feeding the sample image to our base genome, so it can register
         # the shape of the inputs:
-        print(f"\nSample input shape: {sample_input.shape}")
-        print(f"Sample output: {BASE_GENOME(sample_input)}")
+        print(f"Sample output: {BASE_GENOME(sample_input.value)}")
 
+        # Visualizing our base genome's topology:
         print("\nVisualizing base genome's topology...")
         BASE_GENOME.visualize()
 
     # NEvoPy provides a general fitness function that works with most gym
     # environments, so we don't have to worry about implementing it.
-    fitness_function = ne.utils.GymEnvFitness(
+    fitness_function = ne.utils.GymFitnessFunction(
         make_env=make_env,
-
-        # Number of "tries" the agent will have in each playing session:
-        num_episodes=5,
-
-        # Let's pass the pre_process_obs function we implemented earlier as
-        # argument, so we can pre-process the images from the game screen
-        # before feeding them to our genomes.
-        pre_process_obs=pre_process_obs,
+        default_num_episodes=5,
+        callbacks=[pre_proc_img_gym_cb],
     )
 
     # Creating a new random population of fixed-topology genomes:
@@ -120,7 +129,7 @@ if __name__ == "__main__":
     )
 
     # Evolving the population (this might take some minutes):
-    history = population.evolve(generations=100,
+    history = population.evolve(generations=25,
                                 fitness_function=fitness_function,
                                 callbacks=[early_stopping_cb])
 
@@ -136,8 +145,8 @@ if __name__ == "__main__":
     # Now, let's compare the performance of our best genome with the performance
     # of a random agent.
     print("\nEvaluation (25 episodes):")
-    print(f". Random genome score: {fitness_function(None, eps=25)}")
-    print(f". Evolved genome: {fitness_function(best_genome, eps=25)}")
+    print(f". Random genome score: {fitness_function(None, num_eps=25)}")
+    print(f". Evolved genome: {fitness_function(best_genome, num_eps=25)}")
 
     # Visualizing our best genome and a random agent playing:
     while True:
@@ -148,10 +157,10 @@ if __name__ == "__main__":
                         "Choose an option: "))
         if key == 0:
             print(f"\nRandom genome: "
-                  f"{fitness_function(None, eps=1, visualize=True)}")
+                  f"{fitness_function(None, num_eps=1, visualize=True)}")
         elif key == 1:
             print(f"\nEvolved genome: "
-                  f"{fitness_function(best_genome, eps=1, visualize=True)}")
+                  f"{fitness_function(best_genome, num_eps=1, visualize=True)}")
         elif key == 2:
             break
         else:

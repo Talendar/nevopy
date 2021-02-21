@@ -1,7 +1,8 @@
 """ In this example, we're going to use NEvoPy's implementation of a classic
-fixed-topology neuroevolution algorithm to solve the cart pole challenge.
+fixed-topology neuroevolution algorithm to learn how to walk on two legs!
 
-We're going to use the "CartPole-v1" gym environment to run the simulations.
+We're going to use the "BipedalWalker-v3" gym environment to run the
+simulations.
 
 Authors:
     Gabriel Nogueira (Talendar)
@@ -24,17 +25,17 @@ BASE_GENOME = ne.fixed_topology.FixedTopologyGenome(
 
     # List with the layers of the base genome. Other genomes in the population
     # will have similar layers (with the same topology).
-    layers=[ne.fixed_topology.layers.TFDenseLayer(8, activation="relu"),
-            ne.fixed_topology.layers.TFDenseLayer(2, activation="relu")],
+    layers=[ne.fixed_topology.layers.TFDenseLayer(32, activation="relu"),
+            ne.fixed_topology.layers.TFDenseLayer(4, activation="tanh")],
 
     # Shape of the input samples expected by the genome.
-    input_shape=[1, 4],
+    input_shape=[1, 24],
 )
 
 
 def make_env():
-    """ Makes a new gym 'CartPole-v1' environment. """
-    return gym.make("CartPole-v1")
+    """ Makes a new gym "BipedalWalker-v3" environment. """
+    return gym.make("BipedalWalker-v3")
 
 
 if __name__ == "__main__":
@@ -44,7 +45,7 @@ if __name__ == "__main__":
         make_env=make_env,
 
         # Number of "tries" the agent will have in each playing session:
-        default_num_episodes=5,
+        default_num_episodes=1,
 
         # Since we're using TensorFlow layers, which require inputs in batches,
         # we must change the shape of the input sample before feeding it to our
@@ -54,14 +55,14 @@ if __name__ == "__main__":
 
     # Creating a new random population of fixed-topology genomes:
     # (we're going to use the default settings)
-    population = ne.genetic_algorithm.GeneticPopulation(size=100,
+    population = ne.genetic_algorithm.GeneticPopulation(size=50,
                                                         base_genome=BASE_GENOME)
 
     # We can tell NEvoPy to halt the evolutionary process when a certain fitness
     # value has been achieved by the population. For that, we use a specific
     # type of callback.
     early_stopping_cb = ne.callbacks.FitnessEarlyStopping(
-        fitness_threshold=500,
+        fitness_threshold=300,
         min_consecutive_generations=3,
     )
 
