@@ -34,7 +34,7 @@ from timeit import default_timer as timer
 import numpy as np
 import tensorflow as tf
 
-from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 from nevopy.fixed_topology.layers import mating
 from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
 from nevopy.fixed_topology.layers.tf_layers import TensorFlowLayer
@@ -42,11 +42,11 @@ from nevopy.fixed_topology.layers.tf_layers import TFConv2DLayer
 import test_utils
 
 
-config = FixedTopologyConfig(  # weight mutation
-                             weight_mutation_chance=(0.7, 0.9),
-                             weight_perturbation_pc=(0.1, 0.4),
-                             weight_reset_chance=(0.1, 0.3),
-                             new_weight_interval=(-2, 2))
+config = GeneticAlgorithmConfig(  # weight mutation
+                                weight_mutation_chance=(0.7, 0.9),
+                                weight_perturbation_pc=(0.1, 0.4),
+                                weight_reset_chance=(0.1, 0.3),
+                                new_weight_interval=(-2, 2))
 
 
 def test_mutate_weights(layer, num_tests=100, verbose=False):

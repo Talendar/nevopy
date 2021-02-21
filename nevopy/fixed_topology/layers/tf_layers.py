@@ -34,7 +34,7 @@ import numpy as np
 import tensorflow as tf
 
 from nevopy.base_genome import InvalidInputError
-from nevopy.fixed_topology.config import FixedTopologyConfig
+from nevopy.genetic_algorithm.config import GeneticAlgorithmConfig
 from nevopy.fixed_topology.layers import mating
 from nevopy.fixed_topology.layers.base_layer import BaseLayer
 from nevopy.fixed_topology.layers.base_layer import IncompatibleLayersError
@@ -113,7 +113,7 @@ class TensorFlowLayer(BaseLayer):
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
                  ] = mating.exchange_units_mating,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = True,
                  **tf_kwargs) -> None:
@@ -296,7 +296,7 @@ class TFConv2DLayer(TensorFlowLayer):
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
                  ] = mating.exchange_units_mating,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = True,
                  **tf_kwargs: Dict[str, Any]) -> None:
@@ -322,7 +322,7 @@ class TFDenseLayer(TensorFlowLayer):
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
                  ] = mating.exchange_weights_mating,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = True,
                  **tf_kwargs: Dict[str, Any]) -> None:
@@ -345,7 +345,7 @@ class TFFlattenLayer(TensorFlowLayer):
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
                  ] = None,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = False,
                  **tf_kwargs: Dict[str, Any]) -> None:
@@ -372,7 +372,7 @@ class TFMaxPool2DLayer(TensorFlowLayer):
                  mating_func: Optional[
                      Callable[[BaseLayer, BaseLayer], BaseLayer]
                  ] = None,
-                 config: Optional[FixedTopologyConfig] = None,
+                 config: Optional[GeneticAlgorithmConfig] = None,
                  input_shape: Optional[Tuple[int, ...]] = None,
                  mutable: Optional[bool] = False,
                  **tf_kwargs: Dict[str, Any]) -> None:
