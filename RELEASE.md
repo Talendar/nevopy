@@ -3,7 +3,7 @@
 ### Bug Fixes and Other Changes
 
 * Added the `gym` package to the project's dependencies.
-* Removed `Pillow` from the project's `requirements.txt`.
+* Changed `Pillow` version on the project's `requirements.txt`.
 
 
 NOTE: the version 0.2.1 was released as a quick-fix for PyPI only.
