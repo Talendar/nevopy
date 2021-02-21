@@ -1,6 +1,6 @@
-<img src="https://github.com/Talendar/nevopy/blob/master/docs/imgs/nevopy.png?raw=true" width="180" alt="NEvoPy logo">
+<img src="https://raw.githubusercontent.com/Talendar/nevopy/master/docs/imgs/nevopy.png" width="180" alt="NEvoPy logo">
 
-<h2> Neuroevolution for Python </h2>
+## Neuroevolution for Python
 
 ![Python versions](https://img.shields.io/pypi/pyversions/nevopy)
 [![License](https://img.shields.io/github/license/Talendar/nevopy)](https://github.com/Talendar/nevopy/blob/master/LICENSE)
@@ -30,7 +30,7 @@ algorithms to generate artificial neural networks (ANNs), is one of the most
 interesting and unexplored fields of machine learning. It is a vast and
 expanding area of research that holds many promises for the future.
 
-<h2> Installing </h2>
+## Installing
 
 To install the current release, use the following command:
 
@@ -38,7 +38,7 @@ To install the current release, use the following command:
 $ pip install nevopy
 ```
 
-<h2> Getting started </h2>
+## Getting started
 
 To learn the basics of *NEvoPy*, the
 [XOR example](https://colab.research.google.com/github/Talendar/nevopy/blob/master/examples/xor/nevopy_xor_example.ipynb)
@@ -72,7 +72,7 @@ overview on *NEvoPy*. The project's documentation is available on
   </a> 
 </p>
 
-<h2> Citing </h2>
+## Citing
 
 If you use *NEvoPy* in your research and would like to cite the *NEvoPy*
 framework, here is a Bibtex entry you can use. It currently contains only the
