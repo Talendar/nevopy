@@ -1,3 +1,13 @@
+## Release 0.2.2
+
+### Bug Fixes and Other Changes
+
+* Added the `gym` package to the project's dependencies.
+
+
+NOTE: the version 0.2.1 was released as a quick-fix for PyPI only.
+
+
 ## Release 0.2.0
 
 ### Major Features and Improvements

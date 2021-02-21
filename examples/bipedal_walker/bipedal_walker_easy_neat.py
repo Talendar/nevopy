@@ -37,7 +37,7 @@ CONFIG = ne.neat.NeatConfig(
     infanticide_output_nodes=False,
     infanticide_input_nodes=False,
     # speciation
-    species_distance_threshold=1.0,
+    species_distance_threshold=0.75,
     # nodes activation
     out_nodes_activation=np.tanh,
     hidden_nodes_activation=ne.activations.steepened_sigmoid,
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     # will have in each playing session.
     fitness_function = ne.utils.GymFitnessFunction(
         make_env=make_env,
-        default_num_episodes=7,
+        default_num_episodes=10,
         callbacks=[PreProcessObsGymCallback()],
     )
 
