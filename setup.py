@@ -32,7 +32,7 @@ Guedes Nogueira (Talendar).
 from typing import List
 import setuptools
 
-_VERSION = "0.2.0"
+_VERSION = "0.2.2"
 
 # Short description.
 short_description = "An open source neuroevolution framework for Python."
