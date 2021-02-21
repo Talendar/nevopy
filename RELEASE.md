@@ -3,6 +3,7 @@
 ### Bug Fixes and Other Changes
 
 * Added the `gym` package to the project's dependencies (version 0.17.3).
+* Fixed missing docs on RTD due to dependencies issues.
 
 NOTE: the version 0.2.1 was released as a quick-fix for PyPI only.
 
