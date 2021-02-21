@@ -43,8 +43,8 @@ class GymFitnessFunction:
     with different :mod:`gym` environments.
 
     Args:
-        make_env (Callable[[], Any]): Callable that creates the environment to
-            be used. It should receive no arguments and return an instance of
+        make_env (Callable[[], gym.Env]): Callable that creates the environment
+            to be used. It should receive no arguments and return an instance of
             :class:`gym.Env`.
         env_renderer (Optional[GymRenderer]): Instance of :class:`.GymRenderer`
             (or a subclass) to be used to render the environment. By default, a
