@@ -88,7 +88,7 @@ if __name__ == "__main__":
     test_genome = ne.neat.NeatGenome(num_inputs=_NUM_INPUTS,
                                      num_outputs=_NUM_OUTPUTS,
                                      config=ne.neat.NeatConfig())
-    for _ in range(10):
+    for _ in range(3):
         test_genome.add_random_hidden_node(id_handler)
         # genome.add_random_connection(id_handler)
 

@@ -4,6 +4,8 @@
 
 * Fixed `nevopy.callbacks.BestGenomeCheckpoint` not working properly with
   negative fitness values.
+* Fixed `nevopy.neat.visualization.columns_graph_layout` wrongfully positioning
+  hidden nodes when the network had only one column of hidden nodes.
   
 ### Breaking Changes
 
