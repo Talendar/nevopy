@@ -1,3 +1,21 @@
+## Release 0.2.3
+
+### Bug Fixes and Other Changes
+
+* Fixed `nevopy.callbacks.BestGenomeCheckpoint` not working properly with
+  negative fitness values.
+* Fixed `nevopy.neat.visualization.columns_graph_layout` wrongfully positioning
+  hidden nodes when the network had only one column of hidden nodes.
+  
+### Breaking Changes
+
+* Removed the `file_prefix` parameter from the
+  `nevopy.callbacks.BestGenomeCheckpoint.__init__` method.
+* Changed the default values of the parameters `out_path` and
+  `min_improvement_pc` of the `nevopy.callbacks.BestGenomeCheckpoint.__init__`
+  method.
+
+
 ## Release 0.2.2
 
 ### Bug Fixes and Other Changes

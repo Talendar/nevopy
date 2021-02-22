@@ -122,7 +122,7 @@ def columns_graph_layout(genome: "ne.neat.genomes.NeatGenome",
             num_cols = np.ceil(len(genome.hidden_nodes) / h_nodes_per_col)
 
         if num_cols == 1:
-            insert_nodes_col(x=width / 2, nodes=genome.hidden_nodes)
+            insert_nodes_col(x=origin_x + width / 2, nodes=genome.hidden_nodes)
         else:
             next_x = origin_x + 2 * node_size
             space_x = (width - 4 * node_size) / num_cols
