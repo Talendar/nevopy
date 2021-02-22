@@ -70,6 +70,7 @@ if __name__ == "__main__":
         make_env=make_env,
         default_num_episodes=10,
         callbacks=[PreProcessObsGymCallback()],
+        env_renderer=ne.utils.GymRenderer(fps=80),
     )
 
     # Creating a new population of NEAT genomes:
