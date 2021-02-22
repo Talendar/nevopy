@@ -549,56 +549,74 @@ class BestGenomeCheckpoint(Callback):
     moments of the evolutionary process.
 
     Args:
-        output_path(str): Path of the output files.
+        output_path(Optional[str]): Path of the output files. By default, the
+            checkpoints are saved to a new directory named according to the
+            current date and time.
         min_improvement_pc (float): Minimum improvement (percentage) in the
             population's best fitness, since the last checkpoint, necessary for
-            a new checkpoint.
-        file_prefix (Optional[str]): Optional prefix for the saved files. If
-            `None`, the current date and time will be used as prefix.
+            a new checkpoint. If ``float('-inf')`` (default) the best genomes of
+            all generations will be saved.
 
     Attributes:
         output_path(str): Path of the output files.
         min_improvement_pc (float): Minimum improvement (percentage) in the
             population's best fitness, since the last checkpoint, necessary for
             a new checkpoint.
-        file_prefix (Optional[str]): Optional prefix for the saved files.
     """
 
     def __init__(self,
-                 output_path: str,
-                 min_improvement_pc: float,
-                 file_prefix: Optional[str] = None) -> None:
+                 output_path: Optional[str] = None,
+                 min_improvement_pc: float = float("-inf")) -> None:
         super().__init__()
-        self.output_path = output_path
+
+        self.output_path = (
+            output_path if output_path is not None
+            else datetime.today().strftime("./checkpoints_%Y-%m-%d-%H-%M-%S")
+        )
+
         self.min_improvement_pc = min_improvement_pc
-        self.file_prefix = (file_prefix if file_prefix is not None
-                            else datetime.today().strftime("%Y-%m-%d-%H-%M-%S"))
-        self._past_best_fitness = None  # type: Optional[float]
-        self._count = 1
+        self._past_best_fitness = None  # Optional[float]
+        self._current_gen = None  # Optional[int]
+
+    def on_generation_start(self,
+                            current_generation: int,
+                            max_generations: int,
+                            **kwargs) -> None:
+        self._current_gen = current_generation
 
     def on_fitness_calculated(self,
                               best_fitness: float,
                               avg_fitness: float,
                               **kwargs) -> None:
-        if self._past_best_fitness is not None:
-            diff = best_fitness - self._past_best_fitness
-            improvement_pc = (diff / self._past_best_fitness
-                              if self._past_best_fitness != 0 else float("inf"))
-            if improvement_pc >= self.min_improvement_pc:
-                genome = self.population.fittest()
-                path = os.path.join(
-                    self.output_path,
-                    f"{self.file_prefix}_genome_checkpoint{self._count}"
-                )
-
-                genome.save(path)
-                _logger.info(
-                    "[CHECKPOINT] Best fitness improved from "
-                    f"{self._past_best_fitness:.2f} to {best_fitness:.2f} "
-                    f"({improvement_pc:.2%}). Best genome saved to: {path}"
-                )
-
-                self._count += 1
-                self._past_best_fitness = best_fitness
+        # Calculating improvement percentage:
+        if self._past_best_fitness == 0:
+            improv_pc = (float("inf") if best_fitness >= 0
+                         else float("-inf") if best_fitness <= 0
+                         else 0)
+        elif self._past_best_fitness is None:
+            improv_pc = float("inf")
         else:
+            diff = best_fitness - self._past_best_fitness
+            improv_pc = diff / self._past_best_fitness
+            improv_pc = abs(improv_pc) * (1, -1)[diff < 0]
+
+        # Saving:
+        if improv_pc >= self.min_improvement_pc:
+            genome = self.population.fittest()
+            path = os.path.join(
+                self.output_path,
+                f"genome_checkpoint_gen{self._current_gen}"
+            )
+
+            genome.save(path)
+
+            pbf = (self._past_best_fitness
+                   if self._past_best_fitness is not None else float("-inf"))
+            _logger.info(
+                "[CHECKPOINT] Best fitness improved from "
+                f"{pbf:.2f} to {best_fitness:.2f} ({improv_pc:.2%}). Best "
+                f"genome saved to: {path}"
+            )
+
+            # Updating past best fitness:
             self._past_best_fitness = best_fitness
