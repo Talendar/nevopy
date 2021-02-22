@@ -1,3 +1,19 @@
+## Release 0.2.3
+
+### Bug Fixes and Other Changes
+
+* Fixed `nevopy.callbacks.BestGenomeCheckpoint` not working properly with
+  negative fitness values.
+  
+### Breaking Changes
+
+* Removed the `file_prefix` parameter from the
+  `nevopy.callbacks.BestGenomeCheckpoint.__init__` method.
+* Changed the default values of the parameters `out_path` and
+  `min_improvement_pc` of the `nevopy.callbacks.BestGenomeCheckpoint.__init__`
+  method.
+
+
 ## Release 0.2.2
 
 ### Bug Fixes and Other Changes
