@@ -195,7 +195,11 @@ class NeatPopulation(BasePopulation):
         self._last_improvement = 0
 
         # creating initial genomes
-        self.genomes = [self._base_genome.random_copy() for _ in range(size)]
+        self.genomes = [self._base_genome.deep_copy()]
+        self.genomes += [self._base_genome.random_copy()
+                         for _ in range(self._size - 1)]
+
+        assert len(self.genomes) == self._size
 
         # creating pioneer species
         new_sp = NeatSpecies(species_id=self._id_handler.next_species_id(),
