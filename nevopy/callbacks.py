@@ -575,8 +575,8 @@ class BestGenomeCheckpoint(Callback):
         )
 
         self.min_improvement_pc = min_improvement_pc
-        self._past_best_fitness = None  # Optional[float]
-        self._current_gen = None  # Optional[int]
+        self._past_best_fitness = None  # type: Optional[float]
+        self._current_gen = None  # type: Optional[int]
 
     def on_generation_start(self,
                             current_generation: int,
