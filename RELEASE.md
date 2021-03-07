@@ -1,3 +1,13 @@
+## Release 0.2.4
+
+### Bug Fixes and Other Changes
+
+* Neat Pop and Genetic Pop: a deep copy of the base genome is now included in
+  the population's initial genomes.
+
+### Breaking Changes
+
+
 ## Release 0.2.3
 
 ### Bug Fixes and Other Changes
