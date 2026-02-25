@@ -83,7 +83,7 @@ show me your work - I'd love to see it.
 ```
 @misc{nevopy,
   title={ {NEvoPy}: A Neuroevolution Framework for Python},
-  author={Gabriel Guedes Nogueira},
+  author={Gabriel Nogueira},
   howpublished={\url{https://github.com/Talendar/nevopy}},   
 }
 ```
